@@ -13,8 +13,9 @@ android {
         applicationId = "com.lnxv.player"
         minSdk = 26
         targetSdk = 34
-        versionCode = 100
-        versionName = "1.0.0"
+        val buildNum = System.getenv("VERSION_CODE")?.toIntOrNull() ?: 0
+        versionCode = 1000 + buildNum
+        versionName = "1.0.$buildNum"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -22,8 +23,22 @@ android {
         }
     }
 
+    signingConfigs {
+        create("lnxvRelease") {
+            val ksPath = System.getenv("KEYSTORE_PATH")
+            if (ksPath != null) {
+                storeFile = file(ksPath)
+                storePassword = System.getenv("KS_PASS")
+                keyAlias = "lnxv"
+                keyPassword = System.getenv("KS_PASS")
+            }
+        }
+    }
+
     buildTypes {
         release {
+            signingConfig = if (System.getenv("KEYSTORE_PATH") != null)
+                signingConfigs.getByName("lnxvRelease") else signingConfigs.getByName("debug")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
@@ -65,6 +80,7 @@ android {
 }
 
 dependencies {
+    implementation("androidx.profileinstaller:profileinstaller:1.3.1")
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)

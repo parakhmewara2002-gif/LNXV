@@ -1,6 +1,8 @@
 package com.lnxv.player.ui.settings
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -15,6 +17,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
@@ -23,6 +27,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -35,6 +40,7 @@ import com.lnxv.player.core.design.GlassIconButton
 import com.lnxv.player.core.design.GlassPanel
 import com.lnxv.player.core.design.NeonCyan
 import com.lnxv.player.core.design.Typography
+import com.lnxv.player.core.update.UpdateState
 
 @Composable
 fun SettingsScreen(
@@ -42,6 +48,9 @@ fun SettingsScreen(
     onBackClick: () -> Unit
 ) {
     val prefs by viewModel.userPreferences.collectAsState()
+    val updateState by viewModel.updateState.collectAsState()
+
+    LaunchedEffect(Unit) { viewModel.checkForUpdate() }
 
     Scaffold(
         containerColor = Color.Black,
@@ -140,6 +149,76 @@ fun SettingsScreen(
             }
 
             item {
+                SectionHeader("Updates")
+                GlassPanel(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    backgroundColor = Color(0x261E293B)
+                ) {
+                    val st = updateState
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Refresh,
+                                contentDescription = null,
+                                tint = NeonCyan
+                            )
+                            Spacer(modifier = Modifier.width(14.dp))
+                            Column {
+                                Text(
+                                    text = "Version ${viewModel.currentVersion}",
+                                    color = Color.White,
+                                    style = Typography.titleMedium,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = when (st) {
+                                        is UpdateState.Idle -> "Tap below to check for updates"
+                                        is UpdateState.Checking -> "Checking for updates..."
+                                        is UpdateState.UpToDate -> "You're on the latest version"
+                                        is UpdateState.Available -> "Update available: v${st.info.versionName}"
+                                        is UpdateState.Downloading -> "Downloading ${(st.progress * 100).toInt()}%"
+                                        is UpdateState.Error -> st.message
+                                    },
+                                    color = Color(0x99FFFFFF),
+                                    fontSize = 12.sp
+                                )
+                            }
+                        }
+                        if (st is UpdateState.Downloading) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            LinearProgressIndicator(
+                                progress = { st.progress },
+                                modifier = Modifier.fillMaxWidth(),
+                                color = NeonCyan
+                            )
+                        }
+                        if (st !is UpdateState.Checking && st !is UpdateState.Downloading) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(NeonCyan.copy(alpha = 0.2f), RoundedCornerShape(12.dp))
+                                    .clickable {
+                                        if (st is UpdateState.Available) viewModel.downloadAndInstall(st.info)
+                                        else viewModel.checkForUpdate()
+                                    }
+                                    .padding(vertical = 10.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = if (st is UpdateState.Available) "Download & install" else "Check for updates",
+                                    color = NeonCyan,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            item {
                 SectionHeader("About LNXV")
                 GlassPanel(
                     modifier = Modifier.fillMaxWidth(),
@@ -160,7 +239,7 @@ fun SettingsScreen(
                         Spacer(modifier = Modifier.width(14.dp))
                         Column {
                             Text(
-                                text = "LNXV Video Player v1.0.0",
+                                text = "LNXV Video Player v${viewModel.currentVersion}",
                                 color = Color.White,
                                 style = Typography.titleMedium,
                                 fontWeight = FontWeight.SemiBold

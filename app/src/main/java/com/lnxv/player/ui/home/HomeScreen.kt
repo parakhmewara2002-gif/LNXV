@@ -387,7 +387,8 @@ fun VideoItemRow(
                     model = ImageRequest.Builder(LocalContext.current)
                         .data(video.uri)
                         .videoFrameMillis(1000)
-                        .crossfade(true)
+                        .size(coil.size.Size(360, 240))
+                        .crossfade(150)
                         .build(),
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
@@ -563,7 +564,8 @@ fun ContinueWatchingCard(
                     model = ImageRequest.Builder(LocalContext.current)
                         .data(video.uri)
                         .videoFrameMillis(video.lastPositionMs.coerceAtLeast(1000L))
-                        .crossfade(true)
+                        .size(coil.size.Size(360, 240))
+                        .crossfade(150)
                         .build(),
                     contentDescription = null,
                     contentScale = ContentScale.Crop,

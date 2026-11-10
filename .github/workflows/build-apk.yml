@@ -7,6 +7,9 @@ on:
     branches: [ "main", "master" ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -32,19 +35,38 @@ jobs:
             gradle wrapper --gradle-version 8.7
           fi
 
-      - name: Build Debug APK with Gradle
+      - name: Decode signing keystore
+        run: echo "${{ secrets.KEYSTORE_B64 }}" | base64 -d > $RUNNER_TEMP/lnxv.jks
+
+      - name: Build Release APK with Gradle
+        env:
+          VERSION_CODE: ${{ github.run_number }}
+          KEYSTORE_PATH: ${{ runner.temp }}/lnxv.jks
+          KS_PASS: ${{ secrets.KS_PASS }}
         run: |
           set +e
-          ./gradlew assembleDebug --stacktrace --console=plain > build.log 2>&1
+          ./gradlew assembleRelease --stacktrace --console=plain > build.log 2>&1
           code=$?
           if [ $code -ne 0 ]; then
             grep -E "^e: |error:|What went wrong|Execution failed|Could not|FAILED|Caused by" build.log | head -40 | while IFS= read -r l; do echo "::error::${l:0:400}"; done
           fi
           exit $code
 
-      - name: Upload Debug APK Artifact
+      - name: Rename APK
+        run: cp app/build/outputs/apk/release/app-release.apk LNXV.apk
+
+      - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: LNXV-app-debug
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: LNXV-app-release
+          path: LNXV.apk
           if-no-files-found: error
+
+      - name: Publish GitHub Release (for in-app updates)
+        if: github.event_name != 'pull_request'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          name: LNXV 1.0.${{ github.run_number }}
+          files: LNXV.apk
+          generate_release_notes: true
