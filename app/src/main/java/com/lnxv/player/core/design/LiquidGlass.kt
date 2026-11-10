@@ -43,17 +43,9 @@ fun Modifier.liquidGlassSurface(
     backgroundColor: Color = Color(0x331E293B),
     borderColor: Color = Color(0x40FFFFFF),
     borderWidth: Dp = 1.dp,
-    blurRadius: Dp = 16.dp
+    @Suppress("UNUSED_PARAMETER") blurRadius: Dp = 16.dp // Modifier.blur blurs content, not backdrop; unused
 ): Modifier = this
     .clip(shape)
-    .then(
-        // Use hardware render effect blur on Android 12+ (API 31+), graceful fallback on older devices
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && blurRadius > 0.dp) {
-            Modifier.blur(blurRadius)
-        } else {
-            Modifier
-        }
-    )
     .background(
         brush = Brush.verticalGradient(
             colors = listOf(
