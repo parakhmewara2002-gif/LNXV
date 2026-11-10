@@ -198,10 +198,12 @@ fun HomeScreen(
                             modifier = Modifier
                                 .weight(1f)
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(
-                                    if (isSelected) Brush.horizontalGradient(
-                                        listOf(NeonCyan.copy(alpha = 0.3f), Color(0x407C4DFF))
-                                    ) else Color.Transparent
+                                .then(
+                                    if (isSelected) Modifier.background(
+                                        Brush.horizontalGradient(
+                                            listOf(NeonCyan.copy(alpha = 0.3f), Color(0x407C4DFF))
+                                        )
+                                    ) else Modifier
                                 )
                                 .clickable { viewModel.selectTab(tab) }
                                 .padding(vertical = 8.dp),

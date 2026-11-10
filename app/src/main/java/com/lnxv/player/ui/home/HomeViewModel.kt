@@ -51,15 +51,30 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val _sortOption = MutableStateFlow(SortOption.DATE_DESC)
     private val _isRefreshing = MutableStateFlow(false)
 
-    val uiState: StateFlow<HomeUiState> = combine(
+    private data class Controls(
+        val tab: HomeTab,
+        val query: String,
+        val sort: SortOption,
+        val refreshing: Boolean
+    )
+
+    private val controlsFlow = combine(
         _selectedTab,
         _searchQuery,
         _sortOption,
-        _isRefreshing,
+        _isRefreshing
+    ) { tab, query, sort, refreshing -> Controls(tab, query, sort, refreshing) }
+
+    val uiState: StateFlow<HomeUiState> = combine(
+        controlsFlow,
         repository.allVideosFlow,
         repository.recentlyPlayedFlow,
         repository.favoritesFlow
-    ) { tab, query, sort, refreshing, allVids, recents, favs ->
+    ) { controls, allVids, recents, favs ->
+        val tab = controls.tab
+        val query = controls.query
+        val sort = controls.sort
+        val refreshing = controls.refreshing
 
         // Filter by search query
         val filteredVideos = if (query.isBlank()) {
