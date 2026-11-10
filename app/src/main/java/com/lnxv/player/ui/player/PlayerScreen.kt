@@ -58,6 +58,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import kotlin.math.abs
+import com.lnxv.player.playback.gestures.GestureType
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
@@ -125,12 +129,27 @@ fun PlayerScreen(
         }
     }
 
+    val aspectValue: Float? = when (playbackState.aspectRatio) {
+        AspectRatioMode.RATIO_16_9 -> 16f / 9f
+        AspectRatioMode.RATIO_4_3 -> 4f / 3f
+        AspectRatioMode.RATIO_21_9 -> 21f / 9f
+        AspectRatioMode.RATIO_18_9 -> 2f
+        AspectRatioMode.RATIO_235_1 -> 2.35f
+        else -> null
+    }
+    val surfaceModifier = (if (aspectValue != null) Modifier.aspectRatio(aspectValue) else Modifier.fillMaxSize())
+        .graphicsLayer {
+            scaleX = overlayState.zoomScale
+            scaleY = overlayState.zoomScale
+        }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black)
     ) {
         // Player Surface View
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         AndroidView(
             factory = { ctx ->
                 PlayerView(ctx).apply {
@@ -144,7 +163,8 @@ fun PlayerScreen(
                         AspectRatioMode.FIT -> AspectRatioFrameLayout.RESIZE_MODE_FIT
                         AspectRatioMode.FILL -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
                         AspectRatioMode.STRETCH -> AspectRatioFrameLayout.RESIZE_MODE_FILL
-                        else -> AspectRatioFrameLayout.RESIZE_MODE_FIT
+                        AspectRatioMode.ORIGINAL -> AspectRatioFrameLayout.RESIZE_MODE_FIT
+                        else -> AspectRatioFrameLayout.RESIZE_MODE_FILL
                     }
                 }
             },
@@ -153,11 +173,13 @@ fun PlayerScreen(
                     AspectRatioMode.FIT -> AspectRatioFrameLayout.RESIZE_MODE_FIT
                     AspectRatioMode.FILL -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
                     AspectRatioMode.STRETCH -> AspectRatioFrameLayout.RESIZE_MODE_FILL
-                    else -> AspectRatioFrameLayout.RESIZE_MODE_FIT
+                    AspectRatioMode.ORIGINAL -> AspectRatioFrameLayout.RESIZE_MODE_FIT
+                        else -> AspectRatioFrameLayout.RESIZE_MODE_FILL
                 }
             },
-            modifier = Modifier.fillMaxSize()
+            modifier = surfaceModifier
         )
+        }
 
         // Gesture detector wrapper
         PlayerGestureDetector(
@@ -173,6 +195,33 @@ fun PlayerScreen(
             onSeekCommitted = { target -> viewModel.seekTo(target) },
             onOverlayStateChanged = { overlayState = it }
         ) {
+            // Gesture HUD (brightness / volume / seek / zoom)
+            if (overlayState.activeGesture != GestureType.NONE) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Box(
+                        modifier = Modifier
+                            .background(Color(0xB3000000), RoundedCornerShape(16.dp))
+                            .padding(horizontal = 20.dp, vertical = 12.dp)
+                    ) {
+                        Text(
+                            text = when (overlayState.activeGesture) {
+                                GestureType.BRIGHTNESS -> "Brightness ${overlayState.brightnessPercent}%"
+                                GestureType.VOLUME -> "Volume ${overlayState.volumePercent}%"
+                                GestureType.SEEK -> {
+                                    val d = overlayState.seekDeltaMs
+                                    "${if (d >= 0) "+" else "-"}${abs(d) / 1000}s  •  ${VideoItem.formatDuration(overlayState.seekTargetMs)}"
+                                }
+                                GestureType.ZOOM -> "Zoom ${"%.1f".format(overlayState.zoomScale)}x"
+                                else -> ""
+                            },
+                            color = Color.White,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+            }
+
             // Loading indicator
             if (playbackState.isBuffering) {
                 Box(

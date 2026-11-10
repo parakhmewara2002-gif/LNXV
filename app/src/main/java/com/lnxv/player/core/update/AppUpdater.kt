@@ -62,11 +62,11 @@ object AppUpdater {
                     break
                 }
             }
-            url ?: throw IOException("No APK in latest release")
+            val apkUrl = url ?: throw IOException("No APK in latest release")
             UpdateInfo(
                 versionName = tag.removePrefix("v"),
                 build = build,
-                apkUrl = url,
+                apkUrl = apkUrl,
                 notes = json.optString("body", "")
             )
         } finally {

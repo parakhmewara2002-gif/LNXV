@@ -97,21 +97,6 @@ fun SettingsScreen(
                             isChecked = prefs.isAmoled,
                             onCheckedChange = { viewModel.toggleAmoled(it) }
                         )
-                        Spacer(modifier = Modifier.height(14.dp))
-                        Text(
-                            text = "Liquid Glass Blur: ${prefs.glassBlurIntensity.toInt()}dp",
-                            color = Color.White,
-                            fontSize = 14.sp
-                        )
-                        Slider(
-                            value = prefs.glassBlurIntensity,
-                            onValueChange = { viewModel.updateGlassBlur(it) },
-                            valueRange = 4f..32f,
-                            colors = SliderDefaults.colors(
-                                thumbColor = NeonCyan,
-                                activeTrackColor = NeonCyan
-                            )
-                        )
                     }
                 }
             }
