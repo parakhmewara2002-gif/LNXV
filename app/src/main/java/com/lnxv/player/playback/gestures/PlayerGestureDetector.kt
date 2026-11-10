@@ -43,7 +43,7 @@ fun PlayerGestureDetector(
     modifier: Modifier = Modifier,
     isLocked: Boolean = false,
     durationMs: Long,
-    currentPositionMs: Long,
+    currentPositionProvider: () -> Long,
     onSingleTap: () -> Unit,
     onDoubleTapSeek: (deltaMs: Long) -> Unit,
     onDoubleTapCenter: () -> Unit,
@@ -75,7 +75,15 @@ fun PlayerGestureDetector(
                     return@pointerInput
                 }
 
+                var longPressed = false
                 detectTapGestures(
+                    onPress = {
+                        tryAwaitRelease()
+                        if (longPressed) {
+                            longPressed = false
+                            onLongPressEnd()
+                        }
+                    },
                     onTap = { onSingleTap() },
                     onDoubleTap = { offset ->
                         val screenWidth = size.width
@@ -86,6 +94,7 @@ fun PlayerGestureDetector(
                         }
                     },
                     onLongPress = {
+                        longPressed = true
                         onLongPressStart()
                     }
                 )

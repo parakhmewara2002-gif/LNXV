@@ -56,6 +56,9 @@ class Media3PlayerManager(private val context: Context) : Player.Listener {
     private val _playbackState = MutableStateFlow(PlaybackState())
     val playbackState: StateFlow<PlaybackState> = _playbackState.asStateFlow()
 
+    private val _positionMs = MutableStateFlow(0L)
+    val positionMs: StateFlow<Long> = _positionMs.asStateFlow()
+
     private val _audioTracks = MutableStateFlow<List<AudioTrackInfo>>(emptyList())
     val audioTracks: StateFlow<List<AudioTrackInfo>> = _audioTracks.asStateFlow()
 
@@ -341,14 +344,20 @@ class Media3PlayerManager(private val context: Context) : Player.Listener {
                     }
                 }
 
+                _positionMs.value = currentPos
                 _playbackState.update {
-                    it.copy(
+                    // Coarse (1s) position here so the whole player UI is not invalidated 5x/sec
+                    if (it.durationMs == duration &&
+                        kotlin.math.abs(it.currentPositionMs - currentPos) < 1000L &&
+                        kotlin.math.abs(it.bufferedPositionMs - buffered) < 1000L
+                    ) it
+                    else it.copy(
                         currentPositionMs = currentPos,
                         durationMs = duration,
                         bufferedPositionMs = buffered
                     )
                 }
-                delay(200L)
+                delay(if (exoPlayer.isPlaying) 250L else 1000L)
             }
         }
     }

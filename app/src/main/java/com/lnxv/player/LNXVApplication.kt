@@ -18,7 +18,9 @@ class LNXVApplication : Application(), ImageLoaderFactory {
     val dataStore by lazy { UserPreferencesDataStore(this) }
     val videoRepository by lazy { VideoRepository(this, database.videoDao()) }
     val vaultRepository by lazy { VaultRepository(this, database.videoDao(), dataStore) }
-    val playerManager by lazy { Media3PlayerManager(this) }
+    private val playerManagerDelegate = lazy { Media3PlayerManager(this) }
+    val playerManager by playerManagerDelegate
+    val isPlayerInitialized: Boolean get() = playerManagerDelegate.isInitialized()
 
     override fun onCreate() {
         super.onCreate()

@@ -33,9 +33,30 @@ class VideoRepository(
 
     suspend fun refreshLibrary() = withContext(Dispatchers.IO) {
         val scanned = scanner.scanLocalVideos()
-        if (scanned.isNotEmpty()) {
-            videoDao.insertVideos(scanned)
+        if (scanned.isEmpty()) return@withContext // e.g. permission denied: never wipe the library
+        val existing = videoDao.getAllVideosOnce().associateBy { it.id }
+        // Keep user data (resume position, history stamp, favourite, vault) for known videos
+        val changed = scanned.mapNotNull { s ->
+            val old = existing[s.id]
+            if (old == null) {
+                s
+            } else {
+                val merged = s.copy(
+                    lastPositionMs = old.lastPositionMs,
+                    lastPlayedTimestamp = old.lastPlayedTimestamp,
+                    isFavorite = old.isFavorite,
+                    isVault = old.isVault
+                )
+                if (merged == old) null else merged
+            }
         }
+        if (changed.isNotEmpty()) videoDao.insertVideos(changed)
+        // Remove videos that no longer exist on the device (vault items are kept)
+        val scannedIds = scanned.mapTo(HashSet()) { it.id }
+        existing.values.filter { !it.isVault && it.id !in scannedIds }
+            .map { it.id }
+            .chunked(500)
+            .forEach { videoDao.deleteVideosByIds(it) }
     }
 
     fun getVideosInFolder(folderPath: String): Flow<List<VideoItem>> {

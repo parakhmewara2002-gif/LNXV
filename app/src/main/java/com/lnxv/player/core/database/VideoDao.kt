@@ -16,6 +16,12 @@ interface VideoDao {
     @Query("SELECT * FROM videos WHERE isVault = 0 AND folderPath = :folderPath ORDER BY title ASC")
     fun getVideosInFolder(folderPath: String): Flow<List<VideoEntity>>
 
+    @Query("SELECT * FROM videos")
+    suspend fun getAllVideosOnce(): List<VideoEntity>
+
+    @Query("DELETE FROM videos WHERE id IN (:ids)")
+    suspend fun deleteVideosByIds(ids: List<Long>)
+
     @Query("SELECT * FROM videos WHERE id = :id LIMIT 1")
     suspend fun getVideoById(id: Long): VideoEntity?
 

@@ -68,7 +68,9 @@ class MainActivity : ComponentActivity() {
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()
         // If playing video, enter PiP mode automatically
-        val player = (application as LNXVApplication).playerManager.exoPlayer
+        val app = application as LNXVApplication
+        if (!app.isPlayerInitialized) return
+        val player = app.playerManager.exoPlayer
         if (player.isPlaying && PipManager.isPipSupported(this)) {
             val format = player.videoFormat
             val width = format?.width ?: 16

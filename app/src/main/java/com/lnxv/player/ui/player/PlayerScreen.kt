@@ -164,7 +164,7 @@ fun PlayerScreen(
             modifier = Modifier.fillMaxSize(),
             isLocked = playbackState.isScreenLocked,
             durationMs = playbackState.durationMs,
-            currentPositionMs = playbackState.currentPositionMs,
+            currentPositionProvider = { viewModel.positionMs.value },
             onSingleTap = { viewModel.toggleControlsVisibility() },
             onDoubleTapSeek = { delta -> viewModel.seekRelative(delta) },
             onDoubleTapCenter = { viewModel.togglePlayPause() },
@@ -403,19 +403,20 @@ fun PlayerScreen(
                         ) {
                             Column(modifier = Modifier.fillMaxWidth()) {
                                 // Timeline Scrubber
+                                val positionMs by viewModel.positionMs.collectAsState()
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
                                     Text(
-                                        text = VideoItem.formatDuration(playbackState.currentPositionMs),
+                                        text = VideoItem.formatDuration(positionMs),
                                         color = Color.White,
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Medium
                                     )
                                     Slider(
-                                        value = playbackState.progress,
+                                        value = if (playbackState.durationMs > 0) (positionMs.toFloat() / playbackState.durationMs).coerceIn(0f, 1f) else 0f,
                                         onValueChange = { newProgress ->
                                             val target = (newProgress * playbackState.durationMs).toLong()
                                             viewModel.seekTo(target)

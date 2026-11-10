@@ -34,6 +34,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     private val videoRepository = (application as LNXVApplication).videoRepository
 
     val playbackState: StateFlow<PlaybackState> = playerManager.playbackState
+    val positionMs: StateFlow<Long> = playerManager.positionMs
     val audioTracks: StateFlow<List<AudioTrackInfo>> = playerManager.audioTracks
     val subtitleTracks: StateFlow<List<SubtitleTrackInfo>> = playerManager.subtitleTracks
 
@@ -131,7 +132,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
 
     fun saveProgress() {
         val video = _uiState.value.currentVideo ?: return
-        val currentPosition = playbackState.value.currentPositionMs
+        val currentPosition = positionMs.value
         viewModelScope.launch {
             videoRepository.updatePlaybackPosition(video.id, currentPosition)
         }
