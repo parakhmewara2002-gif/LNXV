@@ -1,0 +1,144 @@
+package com.lnxv.player.ui.player
+
+import android.app.Application
+import android.net.Uri
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import com.lnxv.player.LNXVApplication
+import com.lnxv.player.core.model.AspectRatioMode
+import com.lnxv.player.core.model.AudioTrackInfo
+import com.lnxv.player.core.model.DecoderMode
+import com.lnxv.player.core.model.PlaybackState
+import com.lnxv.player.core.model.SubtitleStyleConfig
+import com.lnxv.player.core.model.SubtitleTrackInfo
+import com.lnxv.player.core.model.VideoItem
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+
+data class PlayerUiState(
+    val currentVideo: VideoItem? = null,
+    val isControlsVisible: Boolean = true,
+    val showSpeedDialog: Boolean = false,
+    val showAspectRatioDialog: Boolean = false,
+    val showAudioDialog: Boolean = false,
+    val showSubtitleDialog: Boolean = false,
+    val showPropertiesDialog: Boolean = false,
+    val subtitleStyle: SubtitleStyleConfig = SubtitleStyleConfig()
+)
+
+class PlayerViewModel(application: Application) : AndroidViewModel(application) {
+
+    private val playerManager = (application as LNXVApplication).playerManager
+    private val videoRepository = (application as LNXVApplication).videoRepository
+
+    val playbackState: StateFlow<PlaybackState> = playerManager.playbackState
+    val audioTracks: StateFlow<List<AudioTrackInfo>> = playerManager.audioTracks
+    val subtitleTracks: StateFlow<List<SubtitleTrackInfo>> = playerManager.subtitleTracks
+
+    private val _uiState = MutableStateFlow(PlayerUiState())
+    val uiState: StateFlow<PlayerUiState> = _uiState.asStateFlow()
+
+    fun loadVideo(videoId: Long) {
+        viewModelScope.launch {
+            val video = videoRepository.getVideoById(videoId)
+            if (video != null) {
+                _uiState.value = _uiState.value.copy(currentVideo = video)
+                playerManager.prepareAndPlay(
+                    uri = video.uri,
+                    startPositionMs = video.lastPositionMs
+                )
+            }
+        }
+    }
+
+    fun playNetworkStream(url: String, title: String) {
+        val uri = Uri.parse(url)
+        val dummyVideo = VideoItem(
+            id = System.currentTimeMillis(),
+            title = title,
+            uri = uri,
+            path = url,
+            durationMs = 0L,
+            sizeBytes = 0L,
+            width = 1920,
+            height = 1080,
+            mimeType = "video/*",
+            dateAddedSec = System.currentTimeMillis() / 1000,
+            folderPath = "Network Streams",
+            folderName = "Network"
+        )
+        _uiState.value = _uiState.value.copy(currentVideo = dummyVideo)
+        playerManager.prepareAndPlay(uri)
+    }
+
+    fun togglePlayPause() = playerManager.togglePlayPause()
+
+    fun seekTo(positionMs: Long) = playerManager.seekTo(positionMs)
+
+    fun seekRelative(deltaMs: Long) = playerManager.seekRelative(deltaMs)
+
+    fun setPlaybackSpeed(speed: Float) = playerManager.setPlaybackSpeed(speed)
+
+    fun startSpeedPreview() = playerManager.startSpeedPreview(2.0f)
+
+    fun stopSpeedPreview() = playerManager.stopSpeedPreview()
+
+    fun setAspectRatio(mode: AspectRatioMode) = playerManager.setAspectRatio(mode)
+
+    fun setDecoderMode(mode: DecoderMode) = playerManager.setDecoderMode(mode)
+
+    fun toggleScreenLock() = playerManager.toggleScreenLock()
+
+    fun setPointA() = playerManager.setPointA()
+    fun setPointB() = playerManager.setPointB()
+    fun clearABRepeat() = playerManager.clearABRepeat()
+
+    fun startSleepTimer(minutes: Int) = playerManager.startSleepTimer(minutes)
+    fun cancelSleepTimer() = playerManager.cancelSleepTimer()
+
+    fun selectAudioTrack(track: AudioTrackInfo) = playerManager.selectAudioTrack(track)
+    fun selectSubtitleTrack(track: SubtitleTrackInfo?) = playerManager.selectSubtitleTrack(track)
+
+    fun toggleControlsVisibility() {
+        _uiState.value = _uiState.value.copy(isControlsVisible = !_uiState.value.isControlsVisible)
+    }
+
+    fun setControlsVisibility(visible: Boolean) {
+        _uiState.value = _uiState.value.copy(isControlsVisible = visible)
+    }
+
+    fun showSpeedDialog(show: Boolean) {
+        _uiState.value = _uiState.value.copy(showSpeedDialog = show)
+    }
+
+    fun showAspectRatioDialog(show: Boolean) {
+        _uiState.value = _uiState.value.copy(showAspectRatioDialog = show)
+    }
+
+    fun showAudioDialog(show: Boolean) {
+        _uiState.value = _uiState.value.copy(showAudioDialog = show)
+    }
+
+    fun showSubtitleDialog(show: Boolean) {
+        _uiState.value = _uiState.value.copy(showSubtitleDialog = show)
+    }
+
+    fun showPropertiesDialog(show: Boolean) {
+        _uiState.value = _uiState.value.copy(showPropertiesDialog = show)
+    }
+
+    fun saveProgress() {
+        val video = _uiState.value.currentVideo ?: return
+        val currentPosition = playbackState.value.currentPositionMs
+        viewModelScope.launch {
+            videoRepository.updatePlaybackPosition(video.id, currentPosition)
+        }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        saveProgress()
+    }
+}

@@ -1,0 +1,11 @@
+<resources>
+    <color name="primary">#00E5FF</color>
+    <color name="primary_variant">#00B0FF</color>
+    <color name="secondary">#7C4DFF</color>
+    <color name="background_amoled">#000000</color>
+    <color name="surface_dark">#0F141C</color>
+    <color name="surface_glass_dark">#26FFFFFF</color>
+    <color name="glass_border_dark">#33FFFFFF</color>
+    <color name="text_primary_dark">#F0F6FC</color>
+    <color name="text_secondary_dark">#8B949E</color>
+</resources>

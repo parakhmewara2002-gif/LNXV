@@ -1,0 +1,46 @@
+<resources>
+    <string name="app_name">LNXV</string>
+    <string name="tagline">Premium Liquid Glass Video Player</string>
+
+    <!-- Navigation & Tabs -->
+    <string name="nav_videos">Videos</string>
+    <string name="nav_folders">Folders</string>
+    <string name="nav_favorites">Favorites</string>
+    <string name="nav_history">History</string>
+    <string name="nav_vault">Vault</string>
+    <string name="nav_settings">Settings</string>
+
+    <!-- Library Sections -->
+    <string name="search_videos_hint">Search videos, folders, tags…</string>
+    <string name="continue_watching">Continue Watching</string>
+    <string name="all_videos">All Videos</string>
+    <string name="all_folders">Folders</string>
+    <string name="empty_videos">No videos found on device</string>
+    <string name="empty_history">No recently watched videos</string>
+    <string name="empty_favorites">No favorites yet</string>
+    <string name="permission_required_title">Storage Permission Required</string>
+    <string name="permission_required_desc">LNXV needs access to your media files to discover and play videos smoothly.</string>
+    <string name="grant_permission">Grant Access</string>
+
+    <!-- Player Controls -->
+    <string name="speed">Speed</string>
+    <string name="aspect_ratio">Aspect Ratio</string>
+    <string name="audio_tracks">Audio Tracks</string>
+    <string name="subtitles">Subtitles</string>
+    <string name="decoder">Decoder</string>
+    <string name="screen_lock">Screen Lock</string>
+    <string name="sleep_timer">Sleep Timer</string>
+    <string name="ab_repeat">AB Repeat</string>
+    <string name="properties">Properties</string>
+    <string name="pip_mode">Picture in Picture</string>
+    <string name="background_play">Background Play</string>
+
+    <!-- Vault -->
+    <string name="vault_title">Private Vault</string>
+    <string name="vault_enter_pin">Enter 4-Digit PIN</string>
+    <string name="vault_set_pin">Set New 4-Digit PIN</string>
+    <string name="vault_confirm_pin">Confirm 4-Digit PIN</string>
+    <string name="vault_pin_mismatch">PINs do not match. Try again.</string>
+    <string name="vault_empty">No protected videos in vault</string>
+    <string name="vault_add_video">Add Video to Vault</string>
+</resources>
