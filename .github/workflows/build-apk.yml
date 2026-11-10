@@ -33,7 +33,14 @@ jobs:
           fi
 
       - name: Build Debug APK with Gradle
-        run: ./gradlew assembleDebug --stacktrace
+        run: |
+          set +e
+          ./gradlew assembleDebug --stacktrace --console=plain > build.log 2>&1
+          code=$?
+          if [ $code -ne 0 ]; then
+            grep -E "^e: |error:|What went wrong|Execution failed|Could not|FAILED|Caused by" build.log | head -40 | while IFS= read -r l; do echo "::error::${l:0:400}"; done
+          fi
+          exit $code
 
       - name: Upload Debug APK Artifact
         uses: actions/upload-artifact@v4
