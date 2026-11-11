@@ -58,6 +58,16 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import com.lnxv.player.core.util.SeekMath
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.Lifecycle
+import androidx.core.view.WindowInsetsControllerCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowCompat
+import androidx.activity.compose.BackHandler
+import android.view.WindowManager
+import android.os.Build
 import androidx.media3.ui.CaptionStyleCompat
 import android.util.TypedValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -131,8 +141,53 @@ fun PlayerScreen(
         }
     }
 
-    DisposableEffect(Unit) {
+    // Closing the player (UI back button OR system back) saves progress and STOPS playback
+    BackHandler {
+        viewModel.closePlayer()
+        onBackClick()
+    }
+
+    // Real immersive fullscreen: hide system bars, keep screen on, draw into display cutout.
+    // Re-applied on every resume so bars cannot stay visible after dialogs / returning from PiP.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(activity, lifecycleOwner) {
+        val window = activity?.window
+        val controller = window?.let { WindowCompat.getInsetsController(it, it.decorView) }
+        fun enterImmersive() {
+            if (window == null || controller == null) return
+            controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            controller.hide(WindowInsetsCompat.Type.systemBars())
+            window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                val lp = window.attributes
+                lp.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+                window.attributes = lp
+            }
+        }
+        enterImmersive()
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) enterImmersive()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            if (window != null && controller != null) {
+                controller.show(WindowInsetsCompat.Type.systemBars())
+                window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                val lp = window.attributes
+                lp.screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE // undo swipe-brightness
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    lp.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_DEFAULT
+                }
+                window.attributes = lp
+            }
+        }
+    }
+
+    DisposableEffect(Unit) {
+        viewModel.setVideoScreenActive(true)
+        onDispose {
+            viewModel.setVideoScreenActive(false)
             viewModel.saveProgress()
             // Reset orientation to sensor
             activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
@@ -320,7 +375,10 @@ fun PlayerScreen(
                                     GlassIconButton(
                                         icon = Icons.Default.ArrowBack,
                                         contentDescription = "Back",
-                                        onClick = onBackClick,
+                                        onClick = {
+                                            viewModel.closePlayer()
+                                            onBackClick()
+                                        },
                                         size = 38.dp
                                     )
                                     Spacer(modifier = Modifier.width(12.dp))
@@ -390,6 +448,20 @@ fun PlayerScreen(
                                                 text = { Text(if (playbackState.sleepTimerRemainingSeconds != null) "Sleep Timer (active)" else "Sleep Timer") },
                                                 onClick = {
                                                     showSleepDialog = true
+                                                    isMoreMenuOpen = false
+                                                }
+                                            )
+                                            DropdownMenuItem(
+                                                text = { Text("Previous frame") },
+                                                onClick = {
+                                                    viewModel.stepFrame(false)
+                                                    isMoreMenuOpen = false
+                                                }
+                                            )
+                                            DropdownMenuItem(
+                                                text = { Text("Next frame") },
+                                                onClick = {
+                                                    viewModel.stepFrame(true)
                                                     isMoreMenuOpen = false
                                                 }
                                             )
@@ -494,22 +566,29 @@ fun PlayerScreen(
                             Column(modifier = Modifier.fillMaxWidth()) {
                                 // Timeline Scrubber
                                 val positionMs by viewModel.positionMs.collectAsState()
+                                var dragFraction by remember { mutableStateOf<Float?>(null) }
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
                                     Text(
-                                        text = VideoItem.formatDuration(positionMs),
+                                        text = VideoItem.formatDuration(
+                                            dragFraction?.let { SeekMath.fractionToPosition(it, playbackState.durationMs) } ?: positionMs
+                                        ),
                                         color = Color.White,
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Medium
                                     )
                                     Slider(
-                                        value = if (playbackState.durationMs > 0) (positionMs.toFloat() / playbackState.durationMs).coerceIn(0f, 1f) else 0f,
-                                        onValueChange = { newProgress ->
-                                            val target = (newProgress * playbackState.durationMs).toLong()
-                                            viewModel.seekTo(target)
+                                        value = dragFraction ?: SeekMath.positionToFraction(positionMs, playbackState.durationMs),
+                                        enabled = playbackState.durationMs > 0,
+                                        onValueChange = { dragFraction = it },
+                                        onValueChangeFinished = {
+                                            dragFraction?.let { f ->
+                                                viewModel.seekTo(SeekMath.fractionToPosition(f, playbackState.durationMs))
+                                            }
+                                            dragFraction = null
                                         },
                                         modifier = Modifier
                                             .weight(1f)

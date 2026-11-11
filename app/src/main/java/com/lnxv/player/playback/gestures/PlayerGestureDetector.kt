@@ -6,6 +6,7 @@ import android.media.AudioManager
 import android.view.WindowManager
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.awaitEachGesture
+import com.lnxv.player.core.util.SeekMath
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.layout.Box
@@ -186,8 +187,7 @@ fun PlayerGestureDetector(
 
                                 when (mode) {
                                     GestureType.SEEK -> {
-                                        val maxPos = latestDuration.coerceAtLeast(0L)
-                                        seekTarget = (startPos + (accX / w * 90_000f).toLong()).coerceIn(0L, maxPos)
+                                        seekTarget = SeekMath.dragTarget(startPos, accX, w, latestDuration)
                                         publish(
                                             overlayState.copy(
                                                 activeGesture = GestureType.SEEK,

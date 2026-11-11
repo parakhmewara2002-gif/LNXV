@@ -51,7 +51,7 @@ fun LNXVTheme(
     val colorScheme = when {
         darkTheme -> {
             if (amoled) DarkColorScheme.copy(background = AmoledBlack)
-            else DarkColorScheme.copy(background = DarkBackground)
+            else DarkColorScheme.copy(background = Color(0xFF16191F), surface = Color(0xFF1F232B))
         }
         else -> LightColorScheme
     }

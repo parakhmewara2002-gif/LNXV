@@ -39,6 +39,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     private val videoRepository = (application as LNXVApplication).videoRepository
     private val dataStore = (application as LNXVApplication).dataStore
     private var pendingSpeed = 1.0f
+    private var closed = false
 
     val userPrefs: StateFlow<UserPreferences> = dataStore.userPreferencesFlow.stateIn(
         scope = viewModelScope,
@@ -58,6 +59,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         if (_uiState.value.currentVideo?.id == videoId) return
         viewModelScope.launch {
             val video = videoRepository.getVideoById(videoId) ?: return@launch
+            playerManager.owner = this@PlayerViewModel
             val prefs = dataStore.userPreferencesFlow.first()
             val last = video.lastPositionMs
             val canResume = last > 5_000L && (video.durationMs <= 0L || last < video.durationMs - 5_000L)
@@ -175,7 +177,27 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         _uiState.value = _uiState.value.copy(showPropertiesDialog = show)
     }
 
+    fun setVideoScreenActive(active: Boolean) {
+        playerManager.isVideoScreenActive = active
+    }
+
+    fun stepFrame(forward: Boolean) = playerManager.stepFrame(forward)
+
+    /** Saves progress, then stops playback if this screen still owns the player. */
+    fun closePlayer() {
+        if (closed) return
+        saveProgress()
+        closed = true
+        if (playerManager.owner === this) {
+            playerManager.owner = null
+            playerManager.isVideoScreenActive = false
+            playerManager.stopPlayback()
+        }
+    }
+
     fun saveProgress() {
+        if (closed) return
+        if (playerManager.owner !== this) return
         val video = _uiState.value.currentVideo ?: return
         val currentPosition = positionMs.value
         viewModelScope.launch {
@@ -185,6 +207,6 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
 
     override fun onCleared() {
         super.onCleared()
-        saveProgress()
+        closePlayer()
     }
 }

@@ -35,6 +35,17 @@ jobs:
             gradle wrapper --gradle-version 8.7
           fi
 
+      - name: Run unit tests
+        run: |
+          set +e
+          ./gradlew testDebugUnitTest --console=plain > test.log 2>&1
+          code=$?
+          python3 .github/scripts/test_summary.py
+          if [ $code -ne 0 ]; then
+            grep -E "^e: |FAILED|What went wrong|Execution failed|AssertionError|expected" test.log | head -30 | while IFS= read -r l; do echo "::error::${l:0:400}"; done
+          fi
+          exit $code
+
       - name: Decode signing keystore
         run: echo "${{ secrets.KEYSTORE_B64 }}" | base64 -d > $RUNNER_TEMP/lnxv.jks
 

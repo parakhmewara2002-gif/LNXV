@@ -20,6 +20,8 @@ import com.lnxv.player.core.model.AudioTrackInfo
 import com.lnxv.player.core.model.DecoderMode
 import com.lnxv.player.core.model.PlaybackState
 import com.lnxv.player.core.model.SubtitleTrackInfo
+import com.lnxv.player.core.util.SeekMath
+import kotlin.math.roundToLong
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -118,12 +120,51 @@ class Media3PlayerManager(private val context: Context) : Player.Listener {
     }
 
     fun seekTo(positionMs: Long) {
-        exoPlayer.seekTo(positionMs.coerceIn(0L, exoPlayer.duration.coerceAtLeast(0L)))
+        // SeekMath treats C.TIME_UNSET as "unknown" (the old clamp turned it into 0 => seek jumped to start)
+        val target = SeekMath.clamp(positionMs, exoPlayer.duration)
+        exoPlayer.seekTo(target)
+        _positionMs.value = target // publish immediately so repeated/rapid seeks never use a stale position
     }
 
     fun seekRelative(deltaMs: Long) {
-        val target = (exoPlayer.currentPosition + deltaMs).coerceIn(0L, exoPlayer.duration.coerceAtLeast(0L))
+        // currentPosition already reflects a pending seek, so rapid repeated seeks accumulate correctly
+        val target = SeekMath.relativeTarget(exoPlayer.currentPosition, deltaMs, exoPlayer.duration)
         exoPlayer.seekTo(target)
+        _positionMs.value = target
+    }
+
+    /** Pauses and steps one video frame (frame duration from the stream's frame rate, 30 fps fallback). */
+    fun stepFrame(forward: Boolean) {
+        exoPlayer.pause()
+        val fps = exoPlayer.videoFormat?.frameRate?.takeIf { it > 0f } ?: 30f
+        val frameMs = (1000f / fps).roundToLong().coerceAtLeast(1L)
+        seekRelative(if (forward) frameMs else -frameMs)
+    }
+
+    /** Which ViewModel currently owns playback (prevents a late-cleared screen from stopping a newer video). */
+    @Volatile var owner: Any? = null
+
+    /** True while the video player screen is on screen (used for auto-PiP decisions). */
+    @Volatile var isVideoScreenActive: Boolean = false
+
+    /** Fully stops playback and releases the loaded media (the ExoPlayer instance itself is kept). */
+    fun stopPlayback() {
+        exoPlayer.pause()
+        exoPlayer.stop()
+        exoPlayer.clearMediaItems()
+        cancelSleepTimer()
+        _positionMs.value = 0L
+        _playbackState.update {
+            it.copy(
+                isPlaying = false,
+                currentPositionMs = 0L,
+                durationMs = 0L,
+                bufferedPositionMs = 0L,
+                isBuffering = false,
+                isEnded = false,
+                abRepeat = ABRepeatState()
+            )
+        }
     }
 
     fun setPlaybackSpeed(speed: Float) {

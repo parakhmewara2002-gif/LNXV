@@ -8,6 +8,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.collectAsState
 import androidx.core.content.ContextCompat
 import androidx.navigation.compose.rememberNavController
 import com.lnxv.player.core.design.LNXVTheme
@@ -15,9 +17,17 @@ import com.lnxv.player.playback.pip.PipManager
 import com.lnxv.player.ui.navigation.LNXVNavigationHost
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
+
+    private val prefScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    @Volatile private var backgroundPlayEnabled = false
+    @Volatile private var autoPipEnabled = true
 
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -37,8 +47,20 @@ class MainActivity : ComponentActivity() {
 
         checkAndRequestPermissions()
 
+        val app = application as LNXVApplication
+        val initialPrefs = runBlocking { app.dataStore.userPreferencesFlow.first() }
+        backgroundPlayEnabled = initialPrefs.isBackgroundPlayEnabled
+        autoPipEnabled = initialPrefs.isAutoPiPEnabled
+        prefScope.launch {
+            app.dataStore.userPreferencesFlow.collect {
+                backgroundPlayEnabled = it.isBackgroundPlayEnabled
+                autoPipEnabled = it.isAutoPiPEnabled
+            }
+        }
+
         setContent {
-            LNXVTheme {
+            val prefs by app.dataStore.userPreferencesFlow.collectAsState(initial = initialPrefs)
+            LNXVTheme(darkTheme = prefs.isDarkMode, amoled = prefs.isAmoled) {
                 val navController = rememberNavController()
                 LNXVNavigationHost(navController = navController)
             }
@@ -70,6 +92,8 @@ class MainActivity : ComponentActivity() {
         // If playing video, enter PiP mode automatically
         val app = application as LNXVApplication
         if (!app.isPlayerInitialized) return
+        // Only auto-enter PiP from the video screen, and only if the user enabled it
+        if (!app.playerManager.isVideoScreenActive || !autoPipEnabled) return
         val player = app.playerManager.exoPlayer
         if (player.isPlaying && PipManager.isPipSupported(this)) {
             val format = player.videoFormat
@@ -77,5 +101,27 @@ class MainActivity : ComponentActivity() {
             val height = format?.height ?: 9
             PipManager.enterPipMode(this, width, height)
         }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        val app = application as LNXVApplication
+        if (!app.isPlayerInitialized) return
+        val manager = app.playerManager
+        if (isInPictureInPictureMode) {
+            // PiP window was dismissed by the user: stop playback completely
+            manager.stopPlayback()
+        } else if (!backgroundPlayEnabled) {
+            manager.pause()
+        }
+    }
+
+    override fun onDestroy() {
+        val app = application as LNXVApplication
+        if (isFinishing && app.isPlayerInitialized) {
+            app.playerManager.stopPlayback()
+        }
+        prefScope.cancel()
+        super.onDestroy()
     }
 }
