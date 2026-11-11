@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.lnxv.player.LNXVApplication
+import com.lnxv.player.core.datastore.UserPreferences
 import com.lnxv.player.core.model.AspectRatioMode
 import com.lnxv.player.core.model.AudioTrackInfo
 import com.lnxv.player.core.model.DecoderMode
@@ -13,7 +14,10 @@ import com.lnxv.player.core.model.SubtitleStyleConfig
 import com.lnxv.player.core.model.SubtitleTrackInfo
 import com.lnxv.player.core.model.VideoItem
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
@@ -25,13 +29,22 @@ data class PlayerUiState(
     val showAudioDialog: Boolean = false,
     val showSubtitleDialog: Boolean = false,
     val showPropertiesDialog: Boolean = false,
-    val subtitleStyle: SubtitleStyleConfig = SubtitleStyleConfig()
+    val subtitleStyle: SubtitleStyleConfig = SubtitleStyleConfig(),
+    val resumePromptPositionMs: Long? = null
 )
 
 class PlayerViewModel(application: Application) : AndroidViewModel(application) {
 
     private val playerManager = (application as LNXVApplication).playerManager
     private val videoRepository = (application as LNXVApplication).videoRepository
+    private val dataStore = (application as LNXVApplication).dataStore
+    private var pendingSpeed = 1.0f
+
+    val userPrefs: StateFlow<UserPreferences> = dataStore.userPreferencesFlow.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.Eagerly,
+        initialValue = UserPreferences()
+    )
 
     val playbackState: StateFlow<PlaybackState> = playerManager.playbackState
     val positionMs: StateFlow<Long> = playerManager.positionMs
@@ -42,16 +55,43 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     val uiState: StateFlow<PlayerUiState> = _uiState.asStateFlow()
 
     fun loadVideo(videoId: Long) {
+        if (_uiState.value.currentVideo?.id == videoId) return
         viewModelScope.launch {
-            val video = videoRepository.getVideoById(videoId)
-            if (video != null) {
-                _uiState.value = _uiState.value.copy(currentVideo = video)
-                playerManager.prepareAndPlay(
-                    uri = video.uri,
-                    startPositionMs = video.lastPositionMs
-                )
+            val video = videoRepository.getVideoById(videoId) ?: return@launch
+            val prefs = dataStore.userPreferencesFlow.first()
+            val last = video.lastPositionMs
+            val canResume = last > 5_000L && (video.durationMs <= 0L || last < video.durationMs - 5_000L)
+            val speed = if (prefs.rememberSpeed) prefs.lastSpeed else prefs.defaultSpeed
+            _uiState.value = _uiState.value.copy(currentVideo = video, resumePromptPositionMs = null)
+
+            when {
+                !canResume || prefs.resumePlaybackMode == "NEVER" -> startPlayback(video, 0L, speed)
+                prefs.resumePlaybackMode == "ASK" -> {
+                    pendingSpeed = speed
+                    playerManager.pause()
+                    _uiState.value = _uiState.value.copy(resumePromptPositionMs = last)
+                }
+                else -> startPlayback(video, last, speed)
             }
         }
+    }
+
+    private fun startPlayback(video: VideoItem, positionMs: Long, speed: Float) {
+        playerManager.prepareAndPlay(uri = video.uri, startPositionMs = positionMs)
+        playerManager.setPlaybackSpeed(speed)
+    }
+
+    fun resumeFromPrompt() {
+        val video = _uiState.value.currentVideo ?: return
+        val pos = _uiState.value.resumePromptPositionMs ?: 0L
+        _uiState.value = _uiState.value.copy(resumePromptPositionMs = null)
+        startPlayback(video, pos, pendingSpeed)
+    }
+
+    fun startOverFromPrompt() {
+        val video = _uiState.value.currentVideo ?: return
+        _uiState.value = _uiState.value.copy(resumePromptPositionMs = null)
+        startPlayback(video, 0L, pendingSpeed)
     }
 
     fun playNetworkStream(url: String, title: String) {
@@ -80,7 +120,12 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
 
     fun seekRelative(deltaMs: Long) = playerManager.seekRelative(deltaMs)
 
-    fun setPlaybackSpeed(speed: Float) = playerManager.setPlaybackSpeed(speed)
+    fun setPlaybackSpeed(speed: Float) {
+        playerManager.setPlaybackSpeed(speed)
+        if (userPrefs.value.rememberSpeed) {
+            viewModelScope.launch { dataStore.updateLastSpeed(speed) }
+        }
+    }
 
     fun startSpeedPreview() = playerManager.startSpeedPreview(2.0f)
 

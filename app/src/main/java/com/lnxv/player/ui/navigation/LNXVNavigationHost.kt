@@ -39,8 +39,7 @@ fun LNXVNavigationHost(navController: NavHostController) {
                     navController.navigate(Screen.Player.createRoute(video.id))
                 },
                 onFolderClick = { folder ->
-                    // Folder detail navigation can filter home view model or open list
-                    homeViewModel.updateSearchQuery(folder.name)
+                    homeViewModel.openFolder(folder.path)
                 },
                 onVaultClick = {
                     navController.navigate(Screen.Vault.route)

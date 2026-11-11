@@ -1,5 +1,6 @@
 package com.lnxv.player.ui.home
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -25,6 +26,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ViewAgenda
+import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
@@ -85,6 +89,7 @@ fun HomeScreen(
     val uiState by viewModel.uiState.collectAsState()
     var isSearchExpanded by remember { mutableStateOf(false) }
     var isSortMenuExpanded by remember { mutableStateOf(false) }
+    BackHandler(enabled = uiState.openFolderPath != null) { viewModel.closeFolder() }
 
     Scaffold(
         containerColor = Color.Black,
@@ -266,6 +271,14 @@ fun HomeScreen(
                                 style = Typography.titleMedium,
                                 fontWeight = FontWeight.SemiBold
                             )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(onClick = { viewModel.toggleViewMode() }) {
+                                Icon(
+                                    imageVector = if (uiState.isGridView) Icons.Default.ViewAgenda else Icons.Default.GridView,
+                                    contentDescription = "Toggle grid/list",
+                                    tint = NeonCyan
+                                )
+                            }
                             Box {
                                 IconButton(onClick = { isSortMenuExpanded = true }) {
                                     Icon(
@@ -289,10 +302,30 @@ fun HomeScreen(
                                     }
                                 }
                             }
+                            }
                         }
                     }
                     if (uiState.videos.isEmpty()) {
                         item { EmptyStateView(message = "No videos discovered on device") }
+                    } else if (uiState.isGridView) {
+                        items(uiState.videos.chunked(2), key = { row -> row.first().id }) { row ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                row.forEach { video ->
+                                    VideoGridCard(
+                                        video = video,
+                                        modifier = Modifier.weight(1f),
+                                        onClick = { onVideoClick(video) },
+                                        onFavoriteToggle = { viewModel.toggleFavorite(video) },
+                                        onVaultMove = { viewModel.moveToVault(video) },
+                                        onDelete = { viewModel.deleteVideo(video) }
+                                    )
+                                }
+                                if (row.size == 1) Spacer(modifier = Modifier.weight(1f))
+                            }
+                        }
                     } else {
                         items(uiState.videos, key = { it.id }) { video ->
                             VideoItemRow(
@@ -306,13 +339,52 @@ fun HomeScreen(
                     }
                 }
                 HomeTab.FOLDERS -> {
-                    if (uiState.folders.isEmpty()) {
+                    if (uiState.openFolderPath != null) {
+                        item {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { viewModel.closeFolder() }
+                                    .padding(vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.ArrowBack,
+                                    contentDescription = "Back",
+                                    tint = NeonCyan
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text(
+                                    text = "${uiState.openFolderName} (${uiState.folderVideos.size})",
+                                    color = Color.White,
+                                    style = Typography.titleMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                        if (uiState.folderVideos.isEmpty()) {
+                            item { EmptyStateView(message = "This folder is empty") }
+                        } else {
+                            items(uiState.folderVideos, key = { it.id }) { video ->
+                                VideoItemRow(
+                                    video = video,
+                                    onClick = { onVideoClick(video) },
+                                    onFavoriteToggle = { viewModel.toggleFavorite(video) },
+                                    onVaultMove = { viewModel.moveToVault(video) },
+                                    onDelete = { viewModel.deleteVideo(video) }
+                                )
+                            }
+                        }
+                    } else if (uiState.folders.isEmpty()) {
                         item { EmptyStateView(message = "No video folders found") }
                     } else {
                         items(uiState.folders, key = { it.path }) { folder ->
                             FolderItemRow(
                                 folder = folder,
-                                onClick = { onFolderClick(folder) }
+                                onClick = { onFolderClick(folder) },
+                                onToggleHidden = { viewModel.setFolderHidden(folder.path, !folder.isHidden) }
                             )
                         }
                     }
@@ -487,8 +559,10 @@ fun VideoItemRow(
 @Composable
 fun FolderItemRow(
     folder: FolderItem,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onToggleHidden: () -> Unit
 ) {
+    var menuOpen by remember { mutableStateOf(false) }
     GlassPanel(
         modifier = Modifier
             .fillMaxWidth()
@@ -530,10 +604,32 @@ fun FolderItemRow(
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = "${folder.videoCount} videos • ${folder.sizeFormatted}",
-                    color = Color(0x80FFFFFF),
+                    text = "${folder.videoCount} videos • ${folder.sizeFormatted}" +
+                        if (folder.isHidden) " • Hidden" else "",
+                    color = if (folder.isHidden) NeonCyan.copy(alpha = 0.7f) else Color(0x80FFFFFF),
                     fontSize = 12.sp
                 )
+            }
+            Box {
+                IconButton(onClick = { menuOpen = true }) {
+                    Icon(
+                        imageVector = Icons.Default.MoreVert,
+                        contentDescription = "Folder options",
+                        tint = Color(0x80FFFFFF)
+                    )
+                }
+                DropdownMenu(
+                    expanded = menuOpen,
+                    onDismissRequest = { menuOpen = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text(if (folder.isHidden) "Show in library" else "Hide from library") },
+                        onClick = {
+                            onToggleHidden()
+                            menuOpen = false
+                        }
+                    )
+                }
             }
         }
     }
@@ -635,5 +731,119 @@ fun EmptyStateView(message: String) {
             color = Color(0x66FFFFFF),
             style = Typography.bodyMedium
         )
+    }
+}
+
+
+@Composable
+fun VideoGridCard(
+    video: VideoItem,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+    onFavoriteToggle: () -> Unit,
+    onVaultMove: () -> Unit,
+    onDelete: () -> Unit
+) {
+    var isMenuOpen by remember { mutableStateOf(false) }
+
+    GlassPanel(
+        modifier = modifier.clickable { onClick() },
+        shape = RoundedCornerShape(16.dp),
+        backgroundColor = Color(0x261E293B),
+        borderColor = Color(0x26FFFFFF)
+    ) {
+        Column {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(100.dp)
+                    .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
+                    .background(Color(0xFF0F141C))
+            ) {
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(video.uri)
+                        .videoFrameMillis(1000)
+                        .size(coil.size.Size(360, 240))
+                        .crossfade(150)
+                        .build(),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(6.dp)
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(Color(0xCC000000))
+                        .padding(horizontal = 4.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = video.durationFormatted,
+                        color = Color.White,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 10.dp, top = 6.dp, bottom = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = video.title,
+                        color = Color.White,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = video.sizeFormatted,
+                        color = Color(0x99FFFFFF),
+                        fontSize = 11.sp
+                    )
+                }
+                Box {
+                    IconButton(onClick = { isMenuOpen = true }) {
+                        Icon(
+                            imageVector = Icons.Default.MoreVert,
+                            contentDescription = "Options",
+                            tint = Color(0x80FFFFFF)
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = isMenuOpen,
+                        onDismissRequest = { isMenuOpen = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text(if (video.isFavorite) "Remove from Favorites" else "Add to Favorites") },
+                            onClick = {
+                                onFavoriteToggle()
+                                isMenuOpen = false
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Move to Private Vault") },
+                            onClick = {
+                                onVaultMove()
+                                isMenuOpen = false
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Delete", color = Color.Red) },
+                            onClick = {
+                                onDelete()
+                                isMenuOpen = false
+                            }
+                        )
+                    }
+                }
+            }
+        }
     }
 }

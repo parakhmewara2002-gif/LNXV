@@ -48,6 +48,11 @@ fun PlayerGestureDetector(
     isLocked: Boolean = false,
     durationMs: Long,
     currentPositionProvider: () -> Long,
+    brightnessEnabled: Boolean = true,
+    volumeEnabled: Boolean = true,
+    seekEnabled: Boolean = true,
+    longPressEnabled: Boolean = true,
+    doubleTapSeekMs: Long = 10_000L,
     onSingleTap: () -> Unit,
     onDoubleTapSeek: (deltaMs: Long) -> Unit,
     onDoubleTapCenter: () -> Unit,
@@ -65,6 +70,11 @@ fun PlayerGestureDetector(
     val latestPosition by rememberUpdatedState(currentPositionProvider)
     val latestOverlayCallback by rememberUpdatedState(onOverlayStateChanged)
     val latestSeekCommit by rememberUpdatedState(onSeekCommitted)
+    val latestBrightnessEnabled by rememberUpdatedState(brightnessEnabled)
+    val latestVolumeEnabled by rememberUpdatedState(volumeEnabled)
+    val latestSeekEnabled by rememberUpdatedState(seekEnabled)
+    val latestLongPressEnabled by rememberUpdatedState(longPressEnabled)
+    val latestDoubleTapMs by rememberUpdatedState(doubleTapSeekMs)
 
     var overlayState by remember { mutableStateOf(GestureOverlayState()) }
     var zoomScale by remember { mutableFloatStateOf(1f) }
@@ -91,14 +101,16 @@ fun PlayerGestureDetector(
                     onDoubleTap = { offset ->
                         val screenWidth = size.width
                         when {
-                            offset.x < screenWidth * 0.35f -> onDoubleTapSeek(-10000L)
-                            offset.x > screenWidth * 0.65f -> onDoubleTapSeek(10000L)
+                            offset.x < screenWidth * 0.35f -> onDoubleTapSeek(-latestDoubleTapMs)
+                            offset.x > screenWidth * 0.65f -> onDoubleTapSeek(latestDoubleTapMs)
                             else -> onDoubleTapCenter()
                         }
                     },
                     onLongPress = {
-                        longPressed = true
-                        onLongPressStart()
+                        if (latestLongPressEnabled) {
+                            longPressed = true
+                            onLongPressStart()
+                        }
                     }
                 )
             }
@@ -113,6 +125,7 @@ fun PlayerGestureDetector(
 
                     var mode = GestureType.NONE
                     var pinching = false
+                    var ignored = false
                     var accX = 0f
                     var accY = 0f
                     var startPos = 0L
@@ -150,14 +163,20 @@ fun PlayerGestureDetector(
                                 accX += delta.x
                                 accY += delta.y
 
-                                if (mode == GestureType.NONE &&
+                                if (mode == GestureType.NONE && !ignored &&
                                     (abs(accX) > touchSlop || abs(accY) > touchSlop)
                                 ) {
-                                    mode = when {
+                                    val candidate = when {
                                         abs(accX) > abs(accY) -> GestureType.SEEK
                                         down.position.x < w / 2f -> GestureType.BRIGHTNESS
                                         else -> GestureType.VOLUME
                                     }
+                                    val allowed = when (candidate) {
+                                        GestureType.SEEK -> latestSeekEnabled
+                                        GestureType.BRIGHTNESS -> latestBrightnessEnabled
+                                        else -> latestVolumeEnabled
+                                    }
+                                    if (allowed) mode = candidate else ignored = true
                                     startPos = latestPosition()
                                     val b = activity?.window?.attributes?.screenBrightness ?: -1f
                                     startBrightness = if (b < 0f) 0.5f else b

@@ -58,6 +58,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.media3.ui.CaptionStyleCompat
+import android.util.TypedValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.material.icons.filled.ScreenLockPortrait
+import androidx.compose.material.icons.filled.ScreenLockLandscape
+import androidx.compose.material.icons.filled.ScreenRotation
 import kotlin.math.abs
 import com.lnxv.player.playback.gestures.GestureType
 import androidx.compose.ui.graphics.graphicsLayer
@@ -108,6 +114,10 @@ fun PlayerScreen(
 
     var overlayState by remember { mutableStateOf(GestureOverlayState()) }
     var isMoreMenuOpen by remember { mutableStateOf(false) }
+    var showSleepDialog by remember { mutableStateOf(false) }
+    var orientationMode by remember { mutableIntStateOf(0) }
+    var playerViewRef by remember { mutableStateOf<PlayerView?>(null) }
+    val prefs by viewModel.userPrefs.collectAsState()
 
     LaunchedEffect(videoId) {
         viewModel.loadVideo(videoId)
@@ -155,6 +165,7 @@ fun PlayerScreen(
                 PlayerView(ctx).apply {
                     player = playerManager.exoPlayer
                     useController = false
+                    playerViewRef = this
                     layoutParams = FrameLayout.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT,
                         ViewGroup.LayoutParams.MATCH_PARENT
@@ -176,6 +187,24 @@ fun PlayerScreen(
                     AspectRatioMode.ORIGINAL -> AspectRatioFrameLayout.RESIZE_MODE_FIT
                         else -> AspectRatioFrameLayout.RESIZE_MODE_FILL
                 }
+                playerView.subtitleView?.let { sv ->
+                    sv.setFixedTextSize(TypedValue.COMPLEX_UNIT_SP, prefs.subtitleTextSize)
+                    val fg = try {
+                        android.graphics.Color.parseColor(prefs.subtitleTextColorHex)
+                    } catch (e: Exception) {
+                        android.graphics.Color.WHITE
+                    }
+                    sv.setStyle(
+                        CaptionStyleCompat(
+                            fg,
+                            0x80000000.toInt(),
+                            android.graphics.Color.TRANSPARENT,
+                            CaptionStyleCompat.EDGE_TYPE_OUTLINE,
+                            android.graphics.Color.BLACK,
+                            null
+                        )
+                    )
+                }
             },
             modifier = surfaceModifier
         )
@@ -187,6 +216,11 @@ fun PlayerScreen(
             isLocked = playbackState.isScreenLocked,
             durationMs = playbackState.durationMs,
             currentPositionProvider = { viewModel.positionMs.value },
+            brightnessEnabled = prefs.isBrightnessGestureEnabled,
+            volumeEnabled = prefs.isBrightnessGestureEnabled,
+            seekEnabled = prefs.isSeekGestureEnabled,
+            longPressEnabled = prefs.isLongPressSpeedEnabled,
+            doubleTapSeekMs = prefs.doubleTapSeekSeconds * 1000L,
             onSingleTap = { viewModel.toggleControlsVisibility() },
             onDoubleTapSeek = { delta -> viewModel.seekRelative(delta) },
             onDoubleTapCenter = { viewModel.togglePlayPause() },
@@ -353,10 +387,17 @@ fun PlayerScreen(
                                             onDismissRequest = { isMoreMenuOpen = false }
                                         ) {
                                             DropdownMenuItem(
-                                                text = { Text("Sleep Timer (30 min)") },
+                                                text = { Text(if (playbackState.sleepTimerRemainingSeconds != null) "Sleep Timer (active)" else "Sleep Timer") },
                                                 onClick = {
-                                                    viewModel.startSleepTimer(30)
+                                                    showSleepDialog = true
                                                     isMoreMenuOpen = false
+                                                }
+                                            )
+                                            DropdownMenuItem(
+                                                text = { Text("Screenshot") },
+                                                onClick = {
+                                                    isMoreMenuOpen = false
+                                                    playerViewRef?.let { ScreenshotHelper.capture(context, it) }
                                                 }
                                             )
                                             DropdownMenuItem(
@@ -523,16 +564,18 @@ fun PlayerScreen(
                                         Spacer(modifier = Modifier.width(8.dp))
                                         // Fullscreen orientation toggle
                                         GlassIconButton(
-                                            icon = Icons.Default.Fullscreen,
-                                            contentDescription = "Rotate",
+                                            icon = when (orientationMode) {
+                                                1 -> Icons.Default.ScreenLockLandscape
+                                                2 -> Icons.Default.ScreenLockPortrait
+                                                else -> Icons.Default.ScreenRotation
+                                            },
+                                            contentDescription = "Orientation",
                                             onClick = {
-                                                if (activity != null) {
-                                                    val current = activity.requestedOrientation
-                                                    activity.requestedOrientation = if (current == ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE) {
-                                                        ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-                                                    } else {
-                                                        ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
-                                                    }
+                                                orientationMode = (orientationMode + 1) % 3
+                                                activity?.requestedOrientation = when (orientationMode) {
+                                                    1 -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                                                    2 -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
+                                                    else -> ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
                                                 }
                                             },
                                             size = 36.dp
@@ -544,6 +587,23 @@ fun PlayerScreen(
                     }
                 }
             }
+        }
+
+        // Resume prompt + sleep timer
+        uiState.resumePromptPositionMs?.let { pos ->
+            ResumeDialog(
+                positionMs = pos,
+                onResume = { viewModel.resumeFromPrompt() },
+                onStartOver = { viewModel.startOverFromPrompt() }
+            )
+        }
+        if (showSleepDialog) {
+            SleepTimerDialog(
+                activeSeconds = playbackState.sleepTimerRemainingSeconds,
+                onSelect = { viewModel.startSleepTimer(it) },
+                onCancelTimer = { viewModel.cancelSleepTimer() },
+                onDismiss = { showSleepDialog = false }
+            )
         }
 
         // Modal Dialogs (Speed, Aspect Ratio, Audio Tracks, Subtitles, Properties)

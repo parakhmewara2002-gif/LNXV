@@ -62,7 +62,8 @@ data class FolderItem(
     val path: String,
     val name: String,
     val videoCount: Int,
-    val totalSizeBytes: Long
+    val totalSizeBytes: Long,
+    val isHidden: Boolean = false
 ) {
     val sizeFormatted: String
         get() = VideoItem.formatFileSize(totalSizeBytes)

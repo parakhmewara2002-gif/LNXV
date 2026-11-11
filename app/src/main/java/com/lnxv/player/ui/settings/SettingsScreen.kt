@@ -1,8 +1,11 @@
 package com.lnxv.player.ui.settings
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -129,6 +132,93 @@ fun SettingsScreen(
                             isChecked = prefs.isBrightnessGestureEnabled,
                             onCheckedChange = { viewModel.toggleBrightnessGesture(it) }
                         )
+                        Spacer(modifier = Modifier.height(14.dp))
+                        SettingSwitchRow(
+                            title = "Remember Playback Speed",
+                            subtitle = "Use the last speed you picked for every video",
+                            isChecked = prefs.rememberSpeed,
+                            onCheckedChange = { viewModel.setRememberSpeed(it) }
+                        )
+                        Spacer(modifier = Modifier.height(14.dp))
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    val next = when (prefs.resumePlaybackMode) {
+                                        "ALWAYS" -> "ASK"
+                                        "ASK" -> "NEVER"
+                                        else -> "ALWAYS"
+                                    }
+                                    viewModel.setResumeMode(next)
+                                },
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(text = "Resume Playback", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                                Text(text = "Tap to change", color = Color(0x99FFFFFF), fontSize = 12.sp)
+                            }
+                            Text(
+                                text = when (prefs.resumePlaybackMode) {
+                                    "ASK" -> "Ask me"
+                                    "NEVER" -> "Start over"
+                                    else -> "Always resume"
+                                },
+                                color = NeonCyan,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(14.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(text = "Subtitle Text Size", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                                Text(text = "${prefs.subtitleTextSize.toInt()} sp", color = Color(0x99FFFFFF), fontSize = 12.sp)
+                            }
+                            Text(
+                                text = "  −  ",
+                                color = NeonCyan,
+                                fontSize = 22.sp,
+                                modifier = Modifier.clickable { viewModel.setSubtitleSize(prefs.subtitleTextSize - 2f) }
+                            )
+                            Text(
+                                text = "  +  ",
+                                color = NeonCyan,
+                                fontSize = 22.sp,
+                                modifier = Modifier.clickable { viewModel.setSubtitleSize(prefs.subtitleTextSize + 2f) }
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(14.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(text = "Subtitle Color", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                listOf(
+                                    "#FFFFFFFF" to Color(0xFFFFFFFF),
+                                    "#FFFFEB3B" to Color(0xFFFFEB3B),
+                                    "#FF00E5FF" to Color(0xFF00E5FF),
+                                    "#FF69F0AE" to Color(0xFF69F0AE)
+                                ).forEach { (hex, color) ->
+                                    Box(
+                                        modifier = Modifier
+                                            .size(28.dp)
+                                            .background(color, CircleShape)
+                                            .border(
+                                                width = if (prefs.subtitleTextColorHex.equals(hex, ignoreCase = true)) 3.dp else 1.dp,
+                                                color = if (prefs.subtitleTextColorHex.equals(hex, ignoreCase = true)) NeonCyan else Color(0x66FFFFFF),
+                                                shape = CircleShape
+                                            )
+                                            .clickable { viewModel.setSubtitleColor(hex) }
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }

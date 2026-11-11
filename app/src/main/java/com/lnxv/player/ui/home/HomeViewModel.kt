@@ -7,12 +7,14 @@ import com.lnxv.player.LNXVApplication
 import com.lnxv.player.core.model.FolderItem
 import com.lnxv.player.core.model.VideoItem
 import com.lnxv.player.data.mediastore.MediaStoreScanner
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOn
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -40,72 +42,101 @@ data class HomeUiState(
     val folders: List<FolderItem> = emptyList(),
     val recentlyPlayed: List<VideoItem> = emptyList(),
     val favorites: List<VideoItem> = emptyList(),
-    val isRefreshing: Boolean = false
+    val isRefreshing: Boolean = false,
+    val openFolderPath: String? = null,
+    val openFolderName: String = "",
+    val folderVideos: List<VideoItem> = emptyList(),
+    val isGridView: Boolean = false
 )
 
 class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val repository = (application as LNXVApplication).videoRepository
-    private val vaultRepo = (application as LNXVApplication).vaultRepository
+    private val app = application as LNXVApplication
+    private val repository = app.videoRepository
+    private val vaultRepo = app.vaultRepository
+    private val dataStore = app.dataStore
 
     private val _selectedTab = MutableStateFlow(HomeTab.VIDEOS)
     private val _searchQuery = MutableStateFlow("")
     private val _sortOption = MutableStateFlow(SortOption.DATE_DESC)
     private val _isRefreshing = MutableStateFlow(false)
+    private val _openFolder = MutableStateFlow<String?>(null)
 
     private data class Controls(
         val tab: HomeTab,
         val query: String,
         val sort: SortOption,
-        val refreshing: Boolean
+        val refreshing: Boolean,
+        val openFolder: String?
     )
 
     private val controlsFlow = combine(
         _selectedTab,
         _searchQuery,
         _sortOption,
-        _isRefreshing
-    ) { tab, query, sort, refreshing -> Controls(tab, query, sort, refreshing) }
+        _isRefreshing,
+        _openFolder
+    ) { tab, query, sort, refreshing, folder -> Controls(tab, query, sort, refreshing, folder) }
+
+    // hidden folders + grid/list mode
+    private val libraryPrefsFlow = dataStore.userPreferencesFlow
+        .map { it.hiddenFolders to (it.libraryViewMode == "GRID") }
+        .distinctUntilChanged()
+
+    private fun sortVideos(list: List<VideoItem>, sort: SortOption): List<VideoItem> = when (sort) {
+        SortOption.DATE_DESC -> list.sortedByDescending { it.dateAddedSec }
+        SortOption.DATE_ASC -> list.sortedBy { it.dateAddedSec }
+        SortOption.NAME_ASC -> list.sortedBy { it.title.lowercase() }
+        SortOption.NAME_DESC -> list.sortedByDescending { it.title.lowercase() }
+        SortOption.SIZE_DESC -> list.sortedByDescending { it.sizeBytes }
+        SortOption.DURATION_DESC -> list.sortedByDescending { it.durationMs }
+    }
 
     val uiState: StateFlow<HomeUiState> = combine(
         controlsFlow,
         repository.allVideosFlow,
         repository.recentlyPlayedFlow,
-        repository.favoritesFlow
-    ) { controls, allVids, recents, favs ->
-        val tab = controls.tab
+        repository.favoritesFlow,
+        libraryPrefsFlow
+    ) { controls, allVids, recents, favs, libPrefs ->
         val query = controls.query
         val sort = controls.sort
-        val refreshing = controls.refreshing
+        val hidden = libPrefs.first
 
-        // Filter by search query
+        // Hidden folders are removed from Videos / Recents / Favorites (but stay in the Folders tab)
+        val visible = if (hidden.isEmpty()) allVids else allVids.filter { it.folderPath !in hidden }
+
         val filteredVideos = if (query.isBlank()) {
-            allVids
+            visible
         } else {
-            allVids.filter { it.title.contains(query, ignoreCase = true) || it.folderName.contains(query, ignoreCase = true) }
-        }
-
-        // Apply sort
-        val sortedVideos = when (sort) {
-            SortOption.DATE_DESC -> filteredVideos.sortedByDescending { it.dateAddedSec }
-            SortOption.DATE_ASC -> filteredVideos.sortedBy { it.dateAddedSec }
-            SortOption.NAME_ASC -> filteredVideos.sortedBy { it.title.lowercase() }
-            SortOption.NAME_DESC -> filteredVideos.sortedByDescending { it.title.lowercase() }
-            SortOption.SIZE_DESC -> filteredVideos.sortedByDescending { it.sizeBytes }
-            SortOption.DURATION_DESC -> filteredVideos.sortedByDescending { it.durationMs }
+            visible.filter {
+                it.title.contains(query, ignoreCase = true) || it.folderName.contains(query, ignoreCase = true)
+            }
         }
 
         val folders = MediaStoreScanner.extractFolders(allVids)
+            .map { it.copy(isHidden = it.path in hidden) }
+
+        val openPath = controls.openFolder
+        val folderVideos = if (openPath == null) {
+            emptyList()
+        } else {
+            sortVideos(allVids.filter { it.folderPath == openPath }, sort)
+        }
 
         HomeUiState(
-            selectedTab = tab,
+            selectedTab = controls.tab,
             searchQuery = query,
             sortOption = sort,
-            videos = sortedVideos,
+            videos = sortVideos(filteredVideos, sort),
             folders = folders,
-            recentlyPlayed = recents,
-            favorites = favs,
-            isRefreshing = refreshing
+            recentlyPlayed = if (hidden.isEmpty()) recents else recents.filter { it.folderPath !in hidden },
+            favorites = if (hidden.isEmpty()) favs else favs.filter { it.folderPath !in hidden },
+            isRefreshing = controls.refreshing,
+            openFolderPath = openPath,
+            openFolderName = folders.firstOrNull { it.path == openPath }?.name ?: "",
+            folderVideos = folderVideos,
+            isGridView = libPrefs.second
         )
     }.flowOn(Dispatchers.Default).stateIn(
         scope = viewModelScope,
@@ -119,6 +150,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     fun selectTab(tab: HomeTab) {
         _selectedTab.value = tab
+        if (tab != HomeTab.FOLDERS) _openFolder.value = null
     }
 
     fun updateSearchQuery(query: String) {
@@ -127,6 +159,23 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     fun updateSortOption(sort: SortOption) {
         _sortOption.value = sort
+    }
+
+    fun openFolder(path: String) {
+        _openFolder.value = path
+    }
+
+    fun closeFolder() {
+        _openFolder.value = null
+    }
+
+    fun setFolderHidden(path: String, hidden: Boolean) {
+        viewModelScope.launch { dataStore.setFolderHidden(path, hidden) }
+    }
+
+    fun toggleViewMode() {
+        val grid = uiState.value.isGridView
+        viewModelScope.launch { dataStore.updateViewMode(if (grid) "LIST" else "GRID") }
     }
 
     fun refreshLibrary() {

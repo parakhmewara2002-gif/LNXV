@@ -63,6 +63,22 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    fun setResumeMode(mode: String) {
+        viewModelScope.launch { dataStore.updateResumeMode(mode) }
+    }
+
+    fun setRememberSpeed(enabled: Boolean) {
+        viewModelScope.launch { dataStore.updateRememberSpeed(enabled) }
+    }
+
+    fun setSubtitleSize(size: Float) {
+        viewModelScope.launch { dataStore.updateSubtitleSize(size.coerceIn(10f, 32f)) }
+    }
+
+    fun setSubtitleColor(hex: String) {
+        viewModelScope.launch { dataStore.updateSubtitleColor(hex) }
+    }
+
     fun toggleDarkMode(enabled: Boolean) {
         viewModelScope.launch {
             dataStore.updateDarkMode(enabled)

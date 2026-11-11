@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -32,7 +33,11 @@ data class UserPreferences(
     val librarySortMode: String = "DATE_DESC",
     val vaultPinHash: String = "",
     val isBackgroundPlayEnabled: Boolean = true,
-    val isAutoPiPEnabled: Boolean = true
+    val isAutoPiPEnabled: Boolean = true,
+    val rememberSpeed: Boolean = false,
+    val lastSpeed: Float = 1.0f,
+    val hiddenFolders: Set<String> = emptySet(),
+    val libraryViewMode: String = "LIST"
 )
 
 class UserPreferencesDataStore(private val context: Context) {
@@ -55,6 +60,10 @@ class UserPreferencesDataStore(private val context: Context) {
         val VAULT_PIN_HASH = stringPreferencesKey("vault_pin_hash")
         val BACKGROUND_PLAY = booleanPreferencesKey("background_play")
         val AUTO_PIP = booleanPreferencesKey("auto_pip")
+        val REMEMBER_SPEED = booleanPreferencesKey("remember_speed")
+        val LAST_SPEED = floatPreferencesKey("last_speed")
+        val HIDDEN_FOLDERS = stringSetPreferencesKey("hidden_folders")
+        val VIEW_MODE = stringPreferencesKey("library_view_mode")
     }
 
     val userPreferencesFlow: Flow<UserPreferences> = context.dataStore.data.map { prefs ->
@@ -75,7 +84,11 @@ class UserPreferencesDataStore(private val context: Context) {
             librarySortMode = prefs[PreferencesKeys.LIBRARY_SORT] ?: "DATE_DESC",
             vaultPinHash = prefs[PreferencesKeys.VAULT_PIN_HASH] ?: "",
             isBackgroundPlayEnabled = prefs[PreferencesKeys.BACKGROUND_PLAY] ?: true,
-            isAutoPiPEnabled = prefs[PreferencesKeys.AUTO_PIP] ?: true
+            isAutoPiPEnabled = prefs[PreferencesKeys.AUTO_PIP] ?: true,
+            rememberSpeed = prefs[PreferencesKeys.REMEMBER_SPEED] ?: false,
+            lastSpeed = prefs[PreferencesKeys.LAST_SPEED] ?: 1.0f,
+            hiddenFolders = prefs[PreferencesKeys.HIDDEN_FOLDERS] ?: emptySet(),
+            libraryViewMode = prefs[PreferencesKeys.VIEW_MODE] ?: "LIST"
         )
     }
 
@@ -117,6 +130,37 @@ class UserPreferencesDataStore(private val context: Context) {
 
     suspend fun updateBrightnessGesture(enabled: Boolean) {
         context.dataStore.edit { it[PreferencesKeys.GESTURE_BRIGHTNESS] = enabled }
+    }
+
+    suspend fun updateResumeMode(mode: String) {
+        context.dataStore.edit { it[PreferencesKeys.RESUME_MODE] = mode }
+    }
+
+    suspend fun updateRememberSpeed(enabled: Boolean) {
+        context.dataStore.edit { it[PreferencesKeys.REMEMBER_SPEED] = enabled }
+    }
+
+    suspend fun updateLastSpeed(speed: Float) {
+        context.dataStore.edit { it[PreferencesKeys.LAST_SPEED] = speed }
+    }
+
+    suspend fun updateSubtitleSize(size: Float) {
+        context.dataStore.edit { it[PreferencesKeys.SUBTITLE_SIZE] = size }
+    }
+
+    suspend fun updateSubtitleColor(hex: String) {
+        context.dataStore.edit { it[PreferencesKeys.SUBTITLE_COLOR] = hex }
+    }
+
+    suspend fun updateViewMode(mode: String) {
+        context.dataStore.edit { it[PreferencesKeys.VIEW_MODE] = mode }
+    }
+
+    suspend fun setFolderHidden(path: String, hidden: Boolean) {
+        context.dataStore.edit { p ->
+            val cur = p[PreferencesKeys.HIDDEN_FOLDERS] ?: emptySet()
+            p[PreferencesKeys.HIDDEN_FOLDERS] = if (hidden) cur + path else cur - path
+        }
     }
 
     suspend fun setVaultPin(pin: String) {
