@@ -1,5 +1,6 @@
 package com.lnxv.player.ui.home
 
+import androidx.compose.runtime.Immutable
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -34,6 +35,7 @@ enum class SortOption(val displayName: String) {
     DURATION_DESC("Duration (Longest)")
 }
 
+@Immutable
 data class HomeUiState(
     val selectedTab: HomeTab = HomeTab.VIDEOS,
     val searchQuery: String = "",

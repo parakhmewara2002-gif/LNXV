@@ -1,5 +1,6 @@
 package com.lnxv.player.core.datastore
 
+import androidx.compose.runtime.Immutable
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
@@ -16,6 +17,7 @@ import java.security.MessageDigest
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "lnxv_user_preferences")
 
+@Immutable
 data class UserPreferences(
     val isDarkMode: Boolean = true,
     val isAmoled: Boolean = true,

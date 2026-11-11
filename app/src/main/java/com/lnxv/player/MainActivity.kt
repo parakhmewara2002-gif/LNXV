@@ -45,6 +45,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
 
+        requestHighestRefreshRate()
         checkAndRequestPermissions()
 
         val app = application as LNXVApplication
@@ -64,6 +65,24 @@ class MainActivity : ComponentActivity() {
                 val navController = rememberNavController()
                 LNXVNavigationHost(navController = navController)
             }
+        }
+    }
+
+    @Suppress("DEPRECATION")
+    private fun requestHighestRefreshRate() {
+        try {
+            val display = windowManager.defaultDisplay
+            val current = display.mode
+            val best = display.supportedModes
+                .filter { it.physicalWidth == current.physicalWidth && it.physicalHeight == current.physicalHeight }
+                .maxByOrNull { it.refreshRate } ?: return
+            if (best.refreshRate > current.refreshRate) {
+                val lp = window.attributes
+                lp.preferredDisplayModeId = best.modeId
+                window.attributes = lp
+            }
+        } catch (e: Exception) {
+            // Best effort only
         }
     }
 

@@ -1,5 +1,6 @@
 package com.lnxv.player.playback.gestures
 
+import androidx.compose.runtime.Immutable
 import android.app.Activity
 import android.content.Context
 import android.media.AudioManager
@@ -34,6 +35,7 @@ enum class GestureType {
     ZOOM
 }
 
+@Immutable
 data class GestureOverlayState(
     val activeGesture: GestureType = GestureType.NONE,
     val brightnessPercent: Int = 50,

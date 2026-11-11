@@ -2,6 +2,10 @@ package com.lnxv.player
 
 import android.app.Application
 import coil.ImageLoader
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CoroutineScope
 import coil.ImageLoaderFactory
 import coil.decode.VideoFrameDecoder
 import coil.disk.DiskCache
@@ -25,6 +29,7 @@ class LNXVApplication : Application(), ImageLoaderFactory {
     override fun onCreate() {
         super.onCreate()
         instance = this
+        CoroutineScope(Dispatchers.IO).launch { dataStore.userPreferencesFlow.first() }
     }
 
     override fun newImageLoader(): ImageLoader {

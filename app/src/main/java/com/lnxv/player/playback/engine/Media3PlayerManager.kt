@@ -385,18 +385,11 @@ class Media3PlayerManager(private val context: Context) : Player.Listener {
                     }
                 }
 
+                // Position lives ONLY in positionMs (collected by the seek bar alone).
+                // PlaybackState is updated only when something screen-wide changes (e.g. duration).
                 _positionMs.value = currentPos
-                _playbackState.update {
-                    // Coarse (1s) position here so the whole player UI is not invalidated 5x/sec
-                    if (it.durationMs == duration &&
-                        kotlin.math.abs(it.currentPositionMs - currentPos) < 1000L &&
-                        kotlin.math.abs(it.bufferedPositionMs - buffered) < 1000L
-                    ) it
-                    else it.copy(
-                        currentPositionMs = currentPos,
-                        durationMs = duration,
-                        bufferedPositionMs = buffered
-                    )
+                if (_playbackState.value.durationMs != duration) {
+                    _playbackState.update { it.copy(durationMs = duration) }
                 }
                 delay(if (exoPlayer.isPlaying) 250L else 1000L)
             }

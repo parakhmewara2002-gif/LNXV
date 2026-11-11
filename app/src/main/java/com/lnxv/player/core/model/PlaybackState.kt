@@ -1,5 +1,6 @@
 package com.lnxv.player.core.model
 
+import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.Color
 
 enum class AspectRatioMode(val displayName: String) {
@@ -19,6 +20,7 @@ enum class DecoderMode(val displayName: String) {
     SOFTWARE("Software (SW)")
 }
 
+@Immutable
 data class SubtitleStyleConfig(
     val textSizeSp: Float = 16f,
     val textColor: Color = Color.White,
@@ -29,6 +31,7 @@ data class SubtitleStyleConfig(
     val delayMs: Long = 0L
 )
 
+@Immutable
 data class AudioTrackInfo(
     val id: String,
     val language: String,
@@ -38,6 +41,7 @@ data class AudioTrackInfo(
     val isSelected: Boolean = false
 )
 
+@Immutable
 data class SubtitleTrackInfo(
     val id: String,
     val language: String,
@@ -46,12 +50,14 @@ data class SubtitleTrackInfo(
     val isSelected: Boolean = false
 )
 
+@Immutable
 data class ABRepeatState(
     val isEnabled: Boolean = false,
     val pointA: Long? = null,
     val pointB: Long? = null
 )
 
+@Immutable
 data class PlaybackState(
     val isPlaying: Boolean = false,
     val currentPositionMs: Long = 0L,

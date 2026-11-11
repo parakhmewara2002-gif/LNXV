@@ -1,7 +1,9 @@
 package com.lnxv.player.core.model
 
+import androidx.compose.runtime.Immutable
 import android.net.Uri
 
+@Immutable
 data class VideoItem(
     val id: Long,
     val title: String,
@@ -58,6 +60,7 @@ data class VideoItem(
     }
 }
 
+@Immutable
 data class FolderItem(
     val path: String,
     val name: String,

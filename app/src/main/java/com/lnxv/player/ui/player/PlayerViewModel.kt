@@ -1,5 +1,6 @@
 package com.lnxv.player.ui.player
 
+import androidx.compose.runtime.Immutable
 import android.app.Application
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
@@ -21,6 +22,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
+@Immutable
 data class PlayerUiState(
     val currentVideo: VideoItem? = null,
     val isControlsVisible: Boolean = true,
