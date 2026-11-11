@@ -53,6 +53,8 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     val positionMs: StateFlow<Long> = playerManager.positionMs
     val audioTracks: StateFlow<List<AudioTrackInfo>> = playerManager.audioTracks
     val subtitleTracks: StateFlow<List<SubtitleTrackInfo>> = playerManager.subtitleTracks
+    val subtitleDelayMs: StateFlow<Long> = playerManager.subtitleDelayMs
+    val hasExternalSubtitle: StateFlow<Boolean> = playerManager.hasExternalSubtitle
 
     private val _uiState = MutableStateFlow(PlayerUiState())
     val uiState: StateFlow<PlayerUiState> = _uiState.asStateFlow()
@@ -177,6 +179,23 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
 
     fun showPropertiesDialog(show: Boolean) {
         _uiState.value = _uiState.value.copy(showPropertiesDialog = show)
+    }
+
+    fun loadExternalSubtitle(uri: Uri) {
+        viewModelScope.launch {
+            val ok = playerManager.loadExternalSubtitle(uri)
+            if (!ok) {
+                android.widget.Toast.makeText(
+                    getApplication<Application>(),
+                    "Unsupported subtitle file. Use .srt or .vtt",
+                    android.widget.Toast.LENGTH_LONG
+                ).show()
+            }
+        }
+    }
+
+    fun adjustSubtitleDelay(deltaMs: Long) {
+        viewModelScope.launch { playerManager.adjustSubtitleDelay(deltaMs) }
     }
 
     fun setVideoScreenActive(active: Boolean) {

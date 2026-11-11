@@ -21,6 +21,9 @@ import com.lnxv.player.core.model.DecoderMode
 import com.lnxv.player.core.model.PlaybackState
 import com.lnxv.player.core.model.SubtitleTrackInfo
 import com.lnxv.player.core.util.SeekMath
+import com.lnxv.player.core.util.SubtitleShifter
+import java.io.File
+import kotlinx.coroutines.withContext
 import kotlin.math.roundToLong
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -75,11 +78,81 @@ class Media3PlayerManager(private val context: Context) : Player.Listener {
         startProgressTracking()
     }
 
+    // --- External subtitle + delay (SRT / WebVTT only: cue times are shifted in a cached copy) ---
+    private var externalSubtitleSource: Uri? = null
+    private val _subtitleDelayMs = MutableStateFlow(0L)
+    val subtitleDelayMs: StateFlow<Long> = _subtitleDelayMs.asStateFlow()
+    private val _hasExternalSubtitle = MutableStateFlow(false)
+    val hasExternalSubtitle: StateFlow<Boolean> = _hasExternalSubtitle.asStateFlow()
+
+    /** @return false when the file is not a supported SRT/VTT subtitle. */
+    suspend fun loadExternalSubtitle(uri: Uri): Boolean {
+        externalSubtitleSource = uri
+        _subtitleDelayMs.value = 0L
+        val ok = applyExternalSubtitle()
+        if (!ok) {
+            externalSubtitleSource = null
+            _hasExternalSubtitle.value = false
+        }
+        return ok
+    }
+
+    suspend fun adjustSubtitleDelay(deltaMs: Long) {
+        if (externalSubtitleSource == null) return
+        _subtitleDelayMs.value = (_subtitleDelayMs.value + deltaMs).coerceIn(-60_000L, 60_000L)
+        applyExternalSubtitle()
+    }
+
+    private suspend fun applyExternalSubtitle(): Boolean {
+        val source = externalSubtitleSource ?: return false
+        val delay = _subtitleDelayMs.value
+        val prepared: Pair<Uri, Boolean> = withContext(Dispatchers.IO) {
+            try {
+                val bytes = context.contentResolver.openInputStream(source)?.use { it.readBytes() }
+                    ?: return@withContext null
+                var text = bytes.toString(Charsets.UTF_8)
+                if (text.contains('\uFFFD')) text = bytes.toString(Charsets.ISO_8859_1)
+                if (!SubtitleShifter.looksLikeSubtitle(text)) return@withContext null
+                val isVtt = text.trimStart('\uFEFF', ' ', '\n', '\r').startsWith("WEBVTT")
+                val dir = File(context.cacheDir, "subs").apply { mkdirs() }
+                dir.listFiles()?.forEach { it.delete() }
+                val file = File(dir, "sub_${System.nanoTime()}." + if (isVtt) "vtt" else "srt")
+                file.writeText(SubtitleShifter.shift(text, delay))
+                Pair(Uri.fromFile(file), isVtt)
+            } catch (e: Exception) {
+                null
+            }
+        } ?: return false
+
+        return withContext(Dispatchers.Main) {
+            val current = exoPlayer.currentMediaItem ?: return@withContext false
+            val position = exoPlayer.currentPosition
+            val playWhenReady = exoPlayer.playWhenReady
+            val config = MediaItem.SubtitleConfiguration.Builder(prepared.first)
+                .setMimeType(if (prepared.second) MimeTypes.TEXT_VTT else MimeTypes.APPLICATION_SUBRIP)
+                .setLanguage("en")
+                .setLabel("External subtitle")
+                .setSelectionFlags(C.SELECTION_FLAG_DEFAULT)
+                .build()
+            exoPlayer.setMediaItem(
+                current.buildUpon().setSubtitleConfigurations(listOf(config)).build(),
+                position
+            )
+            exoPlayer.prepare()
+            exoPlayer.playWhenReady = playWhenReady
+            _hasExternalSubtitle.value = true
+            true
+        }
+    }
+
     fun prepareAndPlay(
         uri: Uri,
         startPositionMs: Long = 0L,
         externalSubtitleUri: Uri? = null
     ) {
+        externalSubtitleSource = null
+        _subtitleDelayMs.value = 0L
+        _hasExternalSubtitle.value = false
         val mediaItemBuilder = MediaItem.Builder().setUri(uri)
 
         if (externalSubtitleUri != null) {

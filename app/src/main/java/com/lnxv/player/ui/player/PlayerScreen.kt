@@ -66,6 +66,8 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowCompat
 import androidx.activity.compose.BackHandler
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.compose.rememberLauncherForActivityResult
 import android.view.WindowManager
 import android.os.Build
 import androidx.media3.ui.CaptionStyleCompat
@@ -128,6 +130,11 @@ fun PlayerScreen(
     var orientationMode by remember { mutableIntStateOf(0) }
     var playerViewRef by remember { mutableStateOf<PlayerView?>(null) }
     val prefs by viewModel.userPrefs.collectAsState()
+    val subtitleDelayMs by viewModel.subtitleDelayMs.collectAsState()
+    val hasExternalSubtitle by viewModel.hasExternalSubtitle.collectAsState()
+    val subtitleFileLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) viewModel.loadExternalSubtitle(uri)
+    }
 
     LaunchedEffect(videoId) {
         viewModel.loadVideo(videoId)
@@ -741,7 +748,11 @@ fun PlayerScreen(
                     onTrackSelected = { track ->
                         viewModel.selectSubtitleTrack(track)
                         viewModel.showSubtitleDialog(false)
-                    }
+                    },
+                    onLoadFile = { subtitleFileLauncher.launch(arrayOf("*/*")) },
+                    delayMs = subtitleDelayMs,
+                    canDelay = hasExternalSubtitle,
+                    onDelayChange = { viewModel.adjustSubtitleDelay(it) }
                 )
             }
         }
@@ -899,7 +910,11 @@ fun AudioTrackBottomSheet(
 @Composable
 fun SubtitleBottomSheet(
     tracks: List<com.lnxv.player.core.model.SubtitleTrackInfo>,
-    onTrackSelected: (com.lnxv.player.core.model.SubtitleTrackInfo?) -> Unit
+    onTrackSelected: (com.lnxv.player.core.model.SubtitleTrackInfo?) -> Unit,
+    onLoadFile: () -> Unit,
+    delayMs: Long,
+    canDelay: Boolean,
+    onDelayChange: (Long) -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -934,6 +949,49 @@ fun SubtitleBottomSheet(
                     fontSize = 15.sp
                 )
             }
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "Load subtitle file (.srt / .vtt)…",
+            color = NeonCyan,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onLoadFile() }
+                .padding(vertical = 12.dp)
+        )
+        if (canDelay) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "Delay: ${if (delayMs >= 0) "+" else "-"}${"%.1f".format(kotlin.math.abs(delayMs) / 1000f)} s",
+                    color = Color.White,
+                    fontSize = 15.sp
+                )
+                Row {
+                    Text(
+                        text = "  − 0.5s  ",
+                        color = NeonCyan,
+                        fontSize = 15.sp,
+                        modifier = Modifier.clickable { onDelayChange(-500L) }.padding(vertical = 8.dp)
+                    )
+                    Text(
+                        text = "  + 0.5s  ",
+                        color = NeonCyan,
+                        fontSize = 15.sp,
+                        modifier = Modifier.clickable { onDelayChange(500L) }.padding(vertical = 8.dp)
+                    )
+                }
+            }
+            Text(
+                text = "Delay applies to the loaded external file (playback position is kept).",
+                color = Color(0x80FFFFFF),
+                fontSize = 11.sp
+            )
         }
     }
 }
