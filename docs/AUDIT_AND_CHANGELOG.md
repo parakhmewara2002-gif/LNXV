@@ -32,6 +32,8 @@ Run: `./gradlew testDebugUnitTest`. CI prints the result as a `Unit tests` annot
 
 **Diagnostics (Video Properties -> Copy/Share diagnostic report):** plain-text report with device/app version, file facts, a direct read of the container structure (Matroska: SeekHead/Cues check with a verdict; MP4: moov/mdat order), player state, decoders, dropped frames, every track (supported/selected), last error and a rolling event log that records each seek request and the position the player actually jumped to. Pure-Kotlin parsers are covered by unit tests (`ContainerInspectorsTest`).
 
+**MKV seek workaround (found from a real diagnostic report):** the user's 2.67 GB mkvmerge-produced MKV has Cues at the end of the file, but the SeekHead at the start lists only Info/Tracks/*another SeekHead*; Cues are listed only in that second SeekHead after the video data. Media3 1.4.1 `MatroskaExtractor` only accepts a Cues entry directly (source: `endMasterElement(ID_SEEK)`), so at the first Cluster it sends `SeekMap.Unseekable` -> every seek restarts from 0 (the original "forward seek goes backward" symptom). LNXV now reads the nested SeekHeads (cheap: a few small reads) and tells a `MatroskaExtractor` subclass where Cues are (private field `cuesContentPosition`, set via reflection, kept by an R8 rule). Healthy files are untouched. The earlier inspector verdict "seeking should work" for this file was wrong because it merged all SeekHeads; it now reports start vs. late SeekHeads separately. NOT device-tested yet.
+
 ## 4. Not done / not verified (honest list)
 - No instrumented/UI tests (fullscreen, lifecycle, theme persistence, navigation): need a device or emulator.
 - No real-device testing was possible here.

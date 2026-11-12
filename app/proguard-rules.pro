@@ -18,3 +18,8 @@
 # Keep LNXV entity models
 -keep class com.lnxv.player.core.model.** { *; }
 -keep class com.lnxv.player.core.database.** { *; }
+
+# LNXV MKV seek workaround sets this private field by reflection
+-keepclassmembers class androidx.media3.extractor.mkv.MatroskaExtractor {
+    private long cuesContentPosition;
+}

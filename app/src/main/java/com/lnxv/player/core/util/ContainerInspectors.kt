@@ -17,14 +17,15 @@ class ByteArraySource(private val data: ByteArray) : RandomAccessSource {
 }
 
 enum class CuesStatus {
-    NOT_MATROSKA, UNKNOWN, MISSING, BEFORE_CLUSTERS, LISTED_OK, NOT_LISTED, WRONG_POSITION;
+    NOT_MATROSKA, UNKNOWN, MISSING, BEFORE_CLUSTERS, LISTED_OK, LISTED_ONLY_LATE, NOT_LISTED, WRONG_POSITION;
 
     fun describe(): String = when (this) {
         NOT_MATROSKA -> "not a Matroska file"
         UNKNOWN -> "could not be determined"
         MISSING -> "NO Cues (seek index) in the file -> ExoPlayer cannot seek (restarts from 0)"
         BEFORE_CLUSTERS -> "Cues are stored before the video data -> seeking should work"
-        LISTED_OK -> "Cues at end of file and SeekHead points to them -> seeking should work"
+        LISTED_OK -> "Cues at end of file and the SeekHead at the START of the file points to them -> seeking should work"
+        LISTED_ONLY_LATE -> "Cues are listed ONLY in a second SeekHead stored after the video data (Media3 ignores it -> ExoPlayer treats the file as UNSEEKABLE; LNXV applies a workaround)"
         NOT_LISTED -> "Cues exist at end of file but SeekHead has NO entry for them -> ExoPlayer likely treats the file as UNSEEKABLE"
         WRONG_POSITION -> "SeekHead points to the wrong position for Cues -> likely UNSEEKABLE"
     }
@@ -36,6 +37,8 @@ data class MkvReport(
     val clusterCount: Int,
     val elements: List<String>,
     val seekHead: Map<String, Long>,
+    val earlySeekHead: Map<String, Long>,
+    val lateSeekHead: Map<String, Long>,
     val cuesPosition: Long?,
     val cuesStatus: CuesStatus,
     val notes: List<String>
@@ -50,8 +53,12 @@ data class MkvReport(
         appendLine("Clusters: $clusterCount")
         appendLine("Top-level elements: " + elements.joinToString(", "))
         appendLine(
-            "SeekHead entries: " +
-                if (seekHead.isEmpty()) "none" else seekHead.entries.joinToString(", ") { "${it.key}@${it.value}" }
+            "SeekHead at start of file: " +
+                if (earlySeekHead.isEmpty()) "none" else earlySeekHead.entries.joinToString(", ") { "${it.key}@${it.value}" }
+        )
+        appendLine(
+            "SeekHead after video data: " +
+                if (lateSeekHead.isEmpty()) "none" else lateSeekHead.entries.joinToString(", ") { "${it.key}@${it.value}" }
         )
         appendLine("Cues position: " + (cuesPosition?.toString() ?: "NOT FOUND"))
         appendLine("Seek index verdict: " + cuesStatus.describe())
@@ -137,10 +144,16 @@ class MkvInspector(private val src: RandomAccessSource) {
     }
 
     private fun parseSeekHead(start: Long, size: Long, out: MutableMap<String, Long>) {
-        if (size <= 0 || size > 8192) return
+        for ((id, position) in readSeekEntries(start, size)) out[nameOf(id)] = position
+    }
+
+    /** (elementId, positionRelativeToSegmentData) pairs listed in one SeekHead. */
+    private fun readSeekEntries(start: Long, size: Long): List<Pair<Long, Long>> {
+        val out = ArrayList<Pair<Long, Long>>()
+        if (size <= 0 || size > 8192) return out
         val buf = ByteArray(size.toInt())
         val n = src.readAt(start, buf, 0, buf.size)
-        if (n <= 0) return
+        if (n <= 0) return out
         val sub = MkvInspector(ByteArraySource(buf.copyOf(n)))
         var p = 0L
         while (p < n) {
@@ -159,11 +172,62 @@ class MkvInspector(private val src: RandomAccessSource) {
                     }
                     q = payloadStart + maxOf(c.size, 0L)
                 }
-                if (seekId != null && seekPos != null) out[nameOf(seekId)] = seekPos
+                if (seekId != null && seekPos != null) out.add(Pair(seekId, seekPos))
             }
             if (h.size < 0) break
             p += h.headerLen + h.size
         }
+        return out
+    }
+
+    /**
+     * For files where the SeekHead at the START of the file does NOT list Cues but a later SeekHead does
+     * (typical for mkvmerge output): returns the Cues position (relative to Segment data) so the player
+     * can be told about it. Returns null for healthy files (start SeekHead already lists Cues) or when
+     * no Cues element can be located.
+     */
+    fun findCuesRelativePosition(): Long? {
+        val h0 = readHeader(0) ?: return null
+        if (h0.id != EBML) return null
+        val segPos = h0.headerLen + maxOf(h0.size, 0L)
+        val seg = readHeader(segPos) ?: return null
+        if (seg.id != SEGMENT) return null
+        val dataStart = segPos + seg.headerLen
+
+        var first: Long? = null
+        var pos = 0L
+        for (i in 0 until 4) {
+            val h = readHeader(dataStart + pos) ?: break
+            if (h.id == SEEKHEAD) {
+                first = pos
+                break
+            }
+            if (h.size < 0 || h.id == CLUSTER) break
+            pos += h.headerLen + h.size
+        }
+        if (first == null) return null
+
+        val queue = ArrayDeque<Long>()
+        val visited = HashSet<Long>()
+        queue.add(first)
+        var isFirstHead = true
+        var steps = 0
+        while (queue.isNotEmpty() && steps++ < 8) {
+            val rel = queue.removeFirst()
+            if (!visited.add(rel)) continue
+            val h = readHeader(dataStart + rel) ?: continue
+            if (h.id != SEEKHEAD || h.size <= 0) continue
+            for ((id, p) in readSeekEntries(dataStart + rel + h.headerLen, h.size)) {
+                if (id == CUES) {
+                    if (isFirstHead) return null // already visible to the player
+                    val c = readHeader(dataStart + p)
+                    if (c != null && c.id == CUES) return p
+                }
+                if (id == SEEKHEAD) queue.add(p)
+            }
+            isFirstHead = false
+        }
+        return null
     }
 
     private fun findDocType(payloadStart: Long, size: Long): String? {
@@ -186,13 +250,13 @@ class MkvInspector(private val src: RandomAccessSource) {
         val notes = mutableListOf<String>()
         val h0 = readHeader(0)
         if (h0 == null || h0.id != EBML) {
-            return MkvReport(false, null, 0, emptyList(), emptyMap(), null, CuesStatus.NOT_MATROSKA, listOf("No EBML header"))
+            return MkvReport(false, null, 0, emptyList(), emptyMap(), emptyMap(), emptyMap(), null, CuesStatus.NOT_MATROSKA, listOf("No EBML header"))
         }
         val docType = if (h0.size > 0) findDocType(h0.headerLen.toLong(), h0.size) else null
         val segPos = h0.headerLen + maxOf(h0.size, 0L)
         val seg = readHeader(segPos)
         if (seg == null || seg.id != SEGMENT) {
-            return MkvReport(true, docType, 0, emptyList(), emptyMap(), null, CuesStatus.UNKNOWN, listOf("Segment not found after EBML header"))
+            return MkvReport(true, docType, 0, emptyList(), emptyMap(), emptyMap(), emptyMap(), null, CuesStatus.UNKNOWN, listOf("Segment not found after EBML header"))
         }
         val dataStart = segPos + seg.headerLen
         val end = if (seg.size >= 0) minOf(src.length, dataStart + seg.size) else src.length
@@ -206,6 +270,8 @@ class MkvInspector(private val src: RandomAccessSource) {
         var cues: Long? = null
         val elements = ArrayList<String>()
         val seekHead = LinkedHashMap<String, Long>()
+        val earlyHead = LinkedHashMap<String, Long>()
+        val lateHead = LinkedHashMap<String, Long>()
         var guard = 0
         while (pos < end) {
             if (guard++ > 500_000) {
@@ -228,7 +294,7 @@ class MkvInspector(private val src: RandomAccessSource) {
                 }
                 SEEKHEAD -> {
                     elements += "SeekHead@$rel"
-                    parseSeekHead(pos + h.headerLen, h.size, seekHead)
+                    parseSeekHead(pos + h.headerLen, h.size, if (firstCluster == null) earlyHead else lateHead)
                 }
                 CUES -> {
                     cues = rel
@@ -244,15 +310,20 @@ class MkvInspector(private val src: RandomAccessSource) {
             pos += h.headerLen + h.size
         }
 
-        val listed = seekHead["Cues"]
+        seekHead.putAll(earlyHead)
+        seekHead.putAll(lateHead)
+        val early = earlyHead["Cues"]
+        val late = lateHead["Cues"]
         val status = when {
             cues == null -> CuesStatus.MISSING
             firstCluster != null && cues < firstCluster -> CuesStatus.BEFORE_CLUSTERS
-            listed == null -> CuesStatus.NOT_LISTED
-            listed == cues -> CuesStatus.LISTED_OK
-            else -> CuesStatus.WRONG_POSITION
+            early == cues -> CuesStatus.LISTED_OK
+            early != null -> CuesStatus.WRONG_POSITION
+            late == cues -> CuesStatus.LISTED_ONLY_LATE
+            late != null -> CuesStatus.WRONG_POSITION
+            else -> CuesStatus.NOT_LISTED
         }
-        return MkvReport(true, docType, clusters, elements, seekHead, cues, status, notes)
+        return MkvReport(true, docType, clusters, elements, seekHead, earlyHead, lateHead, cues, status, notes)
     }
 }
 

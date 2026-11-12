@@ -18,7 +18,7 @@ import java.io.FileInputStream
 import java.nio.ByteBuffer
 import java.nio.channels.FileChannel
 
-private class ChannelSource(private val channel: FileChannel) : RandomAccessSource {
+internal class ChannelSource(private val channel: FileChannel) : RandomAccessSource {
     override val length: Long = channel.size()
     override fun readAt(position: Long, buffer: ByteArray, offset: Int, length: Int): Int {
         return try {
@@ -27,6 +27,11 @@ private class ChannelSource(private val channel: FileChannel) : RandomAccessSour
             -1
         }
     }
+}
+
+/** Last note from the MKV seek workaround (shown in the diagnostic report). */
+object SeekFixState {
+    @Volatile var note: String = "not used yet"
 }
 
 /** Reads the file's container structure (seek index etc.) straight from the file. */
@@ -194,6 +199,7 @@ class DiagnosticsCollector(private val context: Context) {
         appendLine("Position: ${fmt(player.currentPosition)} / ${fmt(player.duration)} (buffered to ${fmt(player.bufferedPosition)})")
         appendLine("Seekable (player): ${player.isCurrentMediaItemSeekable}")
         appendLine("Speed: ${player.playbackParameters.speed}")
+        appendLine("LNXV MKV seek workaround: ${SeekFixState.note}")
         appendLine("Video decoder: ${videoDecoder ?: "n/a"}")
         appendLine("Audio decoder: ${audioDecoder ?: "n/a"}")
         appendLine("Dropped frames: $droppedFrames")

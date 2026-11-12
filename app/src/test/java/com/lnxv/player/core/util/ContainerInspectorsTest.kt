@@ -102,6 +102,39 @@ class ContainerInspectorsTest {
         assertEquals(r.cuesPosition, r.seekHead["Cues"])
     }
 
+    // mkvmerge-style: first SeekHead lists Info + the SECOND SeekHead; Cues are listed only in the second one
+    private fun mkvTwoSeekHeads(): ByteArray {
+        val ebml = element(0x1A45DFA3, element(0x4282, "matroska".toByteArray()))
+        val info = element(MkvInspector.INFO, ByteArray(10))
+        val tracks = element(MkvInspector.TRACKS, ByteArray(10))
+        val clustersBytes = (1..3).fold(ByteArray(0)) { acc, _ -> acc + element(MkvInspector.CLUSTER, ByteArray(100)) }
+        val cues = element(MkvInspector.CUES, ByteArray(20))
+        fun sh1(sh2Pos: Long) = element(
+            MkvInspector.SEEKHEAD,
+            seekEntry(MkvInspector.INFO, 0) + seekEntry(MkvInspector.SEEKHEAD, sh2Pos)
+        )
+        fun sh2(cuesPos: Long) = element(MkvInspector.SEEKHEAD, seekEntry(MkvInspector.CUES, cuesPos))
+        val cuesPos = (sh1(0).size + info.size + tracks.size + clustersBytes.size).toLong()
+        val sh2Pos = cuesPos + cues.size
+        val payload = sh1(sh2Pos) + info + tracks + clustersBytes + cues + sh2(cuesPos)
+        return ebml + element(MkvInspector.SEGMENT, payload)
+    }
+
+    @Test
+    fun cuesOnlyInLateSeekHead_isDetected_andLocated() {
+        val data = mkvTwoSeekHeads()
+        val r = MkvInspector(ByteArraySource(data)).inspect()
+        assertEquals(CuesStatus.LISTED_ONLY_LATE, r.cuesStatus)
+        assertNotNull(r.cuesPosition)
+        assertEquals(r.cuesPosition, MkvInspector(ByteArraySource(data)).findCuesRelativePosition())
+    }
+
+    @Test
+    fun healthyFile_needsNoCuesHint() {
+        assertEquals(null, MkvInspector(ByteArraySource(mkv(withCues = true))).findCuesRelativePosition())
+        assertEquals(null, MkvInspector(ByteArraySource(mkv(withCues = true, seekHeadMode = "none"))).findCuesRelativePosition())
+    }
+
     @Test
     fun nonMatroska_isRejected() {
         val r = MkvInspector(ByteArraySource(ByteArray(64) { 7 })).inspect()
