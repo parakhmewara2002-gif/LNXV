@@ -70,6 +70,7 @@ data class PlaybackState(
     val aspectRatio: AspectRatioMode = AspectRatioMode.FIT,
     val decoderMode: DecoderMode = DecoderMode.HARDWARE,
     val isScreenLocked: Boolean = false,
+    val isSeekable: Boolean = true,
     val abRepeat: ABRepeatState = ABRepeatState(),
     val sleepTimerRemainingSeconds: Long? = null
 ) {

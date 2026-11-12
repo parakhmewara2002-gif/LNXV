@@ -198,6 +198,8 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch { playerManager.adjustSubtitleDelay(deltaMs) }
     }
 
+    fun describeStream(): List<Pair<String, String>> = playerManager.describeStream()
+
     fun setVideoScreenActive(active: Boolean) {
         playerManager.isVideoScreenActive = active
     }

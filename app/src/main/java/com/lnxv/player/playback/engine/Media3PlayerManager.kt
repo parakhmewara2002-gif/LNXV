@@ -192,7 +192,49 @@ class Media3PlayerManager(private val context: Context) : Player.Listener {
         if (exoPlayer.isPlaying) pause() else play()
     }
 
+    private var lastUnseekableToastMs = 0L
+
+    /**
+     * Some files (e.g. MKV without a usable Cues index) are UNSEEKABLE: ExoPlayer would silently restart
+     * them from 0 on every seek. Refuse the seek and tell the user instead.
+     */
+    private fun isSeekBlocked(): Boolean {
+        if (exoPlayer.playbackState != Player.STATE_READY || exoPlayer.isCurrentMediaItemSeekable) return false
+        val now = android.os.SystemClock.elapsedRealtime()
+        if (now - lastUnseekableToastMs > 4000L) {
+            lastUnseekableToastMs = now
+            android.widget.Toast.makeText(
+                context,
+                "This file has no seek index, so seeking is not possible",
+                android.widget.Toast.LENGTH_SHORT
+            ).show()
+        }
+        return true
+    }
+
+    /** Facts about the loaded stream (shown in Video Properties) for diagnosing playback problems. */
+    fun describeStream(): List<Pair<String, String>> {
+        val out = mutableListOf<Pair<String, String>>()
+        val v = exoPlayer.videoFormat
+        val a = exoPlayer.audioFormat
+        out += "Seekable" to (if (exoPlayer.isCurrentMediaItemSeekable) "Yes" else "No (file has no seek index)")
+        out += "Container" to (v?.containerMimeType ?: a?.containerMimeType ?: "unknown")
+        if (v != null) {
+            out += "Video" to ((v.sampleMimeType ?: "?") + " " + v.width + "x" + v.height +
+                (if (v.frameRate > 0f) " @ " + "%.2f".format(v.frameRate) + " fps" else "") +
+                (v.codecs?.let { " ($it)" } ?: ""))
+        }
+        if (a != null) {
+            out += "Audio" to ((a.sampleMimeType ?: "?") + " " + a.channelCount + "ch " + a.sampleRate + "Hz" +
+                (a.codecs?.let { " ($it)" } ?: ""))
+        }
+        val d = exoPlayer.duration
+        out += "Duration (player)" to (if (d > 0) com.lnxv.player.core.model.VideoItem.formatDuration(d) else "unknown")
+        return out
+    }
+
     fun seekTo(positionMs: Long) {
+        if (isSeekBlocked()) return
         // SeekMath treats C.TIME_UNSET as "unknown" (the old clamp turned it into 0 => seek jumped to start)
         val target = SeekMath.clamp(positionMs, exoPlayer.duration)
         exoPlayer.seekTo(target)
@@ -200,6 +242,7 @@ class Media3PlayerManager(private val context: Context) : Player.Listener {
     }
 
     fun seekRelative(deltaMs: Long) {
+        if (isSeekBlocked()) return
         // currentPosition already reflects a pending seek, so rapid repeated seeks accumulate correctly
         val target = SeekMath.relativeTarget(exoPlayer.currentPosition, deltaMs, exoPlayer.duration)
         exoPlayer.seekTo(target)
@@ -461,8 +504,10 @@ class Media3PlayerManager(private val context: Context) : Player.Listener {
                 // Position lives ONLY in positionMs (collected by the seek bar alone).
                 // PlaybackState is updated only when something screen-wide changes (e.g. duration).
                 _positionMs.value = currentPos
-                if (_playbackState.value.durationMs != duration) {
-                    _playbackState.update { it.copy(durationMs = duration) }
+                // Assume seekable until the player is READY; then trust the container's seek map
+                val seekable = exoPlayer.playbackState != Player.STATE_READY || exoPlayer.isCurrentMediaItemSeekable
+                if (_playbackState.value.durationMs != duration || _playbackState.value.isSeekable != seekable) {
+                    _playbackState.update { it.copy(durationMs = duration, isSeekable = seekable) }
                 }
                 delay(if (exoPlayer.isPlaying) 250L else 1000L)
             }

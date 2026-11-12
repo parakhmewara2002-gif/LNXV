@@ -606,7 +606,7 @@ fun PlayerScreen(
                                     )
                                     Slider(
                                         value = dragFraction ?: SeekMath.positionToFraction(positionMs, playbackState.durationMs),
-                                        enabled = playbackState.durationMs > 0,
+                                        enabled = playbackState.durationMs > 0 && playbackState.isSeekable,
                                         onValueChange = { dragFraction = it },
                                         onValueChangeFinished = {
                                             dragFraction?.let { f ->
@@ -790,7 +790,7 @@ fun PlayerScreen(
                 dragHandle = { BottomSheetDefaults.DragHandle(color = Color(0x66FFFFFF)) }
             ) {
                 uiState.currentVideo?.let { video ->
-                    PropertiesBottomSheet(video = video)
+                    PropertiesBottomSheet(video = video, streamInfo = viewModel.describeStream())
                 }
             }
         }
@@ -1024,7 +1024,7 @@ fun SubtitleBottomSheet(
 }
 
 @Composable
-fun PropertiesBottomSheet(video: VideoItem) {
+fun PropertiesBottomSheet(video: VideoItem, streamInfo: List<Pair<String, String>>) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -1043,6 +1043,7 @@ fun PropertiesBottomSheet(video: VideoItem) {
         PropertyRow(label = "File Size", value = video.sizeFormatted)
         PropertyRow(label = "Mime Type", value = video.mimeType)
         PropertyRow(label = "Path", value = video.path)
+        streamInfo.forEach { (label, value) -> PropertyRow(label = label, value = value) }
         Spacer(modifier = Modifier.height(20.dp))
     }
 }
