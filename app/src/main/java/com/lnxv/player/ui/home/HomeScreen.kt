@@ -2,6 +2,15 @@ package com.lnxv.player.ui.home
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
+import com.lnxv.player.core.design.bouncyClickable
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.material.icons.filled.VideoLibrary
+import androidx.compose.foundation.border
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -200,16 +209,27 @@ fun HomeScreen(
                 ) {
                     HomeTab.values().forEach { tab ->
                         val isSelected = uiState.selectedTab == tab
+                        val selectAmount by animateFloatAsState(
+                            targetValue = if (isSelected) 1f else 0f,
+                            animationSpec = tween(220),
+                            label = "tab_select"
+                        )
+                        val tabTextColor by animateColorAsState(
+                            targetValue = if (isSelected) NeonCyan else Color(0x99FFFFFF),
+                            animationSpec = tween(220),
+                            label = "tab_text"
+                        )
                         Box(
                             modifier = Modifier
                                 .weight(1f)
                                 .clip(RoundedCornerShape(12.dp))
-                                .then(
-                                    if (isSelected) Modifier.background(
-                                        Brush.horizontalGradient(
-                                            listOf(NeonCyan.copy(alpha = 0.3f), Color(0x407C4DFF))
+                                .background(
+                                    Brush.horizontalGradient(
+                                        listOf(
+                                            NeonCyan.copy(alpha = 0.3f * selectAmount),
+                                            Color(0xFF7C4DFF).copy(alpha = 0.25f * selectAmount)
                                         )
-                                    ) else Modifier
+                                    )
                                 )
                                 .clickable { viewModel.selectTab(tab) }
                                 .padding(vertical = 8.dp),
@@ -217,7 +237,7 @@ fun HomeScreen(
                         ) {
                             Text(
                                 text = tab.label,
-                                color = if (isSelected) NeonCyan else Color(0x99FFFFFF),
+                                color = tabTextColor,
                                 fontSize = 13.sp,
                                 fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
                             )
@@ -438,7 +458,7 @@ fun VideoItemRow(
     GlassPanel(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() },
+            .bouncyClickable { onClick() },
         shape = RoundedCornerShape(16.dp),
         backgroundColor = Color(0x261E293B),
         borderColor = Color(0x26FFFFFF)
@@ -567,7 +587,7 @@ fun FolderItemRow(
     GlassPanel(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() },
+            .bouncyClickable { onClick() },
         shape = RoundedCornerShape(16.dp),
         backgroundColor = Color(0x261E293B)
     ) {
@@ -721,16 +741,44 @@ fun ContinueWatchingCard(
 
 @Composable
 fun EmptyStateView(message: String) {
-    Box(
+    var shown by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { shown = true }
+    val appear by animateFloatAsState(
+        targetValue = if (shown) 1f else 0f,
+        animationSpec = tween(400),
+        label = "empty_appear"
+    )
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(40.dp),
-        contentAlignment = Alignment.Center
+            .padding(40.dp)
+            .graphicsLayer {
+                alpha = appear
+                translationY = (1f - appear) * 24f
+            },
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        Box(
+            modifier = Modifier
+                .size(72.dp)
+                .clip(CircleShape)
+                .background(Color(0x14FFFFFF))
+                .border(1.dp, Color(0x26FFFFFF), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.VideoLibrary,
+                contentDescription = null,
+                tint = NeonCyan.copy(alpha = 0.8f),
+                modifier = Modifier.size(32.dp)
+            )
+        }
+        Spacer(modifier = Modifier.height(16.dp))
         Text(
             text = message,
-            color = Color(0x66FFFFFF),
-            style = Typography.bodyMedium
+            color = Color(0x99FFFFFF),
+            style = Typography.bodyMedium,
+            textAlign = TextAlign.Center
         )
     }
 }
@@ -748,7 +796,7 @@ fun VideoGridCard(
     var isMenuOpen by remember { mutableStateOf(false) }
 
     GlassPanel(
-        modifier = modifier.clickable { onClick() },
+        modifier = modifier.bouncyClickable { onClick() },
         shape = RoundedCornerShape(16.dp),
         backgroundColor = Color(0x261E293B),
         borderColor = Color(0x26FFFFFF)

@@ -25,13 +25,18 @@ Status key: **FIXED** = code changed and compiled in CI. **NOT DEVICE-TESTED** =
 `app/src/test/.../SeekMathTest.kt` (JUnit): unknown-duration regression, begin/end clamping, forward/backward, rapid repeated seeks, fraction conversion, swipe seek.
 Run: `./gradlew testDebugUnitTest`. CI prints the result as a `Unit tests` annotation on the workflow run.
 
+## 3b. Later phases (all compiled in CI; none device-tested)
+**P2 performance:** `@Immutable` on model/state classes (Kotlin 2.0.0 has strong skipping off by default, so `Uri`/`List` made them unstable); player position no longer stored in `PlaybackState` (no whole-screen recomposition each second); request highest refresh-rate display mode; DataStore pre-warm in `Application`. No timing numbers were measured.
+**P3 playback:** load external `.srt`/`.vtt` subtitle file; subtitle delay in 0.5 s steps (cue times shifted in a cached copy, playback position kept). 7 extra unit tests (`SubtitleShifterTest`).
+**P4 visual polish:** spring press feedback on cards (`bouncyClickable`), animated tab pill, animated empty state, buffering shown as a fading glass disc, bottom sheets with rounded top + drag handle, softer controls fade.
+
 ## 4. Not done / not verified (honest list)
 - No instrumented/UI tests (fullscreen, lifecycle, theme persistence, navigation): need a device or emulator.
 - No real-device testing was possible here.
 - Light theme is not implemented (screens use hard-coded white text); "Dark mode" is forced dark.
-- Subtitle/audio **delay** not implemented (Media3 has no built-in offset).
+- Audio delay not implemented (Media3 has no built-in offset). Subtitle delay only works on loaded external SRT/VTT, not embedded or ASS subtitles.
 - True background audio (foreground service + notification) is not wired; with the setting ON playback simply continues while the process lives.
-- Phase 4 (full visual redesign) and Phase 5 profiling were not performed; no performance numbers are claimed.
+- Only a focused subset of Phase 4 was done (see 3b); no profiling was performed and no performance numbers are claimed.
 
 ## 5. Build
 `./gradlew testDebugUnitTest assembleRelease` (signed with the project keystore via CI secrets).

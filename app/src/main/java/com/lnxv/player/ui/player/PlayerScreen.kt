@@ -8,6 +8,9 @@ import androidx.annotation.OptIn
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.foundation.border
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -318,25 +321,39 @@ fun PlayerScreen(
                 }
             }
 
-            // Loading indicator
-            if (playbackState.isBuffering) {
+            // Buffering state: glass disc that fades in/out instead of popping
+            AnimatedVisibility(
+                visible = playbackState.isBuffering,
+                enter = fadeIn(tween(180)),
+                exit = fadeOut(tween(180)),
+                modifier = Modifier.fillMaxSize()
+            ) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator(
-                        color = NeonCyan,
-                        strokeWidth = 3.dp,
-                        modifier = Modifier.size(54.dp)
-                    )
+                    Box(
+                        modifier = Modifier
+                            .size(72.dp)
+                            .clip(CircleShape)
+                            .background(Color(0x66101622))
+                            .border(1.dp, Color(0x40FFFFFF), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(
+                            color = NeonCyan,
+                            strokeWidth = 3.dp,
+                            modifier = Modifier.size(36.dp)
+                        )
+                    }
                 }
             }
 
             // Controls Overlay
             AnimatedVisibility(
                 visible = uiState.isControlsVisible || playbackState.isScreenLocked,
-                enter = fadeIn(),
-                exit = fadeOut()
+                enter = fadeIn(tween(200)),
+                exit = fadeOut(tween(160))
             ) {
                 if (playbackState.isScreenLocked) {
                     // Only display unlock button when locked
@@ -696,7 +713,9 @@ fun PlayerScreen(
         if (uiState.showSpeedDialog) {
             ModalBottomSheet(
                 onDismissRequest = { viewModel.showSpeedDialog(false) },
-                containerColor = Color(0xFF101622)
+                containerColor = Color(0xFF101622),
+                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+                dragHandle = { BottomSheetDefaults.DragHandle(color = Color(0x66FFFFFF)) }
             ) {
                 SpeedBottomSheet(
                     currentSpeed = playbackState.playbackSpeed,
@@ -711,7 +730,9 @@ fun PlayerScreen(
         if (uiState.showAspectRatioDialog) {
             ModalBottomSheet(
                 onDismissRequest = { viewModel.showAspectRatioDialog(false) },
-                containerColor = Color(0xFF101622)
+                containerColor = Color(0xFF101622),
+                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+                dragHandle = { BottomSheetDefaults.DragHandle(color = Color(0x66FFFFFF)) }
             ) {
                 AspectRatioBottomSheet(
                     currentMode = playbackState.aspectRatio,
@@ -726,7 +747,9 @@ fun PlayerScreen(
         if (uiState.showAudioDialog) {
             ModalBottomSheet(
                 onDismissRequest = { viewModel.showAudioDialog(false) },
-                containerColor = Color(0xFF101622)
+                containerColor = Color(0xFF101622),
+                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+                dragHandle = { BottomSheetDefaults.DragHandle(color = Color(0x66FFFFFF)) }
             ) {
                 AudioTrackBottomSheet(
                     tracks = audioTracks,
@@ -741,7 +764,9 @@ fun PlayerScreen(
         if (uiState.showSubtitleDialog) {
             ModalBottomSheet(
                 onDismissRequest = { viewModel.showSubtitleDialog(false) },
-                containerColor = Color(0xFF101622)
+                containerColor = Color(0xFF101622),
+                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+                dragHandle = { BottomSheetDefaults.DragHandle(color = Color(0x66FFFFFF)) }
             ) {
                 SubtitleBottomSheet(
                     tracks = subtitleTracks,
@@ -760,7 +785,9 @@ fun PlayerScreen(
         if (uiState.showPropertiesDialog) {
             ModalBottomSheet(
                 onDismissRequest = { viewModel.showPropertiesDialog(false) },
-                containerColor = Color(0xFF101622)
+                containerColor = Color(0xFF101622),
+                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+                dragHandle = { BottomSheetDefaults.DragHandle(color = Color(0x66FFFFFF)) }
             ) {
                 uiState.currentVideo?.let { video ->
                     PropertiesBottomSheet(video = video)
