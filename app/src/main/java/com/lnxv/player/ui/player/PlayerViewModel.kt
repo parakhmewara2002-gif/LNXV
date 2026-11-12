@@ -200,6 +200,19 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
 
     fun describeStream(): List<Pair<String, String>> = playerManager.describeStream()
 
+    /** Full plain-text report (container index check + player state + tracks + event log). */
+    suspend fun buildDiagnosticsReport(): String {
+        val video = _uiState.value.currentVideo
+        val container = if (video != null) {
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                com.lnxv.player.playback.diag.ContainerInspector.describe(getApplication<Application>(), video.uri)
+            }
+        } else {
+            "No video loaded"
+        }
+        return playerManager.diagnosticsSnapshot(video, container)
+    }
+
     fun setVideoScreenActive(active: Boolean) {
         playerManager.isVideoScreenActive = active
     }

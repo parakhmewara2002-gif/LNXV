@@ -73,9 +73,16 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.rememberLauncherForActivityResult
 import android.view.WindowManager
 import android.os.Build
+import kotlinx.coroutines.launch
+import android.widget.Toast
+import android.content.Intent
+import android.content.Context
+import android.content.ClipboardManager
+import android.content.ClipData
 import androidx.media3.ui.CaptionStyleCompat
 import android.util.TypedValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.material.icons.filled.ScreenLockPortrait
 import androidx.compose.material.icons.filled.ScreenLockLandscape
 import androidx.compose.material.icons.filled.ScreenRotation
@@ -133,6 +140,7 @@ fun PlayerScreen(
     var orientationMode by remember { mutableIntStateOf(0) }
     var playerViewRef by remember { mutableStateOf<PlayerView?>(null) }
     val prefs by viewModel.userPrefs.collectAsState()
+    val reportScope = rememberCoroutineScope()
     val subtitleDelayMs by viewModel.subtitleDelayMs.collectAsState()
     val hasExternalSubtitle by viewModel.hasExternalSubtitle.collectAsState()
     val subtitleFileLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -790,7 +798,31 @@ fun PlayerScreen(
                 dragHandle = { BottomSheetDefaults.DragHandle(color = Color(0x66FFFFFF)) }
             ) {
                 uiState.currentVideo?.let { video ->
-                    PropertiesBottomSheet(video = video, streamInfo = viewModel.describeStream())
+                    PropertiesBottomSheet(
+                        video = video,
+                        streamInfo = viewModel.describeStream(),
+                        onCopyReport = {
+                            reportScope.launch {
+                                val report = viewModel.buildDiagnosticsReport()
+                                val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                cm.setPrimaryClip(ClipData.newPlainText("LNXV diagnostic report", report))
+                                Toast.makeText(context, "Report copied. Paste it in the chat.", Toast.LENGTH_LONG).show()
+                            }
+                        },
+                        onShareReport = {
+                            reportScope.launch {
+                                val report = viewModel.buildDiagnosticsReport()
+                                val send = Intent(Intent.ACTION_SEND).apply {
+                                    type = "text/plain"
+                                    putExtra(Intent.EXTRA_SUBJECT, "LNXV diagnostic report")
+                                    putExtra(Intent.EXTRA_TEXT, report)
+                                }
+                                context.startActivity(
+                                    Intent.createChooser(send, "Share report").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                )
+                            }
+                        }
+                    )
                 }
             }
         }
@@ -1024,7 +1056,12 @@ fun SubtitleBottomSheet(
 }
 
 @Composable
-fun PropertiesBottomSheet(video: VideoItem, streamInfo: List<Pair<String, String>>) {
+fun PropertiesBottomSheet(
+    video: VideoItem,
+    streamInfo: List<Pair<String, String>>,
+    onCopyReport: () -> Unit,
+    onShareReport: () -> Unit
+) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -1044,6 +1081,27 @@ fun PropertiesBottomSheet(video: VideoItem, streamInfo: List<Pair<String, String
         PropertyRow(label = "Mime Type", value = video.mimeType)
         PropertyRow(label = "Path", value = video.path)
         streamInfo.forEach { (label, value) -> PropertyRow(label = label, value = value) }
+        Spacer(modifier = Modifier.height(12.dp))
+        Text(
+            text = "Copy diagnostic report",
+            color = NeonCyan,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onCopyReport() }
+                .padding(vertical = 10.dp)
+        )
+        Text(
+            text = "Share diagnostic report",
+            color = NeonCyan,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onShareReport() }
+                .padding(vertical = 10.dp)
+        )
         Spacer(modifier = Modifier.height(20.dp))
     }
 }

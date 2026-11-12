@@ -21,6 +21,7 @@ import com.lnxv.player.core.model.DecoderMode
 import com.lnxv.player.core.model.PlaybackState
 import com.lnxv.player.core.model.SubtitleTrackInfo
 import com.lnxv.player.core.util.SeekMath
+import com.lnxv.player.playback.diag.DiagnosticsCollector
 import com.lnxv.player.core.util.SubtitleShifter
 import java.io.File
 import kotlinx.coroutines.withContext
@@ -57,6 +58,12 @@ class Media3PlayerManager(private val context: Context) : Player.Listener {
         .build().apply {
             addListener(this@Media3PlayerManager)
         }
+
+    /** Event log + decoder info + report builder (used by Video Properties -> diagnostic report). */
+    val diagnostics = DiagnosticsCollector(context).also { it.attach(exoPlayer) }
+
+    fun diagnosticsSnapshot(video: com.lnxv.player.core.model.VideoItem?, containerInfo: String): String =
+        diagnostics.snapshot(exoPlayer, video, containerInfo)
 
     private val _playbackState = MutableStateFlow(PlaybackState())
     val playbackState: StateFlow<PlaybackState> = _playbackState.asStateFlow()
@@ -234,7 +241,11 @@ class Media3PlayerManager(private val context: Context) : Player.Listener {
     }
 
     fun seekTo(positionMs: Long) {
-        if (isSeekBlocked()) return
+        diagnostics.note("seekTo requested=${diagnostics.fmt(positionMs)} duration=${diagnostics.fmt(exoPlayer.duration)} seekable=${exoPlayer.isCurrentMediaItemSeekable}")
+        if (isSeekBlocked()) {
+            diagnostics.note("seek BLOCKED: file is unseekable")
+            return
+        }
         // SeekMath treats C.TIME_UNSET as "unknown" (the old clamp turned it into 0 => seek jumped to start)
         val target = SeekMath.clamp(positionMs, exoPlayer.duration)
         exoPlayer.seekTo(target)
@@ -242,7 +253,11 @@ class Media3PlayerManager(private val context: Context) : Player.Listener {
     }
 
     fun seekRelative(deltaMs: Long) {
-        if (isSeekBlocked()) return
+        diagnostics.note("seekRelative delta=${deltaMs}ms from=${diagnostics.fmt(exoPlayer.currentPosition)}")
+        if (isSeekBlocked()) {
+            diagnostics.note("seek BLOCKED: file is unseekable")
+            return
+        }
         // currentPosition already reflects a pending seek, so rapid repeated seeks accumulate correctly
         val target = SeekMath.relativeTarget(exoPlayer.currentPosition, deltaMs, exoPlayer.duration)
         exoPlayer.seekTo(target)

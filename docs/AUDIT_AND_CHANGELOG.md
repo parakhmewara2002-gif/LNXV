@@ -30,6 +30,8 @@ Run: `./gradlew testDebugUnitTest`. CI prints the result as a `Unit tests` annot
 **P3 playback:** load external `.srt`/`.vtt` subtitle file; subtitle delay in 0.5 s steps (cue times shifted in a cached copy, playback position kept). 7 extra unit tests (`SubtitleShifterTest`).
 **P4 visual polish:** spring press feedback on cards (`bouncyClickable`), animated tab pill, animated empty state, buffering shown as a fading glass disc, bottom sheets with rounded top + drag handle, softer controls fade.
 
+**Diagnostics (Video Properties -> Copy/Share diagnostic report):** plain-text report with device/app version, file facts, a direct read of the container structure (Matroska: SeekHead/Cues check with a verdict; MP4: moov/mdat order), player state, decoders, dropped frames, every track (supported/selected), last error and a rolling event log that records each seek request and the position the player actually jumped to. Pure-Kotlin parsers are covered by unit tests (`ContainerInspectorsTest`).
+
 ## 4. Not done / not verified (honest list)
 - No instrumented/UI tests (fullscreen, lifecycle, theme persistence, navigation): need a device or emulator.
 - No real-device testing was possible here.
