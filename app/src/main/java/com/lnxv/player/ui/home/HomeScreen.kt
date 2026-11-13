@@ -102,6 +102,37 @@ fun HomeScreen(
     val uiState by viewModel.uiState.collectAsState()
     var isSearchExpanded by remember { mutableStateOf(false) }
     var showStreamDialog by remember { mutableStateOf(false) }
+    val playlists by viewModel.playlists.collectAsState()
+    val playlistTarget by viewModel.playlistTarget.collectAsState()
+    playlistTarget?.let { target ->
+        var newName by remember(target.id) { mutableStateOf("") }
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = viewModel::dismissAddToPlaylist,
+            title = { Text("Add to playlist") },
+            text = {
+                Column {
+                    playlists.forEach { pl ->
+                        androidx.compose.material3.TextButton(onClick = { viewModel.addToPlaylist(pl.id) }) {
+                            Text("${pl.name} (${pl.itemCount})", maxLines = 1)
+                        }
+                    }
+                    androidx.compose.material3.OutlinedTextField(
+                        value = newName,
+                        onValueChange = { newName = it },
+                        label = { Text("New playlist name") },
+                        singleLine = true
+                    )
+                }
+            },
+            confirmButton = {
+                androidx.compose.material3.TextButton(
+                    onClick = { viewModel.createPlaylistAndAdd(newName) },
+                    enabled = newName.isNotBlank()
+                ) { Text("Create") }
+            },
+            dismissButton = { androidx.compose.material3.TextButton(onClick = viewModel::dismissAddToPlaylist) { Text("Cancel") } }
+        )
+    }
     val recentStreams by viewModel.recentStreams.collectAsState()
     if (showStreamDialog) {
         var url by remember { mutableStateOf("") }
@@ -395,6 +426,7 @@ fun HomeScreen(
                                         onClick = { onVideoClick(video) },
                                         onFavoriteToggle = { viewModel.toggleFavorite(video) },
                                         onVaultMove = { viewModel.moveToVault(video) },
+                                onAddToPlaylist = { viewModel.requestAddToPlaylist(video) },
                                         onDelete = { viewModel.deleteVideo(video) }
                                     )
                                 }
@@ -408,6 +440,7 @@ fun HomeScreen(
                                 onClick = { onVideoClick(video) },
                                 onFavoriteToggle = { viewModel.toggleFavorite(video) },
                                 onVaultMove = { viewModel.moveToVault(video) },
+                                onAddToPlaylist = { viewModel.requestAddToPlaylist(video) },
                                 onDelete = { viewModel.deleteVideo(video) }
                             )
                         }
@@ -448,6 +481,7 @@ fun HomeScreen(
                                     onClick = { onVideoClick(video) },
                                     onFavoriteToggle = { viewModel.toggleFavorite(video) },
                                     onVaultMove = { viewModel.moveToVault(video) },
+                                onAddToPlaylist = { viewModel.requestAddToPlaylist(video) },
                                     onDelete = { viewModel.deleteVideo(video) }
                                 )
                             }
@@ -474,8 +508,32 @@ fun HomeScreen(
                                 onClick = { onVideoClick(video) },
                                 onFavoriteToggle = { viewModel.toggleFavorite(video) },
                                 onVaultMove = { viewModel.moveToVault(video) },
+                                onAddToPlaylist = { viewModel.requestAddToPlaylist(video) },
                                 onDelete = { viewModel.deleteVideo(video) }
                             )
+                        }
+                    }
+                }
+                HomeTab.PLAYLISTS -> {
+                    if (playlists.isEmpty()) {
+                        item { EmptyStateView(message = "No playlists yet. Use \"Add to playlist\" on a video.") }
+                    } else {
+                        items(playlists, key = { it.id }) { pl ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { viewModel.playPlaylist(pl.id) }
+                                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(pl.name, color = appColors.textPrimary, fontSize = 15.sp, maxLines = 1)
+                                    Text("${pl.itemCount} video(s)", color = appColors.textTertiary, fontSize = 12.sp)
+                                }
+                                androidx.compose.material3.TextButton(onClick = { viewModel.deletePlaylist(pl.id) }) {
+                                    Text("Delete", color = Color.Red)
+                                }
+                            }
                         }
                     }
                 }
@@ -489,6 +547,7 @@ fun HomeScreen(
                                 onClick = { onVideoClick(video) },
                                 onFavoriteToggle = { viewModel.toggleFavorite(video) },
                                 onVaultMove = { viewModel.moveToVault(video) },
+                                onAddToPlaylist = { viewModel.requestAddToPlaylist(video) },
                                 onDelete = { viewModel.deleteVideo(video) }
                             )
                         }
@@ -505,6 +564,7 @@ fun VideoItemRow(
     onClick: () -> Unit,
     onFavoriteToggle: () -> Unit,
     onVaultMove: () -> Unit,
+    onAddToPlaylist: () -> Unit = {},
     onDelete: () -> Unit
 ) {
     var isMenuOpen by remember { mutableStateOf(false) }
@@ -608,6 +668,13 @@ fun VideoItemRow(
                         text = { Text(if (video.isFavorite) "Remove from Favorites" else "Add to Favorites") },
                         onClick = {
                             onFavoriteToggle()
+                            isMenuOpen = false
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Add to playlist") },
+                        onClick = {
+                            onAddToPlaylist()
                             isMenuOpen = false
                         }
                     )
@@ -845,6 +912,7 @@ fun VideoGridCard(
     onClick: () -> Unit,
     onFavoriteToggle: () -> Unit,
     onVaultMove: () -> Unit,
+    onAddToPlaylist: () -> Unit = {},
     onDelete: () -> Unit
 ) {
     var isMenuOpen by remember { mutableStateOf(false) }
@@ -927,6 +995,13 @@ fun VideoGridCard(
                             text = { Text(if (video.isFavorite) "Remove from Favorites" else "Add to Favorites") },
                             onClick = {
                                 onFavoriteToggle()
+                                isMenuOpen = false
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Add to playlist") },
+                            onClick = {
+                                onAddToPlaylist()
                                 isMenuOpen = false
                             }
                         )

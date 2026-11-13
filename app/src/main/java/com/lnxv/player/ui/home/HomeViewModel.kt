@@ -24,7 +24,8 @@ enum class HomeTab(val label: String) {
     VIDEOS("Videos"),
     FOLDERS("Folders"),
     RECENTS("Recents"),
-    FAVORITES("Favorites")
+    FAVORITES("Favorites"),
+    PLAYLISTS("Playlists")
 }
 
 enum class SortOption(val displayName: String) {
@@ -253,6 +254,57 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 app.pendingOpenVideoId.value = LNXVApplication.TRANSIENT_VIDEO_ID
                 null
             }
+        }
+    }
+
+    // ------------------------------------------------------------------ playlists
+
+    private val playlistDao = app.playlistDao
+
+    val playlists: kotlinx.coroutines.flow.StateFlow<List<com.lnxv.player.core.database.PlaylistSummary>> =
+        playlistDao.observePlaylists().stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5000), emptyList())
+
+    private val _playlistTarget = MutableStateFlow<VideoItem?>(null)
+    /** Video the user wants to add to a playlist (drives the picker dialog). */
+    val playlistTarget: kotlinx.coroutines.flow.StateFlow<VideoItem?> = _playlistTarget
+
+    fun requestAddToPlaylist(video: VideoItem) { _playlistTarget.value = video }
+    fun dismissAddToPlaylist() { _playlistTarget.value = null }
+
+    fun addToPlaylist(playlistId: Long) {
+        val video = _playlistTarget.value ?: return
+        _playlistTarget.value = null
+        viewModelScope.launch {
+            val pos = playlistDao.nextPosition(playlistId)
+            playlistDao.insertItem(com.lnxv.player.core.database.PlaylistItemEntity(playlistId, video.id, pos))
+        }
+    }
+
+    fun createPlaylistAndAdd(name: String) {
+        val video = _playlistTarget.value
+        _playlistTarget.value = null
+        val clean = name.trim().take(60)
+        if (clean.isEmpty()) return
+        viewModelScope.launch {
+            val id = playlistDao.insertPlaylist(com.lnxv.player.core.database.PlaylistEntity(name = clean, createdAt = System.currentTimeMillis()))
+            if (video != null) playlistDao.insertItem(com.lnxv.player.core.database.PlaylistItemEntity(id, video.id, 0))
+        }
+    }
+
+    fun deletePlaylist(playlistId: Long) {
+        viewModelScope.launch {
+            playlistDao.clearItems(playlistId)
+            playlistDao.deletePlaylist(playlistId)
+        }
+    }
+
+    /** Plays the whole playlist as the queue. */
+    fun playPlaylist(playlistId: Long) {
+        viewModelScope.launch {
+            val ids = playlistDao.getVideoIds(playlistId)
+            if (ids.isEmpty()) return@launch
+            app.queueOverride = ids
+            app.pendingOpenVideoId.value = ids.first()
         }
     }
 }

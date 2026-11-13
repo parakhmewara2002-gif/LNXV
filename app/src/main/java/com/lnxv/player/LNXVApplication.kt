@@ -25,6 +25,7 @@ class LNXVApplication : Application(), ImageLoaderFactory {
 
     val database by lazy { LNXVDatabase.getInstance(this) }
     val dataStore by lazy { UserPreferencesDataStore(this) }
+    val playlistDao by lazy { database.playlistDao() }
     val videoRepository by lazy { VideoRepository(this, database.videoDao()) }
     /** App-level scope with SupervisorJob; no unscoped CoroutineScope(Dispatchers.IO).launch anywhere. */
     val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
