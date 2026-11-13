@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 enum class HomeTab(val label: String) {
@@ -196,7 +197,16 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     fun moveToVault(video: VideoItem) {
         viewModelScope.launch {
-            vaultRepo.moveToVault(video.id)
+            if (!vaultRepo.isPinSet()) {
+                app.vaultTransfers.postMessage("Open the Private Vault once to create your PIN, then move videos.")
+                return@launch
+            }
+            val prefs = dataStore.userPreferencesFlow.first()
+            if (!prefs.isEnabled(com.lnxv.player.core.flags.FeatureFlag.ENCRYPTED_VAULT)) {
+                app.vaultTransfers.postMessage("Encrypted vault is turned off in Settings > Advanced > Experimental.")
+                return@launch
+            }
+            app.vaultTransfers.enqueueMove(video)
         }
     }
 

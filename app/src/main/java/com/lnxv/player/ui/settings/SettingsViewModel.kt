@@ -37,7 +37,9 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             _updateState.value = UpdateState.Checking
             _updateState.value = try {
                 val info = AppUpdater.check(app)
-                if (info == null) UpdateState.UpToDate else UpdateState.Available(info)
+                val skipped = userPreferences.value.skippedUpdateBuild
+                if (info == null || !com.lnxv.player.core.update.UpdateVerifier.shouldOffer(info.build, AppUpdater.currentBuild(app), skipped)) UpdateState.UpToDate
+                else UpdateState.Available(info)
             } catch (e: Exception) {
                 UpdateState.Error(e.message ?: "Update check failed")
             }
@@ -54,7 +56,12 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             }
             _updateState.value = UpdateState.Downloading(0f)
             try {
-                val file = AppUpdater.download(app, info) { _updateState.value = UpdateState.Downloading(it) }
+                val prefs = userPreferences.value
+                val file = AppUpdater.download(
+                    app, info,
+                    wifiOnly = prefs.updateWifiOnly,
+                    verify = prefs.isEnabled(com.lnxv.player.core.flags.FeatureFlag.SECURE_UPDATER_CHECKS)
+                ) { _updateState.value = UpdateState.Downloading(it) }
                 AppUpdater.install(app, file)
                 _updateState.value = UpdateState.Available(info)
             } catch (e: Exception) {
@@ -128,6 +135,30 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun toggleBrightnessGesture(enabled: Boolean) {
         viewModelScope.launch {
             dataStore.updateBrightnessGesture(enabled)
+        }
+    }
+
+    fun setBlockScreenshots(enabled: Boolean) {
+        viewModelScope.launch { dataStore.updateBlockScreenshots(enabled) }
+    }
+
+    fun cycleAutoLock(currentMs: Long) {
+        val next = when (currentMs) { 0L -> 30_000L; 30_000L -> 60_000L; 60_000L -> 300_000L; else -> 0L }
+        viewModelScope.launch { dataStore.updateVaultAutoLock(next) }
+    }
+
+    fun setFlag(flag: com.lnxv.player.core.flags.FeatureFlag, enabled: Boolean) {
+        viewModelScope.launch { dataStore.setFeatureFlag(flag, enabled) }
+    }
+
+    fun setUpdateWifiOnly(enabled: Boolean) {
+        viewModelScope.launch { dataStore.updateUpdateWifiOnly(enabled) }
+    }
+
+    fun skipThisVersion(info: UpdateInfo) {
+        viewModelScope.launch {
+            dataStore.skipUpdateBuild(info.build)
+            _updateState.value = UpdateState.UpToDate
         }
     }
 }

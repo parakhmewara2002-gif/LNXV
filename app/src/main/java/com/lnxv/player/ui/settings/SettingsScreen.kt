@@ -318,6 +318,27 @@ fun SettingsScreen(
                                 color = appColors.accent
                             )
                         }
+                        if (st is UpdateState.Available && st.info.notes.isNotBlank()) {
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Text(
+                                text = st.info.notes.trim().take(600),
+                                color = appColors.textTertiary,
+                                fontSize = 12.sp,
+                                maxLines = 8
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(10.dp))
+                        SettingSwitchRow(
+                            title = "Download updates on Wi-Fi only",
+                            subtitle = "Avoid using mobile data for updates",
+                            isChecked = prefs.updateWifiOnly,
+                            onCheckedChange = { viewModel.setUpdateWifiOnly(it) }
+                        )
+                        if (st is UpdateState.Available) {
+                            androidx.compose.material3.TextButton(onClick = { viewModel.skipThisVersion(st.info) }) {
+                                Text("Skip this version", color = appColors.textTertiary)
+                            }
+                        }
                         if (st !is UpdateState.Checking && st !is UpdateState.Downloading) {
                             Spacer(modifier = Modifier.height(12.dp))
                             Box(
@@ -337,6 +358,67 @@ fun SettingsScreen(
                                     fontWeight = FontWeight.SemiBold
                                 )
                             }
+                        }
+                    }
+                }
+            }
+
+            item {
+                SectionHeader("Security")
+                GlassPanel(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    backgroundColor = appColors.glassFill
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        SettingSwitchRow(
+                            title = "Block screenshots everywhere",
+                            subtitle = "Vault screens always block screenshots; this extends it to the whole app",
+                            isChecked = prefs.blockScreenshotsEverywhere,
+                            onCheckedChange = { viewModel.setBlockScreenshots(it) }
+                        )
+                        Spacer(modifier = Modifier.height(14.dp))
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { viewModel.cycleAutoLock(prefs.vaultAutoLockMs) },
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Vault auto-lock", color = appColors.textPrimary, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                                Text("Tap to change. Always locks when the screen turns off.", color = appColors.textTertiary, fontSize = 12.sp)
+                            }
+                            Text(
+                                text = when (prefs.vaultAutoLockMs) {
+                                    0L -> "Immediately"
+                                    30_000L -> "30 seconds"
+                                    60_000L -> "1 minute"
+                                    else -> "5 minutes"
+                                },
+                                color = appColors.accent, fontSize = 13.sp
+                            )
+                        }
+                    }
+                }
+            }
+
+            item {
+                SectionHeader("Advanced > Experimental")
+                GlassPanel(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    backgroundColor = appColors.glassFill
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        com.lnxv.player.core.flags.FeatureFlag.values().forEachIndexed { index, flag ->
+                            if (index > 0) Spacer(modifier = Modifier.height(14.dp))
+                            SettingSwitchRow(
+                                title = flag.title,
+                                subtitle = flag.description,
+                                isChecked = prefs.isEnabled(flag),
+                                onCheckedChange = { viewModel.setFlag(flag, it) }
+                            )
                         }
                     }
                 }

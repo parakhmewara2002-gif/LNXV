@@ -46,6 +46,10 @@ jobs:
           fi
           exit $code
 
+      - name: Android lint (non-blocking until the baseline is clean)
+        continue-on-error: true
+        run: ./gradlew lintDebug --console=plain
+
       - name: Decode signing keystore
         run: echo "${{ secrets.KEYSTORE_B64 }}" | base64 -d > $RUNNER_TEMP/lnxv.jks
 
@@ -63,14 +67,19 @@ jobs:
           fi
           exit $code
 
-      - name: Rename APK
-        run: cp app/build/outputs/apk/release/app-release.apk LNXV.apk
+      - name: Rename APK and write SHA-256 checksum
+        run: |
+          cp app/build/outputs/apk/release/app-release.apk LNXV.apk
+          sha256sum LNXV.apk > LNXV.apk.sha256
+          cat LNXV.apk.sha256
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: LNXV-app-release
-          path: LNXV.apk
+          path: |
+            LNXV.apk
+            LNXV.apk.sha256
           if-no-files-found: error
 
       - name: Publish GitHub Release (for in-app updates)
@@ -79,5 +88,7 @@ jobs:
         with:
           tag_name: v1.0.${{ github.run_number }}
           name: LNXV 1.0.${{ github.run_number }}
-          files: LNXV.apk
+          files: |
+            LNXV.apk
+            LNXV.apk.sha256
           generate_release_notes: true

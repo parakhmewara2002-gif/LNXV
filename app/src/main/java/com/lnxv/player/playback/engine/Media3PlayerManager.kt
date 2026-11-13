@@ -14,6 +14,8 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import com.lnxv.player.LNXVApplication
+import com.lnxv.player.data.repository.VaultFiles
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import com.lnxv.player.core.model.ABRepeatState
 import com.lnxv.player.core.model.AspectRatioMode
@@ -54,7 +56,18 @@ class Media3PlayerManager(private val context: Context) : Player.Listener {
 
     val exoPlayer: ExoPlayer = ExoPlayer.Builder(context, renderersFactory)
         .setTrackSelector(trackSelector)
-        .setMediaSourceFactory(DefaultMediaSourceFactory(context, SeekFixExtractorsFactory(context)))
+        .setMediaSourceFactory(
+            DefaultMediaSourceFactory(
+                VaultRoutingDataSource.Factory(
+                    androidx.media3.datasource.DefaultDataSource.Factory(context),
+                    EncryptedDataSource.Factory(
+                        keyProvider = { (context.applicationContext as LNXVApplication).vaultKeyManager.requireKey() },
+                        fileResolver = { uri -> java.io.File(VaultFiles.dir(context), uri.lastPathSegment ?: "") }
+                    )
+                ),
+                SeekFixExtractorsFactory(context)
+            )
+        )
         .setSeekBackIncrementMs(10000L)
         .setSeekForwardIncrementMs(10000L)
         .build().apply {

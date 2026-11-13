@@ -1,6 +1,8 @@
 package com.lnxv.player.ui.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -23,6 +25,16 @@ import com.lnxv.player.ui.vault.VaultViewModel
 
 @Composable
 fun LNXVNavigationHost(navController: NavHostController) {
+    // On vault lock, remove vault screens / vault playback from the back stack.
+    val app = androidx.compose.ui.platform.LocalContext.current.applicationContext as com.lnxv.player.LNXVApplication
+    androidx.compose.runtime.LaunchedEffect(navController) {
+        app.lockEvents.collect {
+            val route = navController.currentDestination?.route
+            if (route == Screen.Vault.route || route == Screen.Player.route) {
+                navController.popBackStack(Screen.Home.route, inclusive = false)
+            }
+        }
+    }
     NavHost(
         navController = navController,
         startDestination = Screen.Home.route,
@@ -56,6 +68,21 @@ fun LNXVNavigationHost(navController: NavHostController) {
         ) { backStackEntry ->
             val videoId = backStackEntry.arguments?.getLong("videoId") ?: 0L
             val playerViewModel: PlayerViewModel = viewModel()
+            val playerUi by playerViewModel.uiState.collectAsState()
+            androidx.compose.runtime.LaunchedEffect(playerUi.accessDenied) {
+                if (playerUi.accessDenied) navController.popBackStack()
+            }
+            // FLAG_SECURE while a vault item is open in the player
+            val isVaultItem = playerUi.currentVideo?.isVault == true
+            val activity = androidx.compose.ui.platform.LocalContext.current as? android.app.Activity
+            androidx.compose.runtime.DisposableEffect(isVaultItem) {
+                if (isVaultItem) activity?.window?.addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+                onDispose {
+                    if (isVaultItem && !app.screenshotsBlockedGlobally) {
+                        activity?.window?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+                    }
+                }
+            }
             com.lnxv.player.core.design.LNXVPlayerTheme {
                 PlayerScreen(
                     videoId = videoId,

@@ -32,7 +32,9 @@ data class PlayerUiState(
     val showSubtitleDialog: Boolean = false,
     val showPropertiesDialog: Boolean = false,
     val subtitleStyle: SubtitleStyleConfig = SubtitleStyleConfig(),
-    val resumePromptPositionMs: Long? = null
+    val resumePromptPositionMs: Long? = null,
+    /** Vault video requested while the vault session is locked: the route pops back instead of playing. */
+    val accessDenied: Boolean = false
 )
 
 class PlayerViewModel(application: Application) : AndroidViewModel(application) {
@@ -63,6 +65,12 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         if (_uiState.value.currentVideo?.id == videoId) return
         viewModelScope.launch {
             val video = videoRepository.getVideoById(videoId) ?: return@launch
+            val app = getApplication<Application>() as LNXVApplication
+            if (video.isVault && !app.vaultRepository.isUnlocked) {
+                _uiState.value = _uiState.value.copy(accessDenied = true)
+                return@launch
+            }
+            app.playingVaultItem = video.isVault
             playerManager.owner = this@PlayerViewModel
             val prefs = dataStore.userPreferencesFlow.first()
             val last = video.lastPositionMs
@@ -224,6 +232,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         if (closed) return
         saveProgress()
         closed = true
+        (getApplication<Application>() as LNXVApplication).playingVaultItem = false
         if (playerManager.owner === this) {
             playerManager.owner = null
             playerManager.isVideoScreenActive = false

@@ -4,75 +4,123 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.view.WindowManager
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.collectAsState
 import androidx.core.content.ContextCompat
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.compose.rememberNavController
+import com.lnxv.player.core.datastore.UserPreferences
 import com.lnxv.player.core.design.LNXVTheme
+import com.lnxv.player.core.flags.FeatureFlag
 import com.lnxv.player.playback.pip.PipManager
 import com.lnxv.player.ui.navigation.LNXVNavigationHost
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
-    private val prefScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    /** null until DataStore delivered the first value; the splash screen is held until then (no runBlocking). */
+    private val prefsState = MutableStateFlow<UserPreferences?>(null)
     @Volatile private var backgroundPlayEnabled = false
     @Volatile private var autoPipEnabled = true
+    @Volatile private var autoLockMs = 0L
+    @Volatile private var autoLockEnabled = true
+    private var globalSecure = false
+    private var lockJob: Job? = null
 
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
         val isGranted = permissions.values.any { it }
         if (isGranted) {
-            val repo = (application as LNXVApplication).videoRepository
-            CoroutineScope(Dispatchers.IO).launch {
-                repo.refreshLibrary()
-            }
+            val app = application as LNXVApplication
+            app.appScope.launch(Dispatchers.IO) { app.videoRepository.refreshLibrary() }
         }
     }
 
+    /** MediaStore delete confirmation for the original video after it was encrypted into the vault. */
+    private val deleteConsentLauncher = registerForActivityResult(
+        ActivityResultContracts.StartIntentSenderForResult()
+    ) {
+        val app = application as LNXVApplication
+        app.appScope.launch(Dispatchers.IO) { app.videoRepository.refreshLibrary() }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
+        val splash = installSplashScreen()
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        splash.setKeepOnScreenCondition { prefsState.value == null }
 
         requestHighestRefreshRate()
         checkAndRequestPermissions()
 
         val app = application as LNXVApplication
-        val initialPrefs = runBlocking { app.dataStore.userPreferencesFlow.first() }
-        backgroundPlayEnabled = initialPrefs.isBackgroundPlayEnabled
-        autoPipEnabled = initialPrefs.isAutoPiPEnabled
-        prefScope.launch {
+
+        lifecycleScope.launch {
             app.dataStore.userPreferencesFlow.collect {
                 backgroundPlayEnabled = it.isBackgroundPlayEnabled
                 autoPipEnabled = it.isAutoPiPEnabled
+                autoLockMs = it.vaultAutoLockMs
+                autoLockEnabled = it.isEnabled(FeatureFlag.VAULT_AUTO_LOCK)
+                applyGlobalSecure(it.blockScreenshotsEverywhere)
+                prefsState.value = it
+            }
+        }
+
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                launch {
+                    app.vaultTransfers.messages.collect { Toast.makeText(this@MainActivity, it, Toast.LENGTH_LONG).show() }
+                }
+                launch {
+                    app.vaultTransfers.deleteConsents.collect { sender ->
+                        deleteConsentLauncher.launch(IntentSenderRequest.Builder(sender).build())
+                    }
+                }
             }
         }
 
         setContent {
-            val prefs by app.dataStore.userPreferencesFlow.collectAsState(initial = initialPrefs)
-            val systemDark = isSystemInDarkTheme()
-            val darkTheme = when (prefs.themeMode) {
-                "LIGHT" -> false
-                "SYSTEM" -> systemDark
-                else -> true
-            }
-            LNXVTheme(darkTheme = darkTheme, amoled = prefs.isAmoled) {
-                val navController = rememberNavController()
-                LNXVNavigationHost(navController = navController)
+            val prefs by prefsState.collectAsState()
+            val p = prefs
+            if (p != null) {
+                val systemDark = isSystemInDarkTheme()
+                val darkTheme = when (p.themeMode) {
+                    "LIGHT" -> false
+                    "SYSTEM" -> systemDark
+                    else -> true
+                }
+                LNXVTheme(darkTheme = darkTheme, amoled = p.isAmoled) {
+                    val navController = rememberNavController()
+                    LNXVNavigationHost(navController = navController)
+                }
             }
         }
+    }
+
+    private fun applyGlobalSecure(enabled: Boolean) {
+        (application as LNXVApplication).screenshotsBlockedGlobally = enabled
+        if (enabled) {
+            window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        } else if (globalSecure) {
+            window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        }
+        globalSecure = enabled
     }
 
     @Suppress("DEPRECATION")
@@ -113,6 +161,12 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onStart() {
+        super.onStart()
+        lockJob?.cancel()
+        lockJob = null
+    }
+
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()
         // If playing video, enter PiP mode automatically
@@ -132,6 +186,7 @@ class MainActivity : ComponentActivity() {
     override fun onStop() {
         super.onStop()
         val app = application as LNXVApplication
+        scheduleVaultAutoLock(app)
         if (!app.isPlayerInitialized) return
         val manager = app.playerManager
         if (isInPictureInPictureMode) {
@@ -142,12 +197,26 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun scheduleVaultAutoLock(app: LNXVApplication) {
+        if (isChangingConfigurations || !autoLockEnabled || !app.vaultKeyManager.isUnlocked) return
+        lockJob?.cancel()
+        val delayMs = autoLockMs
+        if (delayMs <= 0L) {
+            app.lockVault()
+        } else {
+            lockJob = app.appScope.launch {
+                delay(delayMs)
+                app.lockVault()
+            }
+        }
+    }
+
     override fun onDestroy() {
         val app = application as LNXVApplication
-        if (isFinishing && app.isPlayerInitialized) {
-            app.playerManager.stopPlayback()
+        if (isFinishing) {
+            app.lockVault()
+            if (app.isPlayerInitialized) app.playerManager.stopPlayback()
         }
-        prefScope.cancel()
         super.onDestroy()
     }
 }

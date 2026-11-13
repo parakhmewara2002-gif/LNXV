@@ -8,12 +8,14 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-import java.security.MessageDigest
+import com.lnxv.player.core.security.LockoutState
+import com.lnxv.player.core.flags.FeatureFlag
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "lnxv_user_preferences")
 
@@ -40,8 +42,25 @@ data class UserPreferences(
     val lastSpeed: Float = 1.0f,
     val hiddenFolders: Set<String> = emptySet(),
     val libraryViewMode: String = "LIST",
-    val themeMode: String = "DARK"
-)
+    val themeMode: String = "DARK",
+    /** Base64 PBKDF2 credential (replaces the legacy static-salt SHA-256 in [vaultPinHash]). */
+    val vaultPinSalt: String = "",
+    val vaultPinDerived: String = "",
+    val vaultPinIterations: Int = 0,
+    val vaultPinLength: Int = 6,
+    val vaultFailedAttempts: Int = 0,
+    val vaultLockedUntilMs: Long = 0L,
+    /** 0 = immediately when the app leaves the foreground, otherwise grace period in ms. */
+    val vaultAutoLockMs: Long = 0L,
+    val blockScreenshotsEverywhere: Boolean = false,
+    val updateWifiOnly: Boolean = false,
+    val skippedUpdateBuild: Int = 0,
+    val featureFlags: Map<FeatureFlag, Boolean> = FeatureFlag.defaults()
+) {
+    val hasVaultCredential: Boolean get() = vaultPinDerived.isNotEmpty() || vaultPinHash.isNotEmpty()
+    val lockoutState: LockoutState get() = LockoutState(vaultFailedAttempts, vaultLockedUntilMs)
+    fun isEnabled(flag: FeatureFlag): Boolean = featureFlags[flag] ?: flag.defaultEnabled
+}
 
 class UserPreferencesDataStore(private val context: Context) {
 
@@ -68,6 +87,17 @@ class UserPreferencesDataStore(private val context: Context) {
         val HIDDEN_FOLDERS = stringSetPreferencesKey("hidden_folders")
         val VIEW_MODE = stringPreferencesKey("library_view_mode")
         val THEME_MODE = stringPreferencesKey("theme_mode")
+        val VAULT_PIN_SALT = stringPreferencesKey("vault_pin_salt")
+        val VAULT_PIN_DERIVED = stringPreferencesKey("vault_pin_derived")
+        val VAULT_PIN_ITER = intPreferencesKey("vault_pin_iter")
+        val VAULT_PIN_LEN = intPreferencesKey("vault_pin_len")
+        val VAULT_FAILED = intPreferencesKey("vault_failed_attempts")
+        val VAULT_LOCKED_UNTIL = longPreferencesKey("vault_locked_until")
+        val VAULT_AUTOLOCK = longPreferencesKey("vault_autolock_ms")
+        val BLOCK_SCREENSHOTS = booleanPreferencesKey("block_screenshots")
+        val UPDATE_WIFI_ONLY = booleanPreferencesKey("update_wifi_only")
+        val UPDATE_SKIPPED = intPreferencesKey("update_skipped_build")
+        fun flagKey(flag: FeatureFlag) = booleanPreferencesKey("ff_" + flag.name.lowercase())
     }
 
     val userPreferencesFlow: Flow<UserPreferences> = context.dataStore.data.map { prefs ->
@@ -93,7 +123,20 @@ class UserPreferencesDataStore(private val context: Context) {
             lastSpeed = prefs[PreferencesKeys.LAST_SPEED] ?: 1.0f,
             hiddenFolders = prefs[PreferencesKeys.HIDDEN_FOLDERS] ?: emptySet(),
             libraryViewMode = prefs[PreferencesKeys.VIEW_MODE] ?: "LIST",
-            themeMode = prefs[PreferencesKeys.THEME_MODE] ?: "DARK"
+            themeMode = prefs[PreferencesKeys.THEME_MODE] ?: "DARK",
+            vaultPinSalt = prefs[PreferencesKeys.VAULT_PIN_SALT] ?: "",
+            vaultPinDerived = prefs[PreferencesKeys.VAULT_PIN_DERIVED] ?: "",
+            vaultPinIterations = prefs[PreferencesKeys.VAULT_PIN_ITER] ?: 0,
+            vaultPinLength = prefs[PreferencesKeys.VAULT_PIN_LEN] ?: 6,
+            vaultFailedAttempts = prefs[PreferencesKeys.VAULT_FAILED] ?: 0,
+            vaultLockedUntilMs = prefs[PreferencesKeys.VAULT_LOCKED_UNTIL] ?: 0L,
+            vaultAutoLockMs = prefs[PreferencesKeys.VAULT_AUTOLOCK] ?: 0L,
+            blockScreenshotsEverywhere = prefs[PreferencesKeys.BLOCK_SCREENSHOTS] ?: false,
+            updateWifiOnly = prefs[PreferencesKeys.UPDATE_WIFI_ONLY] ?: false,
+            skippedUpdateBuild = prefs[PreferencesKeys.UPDATE_SKIPPED] ?: 0,
+            featureFlags = FeatureFlag.values().associateWith { f ->
+                prefs[PreferencesKeys.flagKey(f)] ?: f.defaultEnabled
+            }
         )
     }
 
@@ -172,20 +215,54 @@ class UserPreferencesDataStore(private val context: Context) {
         }
     }
 
-    suspend fun setVaultPin(pin: String) {
-        val hash = hashPin(pin)
-        context.dataStore.edit { it[PreferencesKeys.VAULT_PIN_HASH] = hash }
+    suspend fun saveVaultCredential(saltB64: String, derivedB64: String, iterations: Int, pinLength: Int) {
+        context.dataStore.edit {
+            it[PreferencesKeys.VAULT_PIN_SALT] = saltB64
+            it[PreferencesKeys.VAULT_PIN_DERIVED] = derivedB64
+            it[PreferencesKeys.VAULT_PIN_ITER] = iterations
+            it[PreferencesKeys.VAULT_PIN_LEN] = pinLength
+            it.remove(PreferencesKeys.VAULT_PIN_HASH) // drop legacy static-salt hash
+            it[PreferencesKeys.VAULT_FAILED] = 0
+            it[PreferencesKeys.VAULT_LOCKED_UNTIL] = 0L
+        }
     }
 
-    suspend fun verifyVaultPin(enteredPin: String, currentHash: String): Boolean {
-        if (currentHash.isEmpty()) return false
-        val enteredHash = hashPin(enteredPin)
-        return enteredHash == currentHash
+    suspend fun clearVaultCredential() {
+        context.dataStore.edit {
+            it.remove(PreferencesKeys.VAULT_PIN_HASH)
+            it.remove(PreferencesKeys.VAULT_PIN_SALT)
+            it.remove(PreferencesKeys.VAULT_PIN_DERIVED)
+            it.remove(PreferencesKeys.VAULT_PIN_ITER)
+            it.remove(PreferencesKeys.VAULT_PIN_LEN)
+            it[PreferencesKeys.VAULT_FAILED] = 0
+            it[PreferencesKeys.VAULT_LOCKED_UNTIL] = 0L
+        }
     }
 
-    private fun hashPin(pin: String): String {
-        val md = MessageDigest.getInstance("SHA-256")
-        val digest = md.digest("LNXV_SALT_$pin".toByteArray())
-        return digest.fold("") { str, it -> str + "%02x".format(it) }
+    suspend fun saveLockout(state: LockoutState) {
+        context.dataStore.edit {
+            it[PreferencesKeys.VAULT_FAILED] = state.failedAttempts
+            it[PreferencesKeys.VAULT_LOCKED_UNTIL] = state.lockedUntilMs
+        }
+    }
+
+    suspend fun updateVaultAutoLock(ms: Long) {
+        context.dataStore.edit { it[PreferencesKeys.VAULT_AUTOLOCK] = ms }
+    }
+
+    suspend fun updateUpdateWifiOnly(enabled: Boolean) {
+        context.dataStore.edit { it[PreferencesKeys.UPDATE_WIFI_ONLY] = enabled }
+    }
+
+    suspend fun skipUpdateBuild(build: Int) {
+        context.dataStore.edit { it[PreferencesKeys.UPDATE_SKIPPED] = build }
+    }
+
+    suspend fun updateBlockScreenshots(enabled: Boolean) {
+        context.dataStore.edit { it[PreferencesKeys.BLOCK_SCREENSHOTS] = enabled }
+    }
+
+    suspend fun setFeatureFlag(flag: FeatureFlag, enabled: Boolean) {
+        context.dataStore.edit { it[PreferencesKeys.flagKey(flag)] = enabled }
     }
 }

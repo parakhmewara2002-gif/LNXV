@@ -83,6 +83,7 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
     implementation("androidx.profileinstaller:profileinstaller:1.3.1")
     implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.core.splashscreen)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.activity.compose)
@@ -96,6 +97,7 @@ dependencies {
     implementation(libs.androidx.material.icons.extended)
     implementation(libs.androidx.navigation.compose)
     debugImplementation(libs.androidx.ui.tooling)
+    debugImplementation(libs.leakcanary)
 
     // Media3 ExoPlayer
     implementation(libs.androidx.media3.exoplayer)

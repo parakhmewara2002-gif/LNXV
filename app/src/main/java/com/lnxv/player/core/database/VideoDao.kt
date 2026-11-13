@@ -52,6 +52,33 @@ interface VideoDao {
     @Query("UPDATE videos SET isVault = :isVault WHERE id = :videoId")
     suspend fun updateVaultStatus(videoId: Long, isVault: Boolean)
 
+    @Query("UPDATE videos SET isVault = :isVault, vaultFile = :vaultFile WHERE id = :videoId")
+    suspend fun setVaultState(videoId: Long, isVault: Boolean, vaultFile: String?)
+
+    @Query("SELECT vaultFile FROM videos WHERE vaultFile IS NOT NULL")
+    suspend fun getAllVaultFileNames(): List<String>
+
+    @Query("SELECT COUNT(*) FROM videos WHERE isVault = 1 AND vaultFile IS NULL")
+    fun countLegacyVault(): Flow<Int>
+
+    @Query("SELECT * FROM videos WHERE isVault = 1 AND vaultFile IS NULL")
+    suspend fun getLegacyVault(): List<VideoEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertThumb(thumb: VaultThumbEntity)
+
+    @Query("SELECT * FROM vault_thumbs WHERE videoId = :videoId")
+    suspend fun getThumb(videoId: Long): VaultThumbEntity?
+
+    @Query("DELETE FROM vault_thumbs WHERE videoId = :videoId")
+    suspend fun deleteThumb(videoId: Long)
+
+    @Query("DELETE FROM vault_thumbs")
+    suspend fun clearThumbs()
+
+    @Query("DELETE FROM videos WHERE isVault = 1")
+    suspend fun deleteAllVaultRows()
+
     @Query("DELETE FROM videos WHERE id = :videoId")
     suspend fun deleteVideo(videoId: Long)
 
