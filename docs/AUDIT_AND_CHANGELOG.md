@@ -36,6 +36,8 @@ Run: `./gradlew testDebugUnitTest`. CI prints the result as a `Unit tests` annot
 
 **Themes (System / Light / Dark + AMOLED True Black):** new `LNXVColors` palette (`Palette.kt`) provided through a CompositionLocal; Home, Settings and Vault read colours from it instead of hard-coded white/black, so Light theme is now real. Glass cards use a light-tinted fill/border in Light theme; a soft two-colour glow (`ambientBackground`) sits behind the glass in Light and Dark so the translucency is visible (AMOLED stays pure #000000). Settings -> Appearance has a System/Light/Dark chooser (persisted in DataStore); AMOLED applies to Dark. The video player is always dark. NOT device-tested.
 
+**Player panels (from user screenshots):** the Aspect Ratio sheet was cut off at the bottom in landscape (9 options, only 3 visible, no scrolling) and every popup/sheet/dropdown opened in its own window, which made Android bring the navigation buttons back (fullscreen broken). Speed/Aspect/Audio/Subtitle/Properties panels and the ⋮ menu are now drawn inside the player: right-side panel in landscape, bottom panel in portrait, scrollable, spring slide-in, back-press closes them. Frosted-glass look: a tiny `PixelCopy` snapshot of the video is stretched behind the panel (bilinear = soft blur on every Android version) with a tint, specular highlight and gradient border. System bars are also re-hidden on window-focus changes and inside the remaining AlertDialogs. NOT device-tested.
+
 ## 4. Not done / not verified (honest list)
 - No instrumented/UI tests (fullscreen, lifecycle, theme persistence, navigation): need a device or emulator.
 - No real-device testing was possible here.

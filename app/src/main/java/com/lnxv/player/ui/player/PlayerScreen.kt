@@ -73,6 +73,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.rememberLauncherForActivityResult
 import android.view.WindowManager
 import android.os.Build
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.ImageBitmap
 import kotlinx.coroutines.launch
 import android.widget.Toast
 import android.content.Intent
@@ -141,6 +143,7 @@ fun PlayerScreen(
     var playerViewRef by remember { mutableStateOf<PlayerView?>(null) }
     val prefs by viewModel.userPrefs.collectAsState()
     val reportScope = rememberCoroutineScope()
+    var glassBackdrop by remember { mutableStateOf<ImageBitmap?>(null) }
     val subtitleDelayMs by viewModel.subtitleDelayMs.collectAsState()
     val hasExternalSubtitle by viewModel.hasExternalSubtitle.collectAsState()
     val subtitleFileLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -183,12 +186,18 @@ fun PlayerScreen(
             }
         }
         enterImmersive()
+        val focusListener = android.view.ViewTreeObserver.OnWindowFocusChangeListener { hasFocus ->
+            if (hasFocus) enterImmersive()
+        }
+        window?.decorView?.viewTreeObserver?.addOnWindowFocusChangeListener(focusListener)
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) enterImmersive()
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
+            val vto = window?.decorView?.viewTreeObserver
+            if (vto != null && vto.isAlive) vto.removeOnWindowFocusChangeListener(focusListener)
             if (window != null && controller != null) {
                 controller.show(WindowInsetsCompat.Type.systemBars())
                 window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -472,67 +481,6 @@ fun PlayerScreen(
                                             onClick = { isMoreMenuOpen = true },
                                             size = 36.dp
                                         )
-                                        DropdownMenu(
-                                            expanded = isMoreMenuOpen,
-                                            onDismissRequest = { isMoreMenuOpen = false }
-                                        ) {
-                                            DropdownMenuItem(
-                                                text = { Text(if (playbackState.sleepTimerRemainingSeconds != null) "Sleep Timer (active)" else "Sleep Timer") },
-                                                onClick = {
-                                                    showSleepDialog = true
-                                                    isMoreMenuOpen = false
-                                                }
-                                            )
-                                            DropdownMenuItem(
-                                                text = { Text("Previous frame") },
-                                                onClick = {
-                                                    viewModel.stepFrame(false)
-                                                    isMoreMenuOpen = false
-                                                }
-                                            )
-                                            DropdownMenuItem(
-                                                text = { Text("Next frame") },
-                                                onClick = {
-                                                    viewModel.stepFrame(true)
-                                                    isMoreMenuOpen = false
-                                                }
-                                            )
-                                            DropdownMenuItem(
-                                                text = { Text("Screenshot") },
-                                                onClick = {
-                                                    isMoreMenuOpen = false
-                                                    playerViewRef?.let { ScreenshotHelper.capture(context, it) }
-                                                }
-                                            )
-                                            DropdownMenuItem(
-                                                text = { Text("Set Point A (AB Repeat)") },
-                                                onClick = {
-                                                    viewModel.setPointA()
-                                                    isMoreMenuOpen = false
-                                                }
-                                            )
-                                            DropdownMenuItem(
-                                                text = { Text("Set Point B (AB Repeat)") },
-                                                onClick = {
-                                                    viewModel.setPointB()
-                                                    isMoreMenuOpen = false
-                                                }
-                                            )
-                                            DropdownMenuItem(
-                                                text = { Text("Clear AB Repeat") },
-                                                onClick = {
-                                                    viewModel.clearABRepeat()
-                                                    isMoreMenuOpen = false
-                                                }
-                                            )
-                                            DropdownMenuItem(
-                                                text = { Text("Video Properties") },
-                                                onClick = {
-                                                    viewModel.showPropertiesDialog(true)
-                                                    isMoreMenuOpen = false
-                                                }
-                                            )
-                                        }
                                     }
                                 }
                             }
@@ -717,411 +665,189 @@ fun PlayerScreen(
             )
         }
 
-        // Modal Dialogs (Speed, Aspect Ratio, Audio Tracks, Subtitles, Properties)
-        if (uiState.showSpeedDialog) {
-            ModalBottomSheet(
-                onDismissRequest = { viewModel.showSpeedDialog(false) },
-                containerColor = Color(0xFF101622),
-                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-                dragHandle = { BottomSheetDefaults.DragHandle(color = Color(0x66FFFFFF)) }
-            ) {
-                SpeedBottomSheet(
-                    currentSpeed = playbackState.playbackSpeed,
-                    onSpeedSelected = { speed ->
-                        viewModel.setPlaybackSpeed(speed)
-                        viewModel.showSpeedDialog(false)
-                    }
-                )
-            }
-        }
-
-        if (uiState.showAspectRatioDialog) {
-            ModalBottomSheet(
-                onDismissRequest = { viewModel.showAspectRatioDialog(false) },
-                containerColor = Color(0xFF101622),
-                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-                dragHandle = { BottomSheetDefaults.DragHandle(color = Color(0x66FFFFFF)) }
-            ) {
-                AspectRatioBottomSheet(
-                    currentMode = playbackState.aspectRatio,
-                    onModeSelected = { mode ->
-                        viewModel.setAspectRatio(mode)
-                        viewModel.showAspectRatioDialog(false)
-                    }
-                )
-            }
-        }
-
-        if (uiState.showAudioDialog) {
-            ModalBottomSheet(
-                onDismissRequest = { viewModel.showAudioDialog(false) },
-                containerColor = Color(0xFF101622),
-                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-                dragHandle = { BottomSheetDefaults.DragHandle(color = Color(0x66FFFFFF)) }
-            ) {
-                AudioTrackBottomSheet(
-                    tracks = audioTracks,
-                    onTrackSelected = { track ->
-                        viewModel.selectAudioTrack(track)
-                        viewModel.showAudioDialog(false)
-                    }
-                )
-            }
-        }
-
-        if (uiState.showSubtitleDialog) {
-            ModalBottomSheet(
-                onDismissRequest = { viewModel.showSubtitleDialog(false) },
-                containerColor = Color(0xFF101622),
-                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-                dragHandle = { BottomSheetDefaults.DragHandle(color = Color(0x66FFFFFF)) }
-            ) {
-                SubtitleBottomSheet(
-                    tracks = subtitleTracks,
-                    onTrackSelected = { track ->
-                        viewModel.selectSubtitleTrack(track)
-                        viewModel.showSubtitleDialog(false)
-                    },
-                    onLoadFile = { subtitleFileLauncher.launch(arrayOf("*/*")) },
-                    delayMs = subtitleDelayMs,
-                    canDelay = hasExternalSubtitle,
-                    onDelayChange = { viewModel.adjustSubtitleDelay(it) }
-                )
-            }
-        }
-
-        if (uiState.showPropertiesDialog) {
-            ModalBottomSheet(
-                onDismissRequest = { viewModel.showPropertiesDialog(false) },
-                containerColor = Color(0xFF101622),
-                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-                dragHandle = { BottomSheetDefaults.DragHandle(color = Color(0x66FFFFFF)) }
-            ) {
-                uiState.currentVideo?.let { video ->
-                    PropertiesBottomSheet(
-                        video = video,
-                        streamInfo = viewModel.describeStream(),
-                        onCopyReport = {
-                            reportScope.launch {
-                                val report = viewModel.buildDiagnosticsReport()
-                                val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                cm.setPrimaryClip(ClipData.newPlainText("LNXV diagnostic report", report))
-                                Toast.makeText(context, "Report copied. Paste it in the chat.", Toast.LENGTH_LONG).show()
-                            }
-                        },
-                        onShareReport = {
-                            reportScope.launch {
-                                val report = viewModel.buildDiagnosticsReport()
-                                val send = Intent(Intent.ACTION_SEND).apply {
-                                    type = "text/plain"
-                                    putExtra(Intent.EXTRA_SUBJECT, "LNXV diagnostic report")
-                                    putExtra(Intent.EXTRA_TEXT, report)
-                                }
-                                context.startActivity(
-                                    Intent.createChooser(send, "Share report").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                )
-                            }
-                        }
-                    )
+        // Frosted-glass backdrop: snapshot of the video taken whenever a panel / menu opens
+        val anyPanelOpen = uiState.showSpeedDialog || uiState.showAspectRatioDialog || uiState.showAudioDialog ||
+            uiState.showSubtitleDialog || uiState.showPropertiesDialog || isMoreMenuOpen
+        LaunchedEffect(anyPanelOpen) {
+            if (anyPanelOpen) {
+                val view = playerViewRef
+                if (view != null) {
+                    BackdropCapture.capture(view) { bmp -> glassBackdrop = bmp?.asImageBitmap() }
                 }
+            } else {
+                glassBackdrop = null
             }
         }
-    }
-}
 
-@Composable
-fun SpeedBottomSheet(
-    currentSpeed: Float,
-    onSpeedSelected: (Float) -> Unit
-) {
-    val presets = listOf(0.25f, 0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f, 3.0f, 4.0f)
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(24.dp)
-    ) {
-        Text(
-            text = "Playback Speed",
-            color = Color.White,
-            style = Typography.titleMedium,
-            fontWeight = FontWeight.Bold
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+        // Side panels: drawn inside the player (no extra window) so fullscreen is never interrupted
+        PlayerSidePanel(
+            visible = uiState.showSpeedDialog,
+            title = "Playback Speed",
+            icon = Icons.Default.Speed,
+            onDismiss = { viewModel.showSpeedDialog(false) },
+            backdrop = glassBackdrop
         ) {
-            presets.take(5).forEach { speed ->
-                SpeedPill(speed = speed, isSelected = currentSpeed == speed, onClick = { onSpeedSelected(speed) })
-            }
-        }
-        Spacer(modifier = Modifier.height(12.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            presets.drop(5).forEach { speed ->
-                SpeedPill(speed = speed, isSelected = currentSpeed == speed, onClick = { onSpeedSelected(speed) })
-            }
-        }
-        Spacer(modifier = Modifier.height(24.dp))
-    }
-}
-
-@Composable
-fun SpeedPill(speed: Float, isSelected: Boolean, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(12.dp))
-            .background(if (isSelected) NeonCyan else Color(0x26FFFFFF))
-            .clickable { onClick() }
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = "${speed}x",
-            color = if (isSelected) Color.Black else Color.White,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.SemiBold
-        )
-    }
-}
-
-@Composable
-fun AspectRatioBottomSheet(
-    currentMode: AspectRatioMode,
-    onModeSelected: (AspectRatioMode) -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(24.dp)
-    ) {
-        Text(
-            text = "Aspect Ratio",
-            color = Color.White,
-            style = Typography.titleMedium,
-            fontWeight = FontWeight.Bold
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        AspectRatioMode.values().forEach { mode ->
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onModeSelected(mode) }
-                    .padding(vertical = 12.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = mode.displayName,
-                    color = if (mode == currentMode) NeonCyan else Color.White,
-                    fontSize = 15.sp,
-                    fontWeight = if (mode == currentMode) FontWeight.Bold else FontWeight.Normal
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun AudioTrackBottomSheet(
-    tracks: List<com.lnxv.player.core.model.AudioTrackInfo>,
-    onTrackSelected: (com.lnxv.player.core.model.AudioTrackInfo) -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(24.dp)
-    ) {
-        Text(
-            text = "Audio Tracks (${tracks.size})",
-            color = Color.White,
-            style = Typography.titleMedium,
-            fontWeight = FontWeight.Bold
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        if (tracks.isEmpty()) {
-            Text("No alternate audio tracks available", color = Color(0x80FFFFFF), fontSize = 14.sp)
-        } else {
-            tracks.forEach { track ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onTrackSelected(track) }
-                        .padding(vertical = 12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = track.label,
-                        color = if (track.isSelected) NeonCyan else Color.White,
-                        fontSize = 15.sp
-                    )
+            SpeedBottomSheet(
+                currentSpeed = playbackState.playbackSpeed,
+                onSpeedSelected = { speed ->
+                    viewModel.setPlaybackSpeed(speed)
+                    viewModel.showSpeedDialog(false)
                 }
-            }
-        }
-    }
-}
-
-@Composable
-fun SubtitleBottomSheet(
-    tracks: List<com.lnxv.player.core.model.SubtitleTrackInfo>,
-    onTrackSelected: (com.lnxv.player.core.model.SubtitleTrackInfo?) -> Unit,
-    onLoadFile: () -> Unit,
-    delayMs: Long,
-    canDelay: Boolean,
-    onDelayChange: (Long) -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(24.dp)
-    ) {
-        Text(
-            text = "Subtitles",
-            color = Color.White,
-            style = Typography.titleMedium,
-            fontWeight = FontWeight.Bold
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { onTrackSelected(null) }
-                .padding(vertical = 12.dp)
-        ) {
-            Text("Off", color = Color.White, fontSize = 15.sp)
-        }
-        tracks.forEach { track ->
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onTrackSelected(track) }
-                    .padding(vertical = 12.dp)
-            ) {
-                Text(
-                    text = track.label,
-                    color = if (track.isSelected) NeonCyan else Color.White,
-                    fontSize = 15.sp
-                )
-            }
-        }
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = "Load subtitle file (.srt / .vtt)…",
-            color = NeonCyan,
-            fontSize = 15.sp,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { onLoadFile() }
-                .padding(vertical = 12.dp)
-        )
-        if (canDelay) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = "Delay: ${if (delayMs >= 0) "+" else "-"}${"%.1f".format(kotlin.math.abs(delayMs) / 1000f)} s",
-                    color = Color.White,
-                    fontSize = 15.sp
-                )
-                Row {
-                    Text(
-                        text = "  − 0.5s  ",
-                        color = NeonCyan,
-                        fontSize = 15.sp,
-                        modifier = Modifier.clickable { onDelayChange(-500L) }.padding(vertical = 8.dp)
-                    )
-                    Text(
-                        text = "  + 0.5s  ",
-                        color = NeonCyan,
-                        fontSize = 15.sp,
-                        modifier = Modifier.clickable { onDelayChange(500L) }.padding(vertical = 8.dp)
-                    )
-                }
-            }
-            Text(
-                text = "Delay applies to the loaded external file (playback position is kept).",
-                color = Color(0x80FFFFFF),
-                fontSize = 11.sp
             )
         }
+
+        PlayerSidePanel(
+            visible = uiState.showAspectRatioDialog,
+            title = "Aspect Ratio",
+            icon = Icons.Default.AspectRatio,
+            onDismiss = { viewModel.showAspectRatioDialog(false) },
+            backdrop = glassBackdrop
+        ) {
+            AspectRatioBottomSheet(
+                currentMode = playbackState.aspectRatio,
+                onModeSelected = { mode ->
+                    viewModel.setAspectRatio(mode)
+                    viewModel.showAspectRatioDialog(false)
+                }
+            )
+        }
+
+        PlayerSidePanel(
+            visible = uiState.showAudioDialog,
+            title = "Audio Tracks (${audioTracks.size})",
+            icon = Icons.Default.Audiotrack,
+            onDismiss = { viewModel.showAudioDialog(false) },
+            backdrop = glassBackdrop
+        ) {
+            AudioTrackBottomSheet(
+                tracks = audioTracks,
+                onTrackSelected = { track ->
+                    viewModel.selectAudioTrack(track)
+                    viewModel.showAudioDialog(false)
+                }
+            )
+        }
+
+        PlayerSidePanel(
+            visible = uiState.showSubtitleDialog,
+            title = "Subtitles",
+            icon = Icons.Default.Subtitles,
+            onDismiss = { viewModel.showSubtitleDialog(false) },
+            backdrop = glassBackdrop
+        ) {
+            SubtitleBottomSheet(
+                tracks = subtitleTracks,
+                onTrackSelected = { track ->
+                    viewModel.selectSubtitleTrack(track)
+                    viewModel.showSubtitleDialog(false)
+                },
+                onLoadFile = { subtitleFileLauncher.launch(arrayOf("*/*")) },
+                delayMs = subtitleDelayMs,
+                canDelay = hasExternalSubtitle,
+                onDelayChange = { viewModel.adjustSubtitleDelay(it) }
+            )
+        }
+
+        PlayerSidePanel(
+            visible = uiState.showPropertiesDialog,
+            title = "Video Properties",
+            icon = Icons.Default.Info,
+            onDismiss = { viewModel.showPropertiesDialog(false) },
+            backdrop = glassBackdrop
+        ) {
+            uiState.currentVideo?.let { video ->
+                PropertiesBottomSheet(
+                    video = video,
+                    streamInfo = viewModel.describeStream(),
+                    onCopyReport = {
+                        reportScope.launch {
+                            val report = viewModel.buildDiagnosticsReport()
+                            val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                            cm.setPrimaryClip(ClipData.newPlainText("LNXV diagnostic report", report))
+                            Toast.makeText(context, "Report copied. Paste it in the chat.", Toast.LENGTH_LONG).show()
+                        }
+                    },
+                    onShareReport = {
+                        reportScope.launch {
+                            val report = viewModel.buildDiagnosticsReport()
+                            val send = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(Intent.EXTRA_SUBJECT, "LNXV diagnostic report")
+                                putExtra(Intent.EXTRA_TEXT, report)
+                            }
+                            context.startActivity(
+                                Intent.createChooser(send, "Share report").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            )
+                        }
+                    }
+                )
+            }
+        }
+
+        // Overflow menu (drawn inside the player, scrollable)
+        PlayerOverflowMenu(
+            visible = isMoreMenuOpen,
+            onDismiss = { isMoreMenuOpen = false },
+            backdrop = glassBackdrop
+        ) {
+                                            PlayerMenuItem(
+                                                text = { Text(if (playbackState.sleepTimerRemainingSeconds != null) "Sleep Timer (active)" else "Sleep Timer") },
+                                                onClick = {
+                                                    showSleepDialog = true
+                                                    isMoreMenuOpen = false
+                                                }
+                                            )
+                                            PlayerMenuItem(
+                                                text = { Text("Previous frame") },
+                                                onClick = {
+                                                    viewModel.stepFrame(false)
+                                                    isMoreMenuOpen = false
+                                                }
+                                            )
+                                            PlayerMenuItem(
+                                                text = { Text("Next frame") },
+                                                onClick = {
+                                                    viewModel.stepFrame(true)
+                                                    isMoreMenuOpen = false
+                                                }
+                                            )
+                                            PlayerMenuItem(
+                                                text = { Text("Screenshot") },
+                                                onClick = {
+                                                    isMoreMenuOpen = false
+                                                    playerViewRef?.let { ScreenshotHelper.capture(context, it) }
+                                                }
+                                            )
+                                            PlayerMenuItem(
+                                                text = { Text("Set Point A (AB Repeat)") },
+                                                onClick = {
+                                                    viewModel.setPointA()
+                                                    isMoreMenuOpen = false
+                                                }
+                                            )
+                                            PlayerMenuItem(
+                                                text = { Text("Set Point B (AB Repeat)") },
+                                                onClick = {
+                                                    viewModel.setPointB()
+                                                    isMoreMenuOpen = false
+                                                }
+                                            )
+                                            PlayerMenuItem(
+                                                text = { Text("Clear AB Repeat") },
+                                                onClick = {
+                                                    viewModel.clearABRepeat()
+                                                    isMoreMenuOpen = false
+                                                }
+                                            )
+                                            PlayerMenuItem(
+                                                text = { Text("Video Properties") },
+                                                onClick = {
+                                                    viewModel.showPropertiesDialog(true)
+                                                    isMoreMenuOpen = false
+                                                }
+                                            )
+        }
+
     }
 }
 
-@Composable
-fun PropertiesBottomSheet(
-    video: VideoItem,
-    streamInfo: List<Pair<String, String>>,
-    onCopyReport: () -> Unit,
-    onShareReport: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(24.dp)
-    ) {
-        Text(
-            text = "Video Properties",
-            color = Color.White,
-            style = Typography.titleMedium,
-            fontWeight = FontWeight.Bold
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        PropertyRow(label = "Title", value = video.title)
-        PropertyRow(label = "Resolution", value = "${video.width} x ${video.height} (${video.resolutionLabel})")
-        PropertyRow(label = "Duration", value = video.durationFormatted)
-        PropertyRow(label = "File Size", value = video.sizeFormatted)
-        PropertyRow(label = "Mime Type", value = video.mimeType)
-        PropertyRow(label = "Path", value = video.path)
-        streamInfo.forEach { (label, value) -> PropertyRow(label = label, value = value) }
-        Spacer(modifier = Modifier.height(12.dp))
-        Text(
-            text = "Copy diagnostic report",
-            color = NeonCyan,
-            fontSize = 15.sp,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { onCopyReport() }
-                .padding(vertical = 10.dp)
-        )
-        Text(
-            text = "Share diagnostic report",
-            color = NeonCyan,
-            fontSize = 15.sp,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { onShareReport() }
-                .padding(vertical = 10.dp)
-        )
-        Spacer(modifier = Modifier.height(20.dp))
-    }
-}
-
-@Composable
-fun PropertyRow(label: String, value: String) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 6.dp),
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Text(label, color = Color(0x80FFFFFF), fontSize = 13.sp)
-        Spacer(modifier = Modifier.width(16.dp))
-        Text(
-            text = value,
-            color = Color.White,
-            fontSize = 13.sp,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis
-        )
-    }
-}

@@ -18,6 +18,12 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.core.view.WindowInsetsControllerCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowCompat
+import androidx.compose.ui.window.DialogWindowProvider
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -96,6 +102,7 @@ fun ResumeDialog(
         containerColor = Color(0xFF101622),
         title = { Text("Resume playback?", color = Color.White) },
         text = {
+            ImmersiveDialogEffect()
             Text(
                 "Continue from ${VideoItem.formatDuration(positionMs)}?",
                 color = Color(0xCCFFFFFF)
@@ -122,6 +129,7 @@ fun SleepTimerDialog(
         containerColor = Color(0xFF101622),
         title = { Text("Sleep timer", color = Color.White) },
         text = {
+            ImmersiveDialogEffect()
             Column {
                 if (activeSeconds != null) {
                     Text(
@@ -167,4 +175,37 @@ fun SleepTimerDialog(
             TextButton(onClick = onDismiss) { Text("Close", color = NeonCyan) }
         }
     )
+}
+
+/** Call inside an AlertDialog's content: hides the system bars in the dialog window too. */
+@Composable
+fun ImmersiveDialogEffect() {
+    val view = LocalView.current
+    SideEffect {
+        val window = (view.parent as? DialogWindowProvider)?.window ?: return@SideEffect
+        val controller = WindowCompat.getInsetsController(window, view)
+        controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        controller.hide(WindowInsetsCompat.Type.systemBars())
+    }
+}
+
+/** Grabs a tiny snapshot of the video surface; stretched back up it becomes the frosted-glass backdrop. */
+object BackdropCapture {
+    fun capture(playerView: PlayerView, onResult: (Bitmap?) -> Unit) {
+        val surface = playerView.videoSurfaceView as? SurfaceView
+        if (surface == null || surface.width <= 0 || surface.height <= 0) {
+            onResult(null)
+            return
+        }
+        val targetWidth = 48
+        val targetHeight = (surface.height.toFloat() / surface.width * targetWidth).toInt().coerceAtLeast(8)
+        val bitmap = Bitmap.createBitmap(targetWidth, targetHeight, Bitmap.Config.ARGB_8888)
+        try {
+            PixelCopy.request(surface, bitmap, { result ->
+                onResult(if (result == PixelCopy.SUCCESS) bitmap else null)
+            }, Handler(Looper.getMainLooper()))
+        } catch (e: Exception) {
+            onResult(null)
+        }
+    }
 }
