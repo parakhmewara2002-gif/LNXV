@@ -138,6 +138,7 @@ fun PlayerScreen(
     val audioTracks by viewModel.audioTracks.collectAsState()
     val subtitleTracks by viewModel.subtitleTracks.collectAsState()
     val queueUi by viewModel.queueUi.collectAsState()
+    val audioDelayMs by viewModel.audioDelayMs.collectAsState()
 
     var overlayState by remember { mutableStateOf(GestureOverlayState()) }
     var isMoreMenuOpen by remember { mutableStateOf(false) }
@@ -834,6 +835,14 @@ fun PlayerScreen(
                                                     onClick = { viewModel.cycleRepeat() }
                                                 )
                                             }
+                                            PlayerMenuItem(
+                                                text = { Text("Audio delay +50 ms (now $audioDelayMs ms)") },
+                                                onClick = { viewModel.adjustAudioDelay(50L) }
+                                            )
+                                            PlayerMenuItem(
+                                                text = { Text("Audio delay -50 ms") },
+                                                onClick = { viewModel.adjustAudioDelay(-50L) }
+                                            )
                                             PlayerMenuItem(
                                                 text = { Text("Previous frame") },
                                                 onClick = {

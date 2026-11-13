@@ -49,9 +49,32 @@ class Media3PlayerManager(private val context: Context) : Player.Listener {
         setParameters(buildUponParameters().setPreferredTextLanguage("en"))
     }
 
-    private val renderersFactory = DefaultRenderersFactory(context).apply {
+    private val audioDelayProcessor = AudioDelayProcessor()
+
+    private val renderersFactory = object : DefaultRenderersFactory(context) {
+        override fun buildAudioSink(
+            context: Context,
+            enableFloatOutput: Boolean,
+            enableAudioTrackPlaybackParams: Boolean
+        ): androidx.media3.exoplayer.audio.AudioSink =
+            androidx.media3.exoplayer.audio.DefaultAudioSink.Builder(context)
+                .setEnableFloatOutput(enableFloatOutput)
+                .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
+                .setAudioProcessors(arrayOf<androidx.media3.common.audio.AudioProcessor>(audioDelayProcessor))
+                .build()
+    }.apply {
         setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
         setEnableDecoderFallback(true) // Software decoding fallback when hardware decoding fails
+    }
+
+    private val _audioDelayMs = MutableStateFlow(0L)
+    /** Audio delay in ms (0..2000, 50 ms steps). Negative delay is not supported (documented limitation). */
+    val audioDelayMs: StateFlow<Long> = _audioDelayMs.asStateFlow()
+
+    fun setAudioDelayMs(ms: Long) {
+        val v = ms.coerceIn(AudioDelayProcessor.MIN_DELAY_MS, AudioDelayProcessor.MAX_DELAY_MS)
+        audioDelayProcessor.setDelayMs(v)
+        _audioDelayMs.value = v
     }
 
     val exoPlayer: ExoPlayer = ExoPlayer.Builder(context, renderersFactory)

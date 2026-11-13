@@ -70,6 +70,10 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     val subtitleTracks: StateFlow<List<SubtitleTrackInfo>> = playerManager.subtitleTracks
     val subtitleDelayMs: StateFlow<Long> = playerManager.subtitleDelayMs
     val hasExternalSubtitle: StateFlow<Boolean> = playerManager.hasExternalSubtitle
+    val audioDelayMs: StateFlow<Long> = playerManager.audioDelayMs
+
+    fun adjustAudioDelay(deltaMs: Long) = playerManager.setAudioDelayMs(playerManager.audioDelayMs.value + deltaMs)
+    fun resetAudioDelay() = playerManager.setAudioDelayMs(0L)
 
     private val _uiState = MutableStateFlow(PlayerUiState())
     val uiState: StateFlow<PlayerUiState> = _uiState.asStateFlow()
