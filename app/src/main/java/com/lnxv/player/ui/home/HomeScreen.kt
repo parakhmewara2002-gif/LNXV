@@ -40,6 +40,7 @@ import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ViewAgenda
 import androidx.compose.material.icons.filled.GridView
+import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
@@ -100,6 +101,49 @@ fun HomeScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var isSearchExpanded by remember { mutableStateOf(false) }
+    var showStreamDialog by remember { mutableStateOf(false) }
+    val recentStreams by viewModel.recentStreams.collectAsState()
+    if (showStreamDialog) {
+        var url by remember { mutableStateOf("") }
+        var error by remember { mutableStateOf<String?>(null) }
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showStreamDialog = false },
+            title = { Text("Open network stream") },
+            text = {
+                Column {
+                    androidx.compose.material3.OutlinedTextField(
+                        value = url,
+                        onValueChange = { url = it; error = null },
+                        label = { Text("https://, HLS (.m3u8), DASH (.mpd), rtsp://") },
+                        singleLine = true,
+                        isError = error != null,
+                        supportingText = error?.let { e -> { Text(e) } }
+                    )
+                    if (recentStreams.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("Recent", fontSize = 12.sp)
+                        recentStreams.take(5).forEach { r ->
+                            androidx.compose.material3.TextButton(onClick = { url = r; error = null }) {
+                                Text(r, maxLines = 1, fontSize = 12.sp)
+                            }
+                        }
+                        androidx.compose.material3.TextButton(onClick = { viewModel.clearRecentStreams() }) {
+                            Text("Clear recent", fontSize = 12.sp)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    val err = viewModel.openStream(url)
+                    if (err == null) showStreamDialog = false else error = err
+                }) { Text("Play") }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { showStreamDialog = false }) { Text("Cancel") }
+            }
+        )
+    }
     var isSortMenuExpanded by remember { mutableStateOf(false) }
     BackHandler(enabled = uiState.openFolderPath != null) { viewModel.closeFolder() }
 
@@ -156,6 +200,13 @@ fun HomeScreen(
                             icon = Icons.Default.Search,
                             contentDescription = "Search",
                             onClick = { isSearchExpanded = !isSearchExpanded },
+                            size = 38.dp
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        GlassIconButton(
+                            icon = Icons.Default.Link,
+                            contentDescription = "Open network stream",
+                            onClick = { showStreamDialog = true },
                             size = 38.dp
                         )
                         Spacer(modifier = Modifier.width(8.dp))

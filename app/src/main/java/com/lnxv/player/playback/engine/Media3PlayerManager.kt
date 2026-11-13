@@ -110,6 +110,29 @@ class Media3PlayerManager(private val context: Context) : Player.Listener {
 
     // --- External subtitle + delay (SRT / WebVTT only: cue times are shifted in a cached copy) ---
     private var externalSubtitleSource: Uri? = null
+    private val _playbackError = MutableStateFlow<String?>(null)
+    /** Human-readable error for the current media; null while OK. Collected by the player route. */
+    val playbackError: StateFlow<String?> = _playbackError.asStateFlow()
+    fun clearPlaybackError() { _playbackError.value = null }
+
+    override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+        _playbackError.value = when (error.errorCode) {
+            androidx.media3.common.PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
+            androidx.media3.common.PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT ->
+                "Cannot reach the stream. Check the URL and your connection."
+            androidx.media3.common.PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS ->
+                "The server rejected the request (bad HTTP status). The link may have expired."
+            androidx.media3.common.PlaybackException.ERROR_CODE_IO_CLEARTEXT_NOT_PERMITTED ->
+                "Plain HTTP is blocked for security. Use an https:// URL."
+            androidx.media3.common.PlaybackException.ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED,
+            androidx.media3.common.PlaybackException.ERROR_CODE_PARSING_CONTAINER_MALFORMED,
+            androidx.media3.common.PlaybackException.ERROR_CODE_PARSING_MANIFEST_MALFORMED,
+            androidx.media3.common.PlaybackException.ERROR_CODE_PARSING_MANIFEST_UNSUPPORTED ->
+                "Unsupported or corrupted stream format."
+            else -> "Playback error: ${error.errorCodeName}"
+        }
+    }
+
     private val _subtitleDelayMs = MutableStateFlow(0L)
     val subtitleDelayMs: StateFlow<Long> = _subtitleDelayMs.asStateFlow()
     private val _hasExternalSubtitle = MutableStateFlow(false)
@@ -182,6 +205,7 @@ class Media3PlayerManager(private val context: Context) : Player.Listener {
         title: String? = null
     ) {
         externalSubtitleSource = null
+        _playbackError.value = null
         _subtitleDelayMs.value = 0L
         _hasExternalSubtitle.value = false
         val mediaItemBuilder = MediaItem.Builder().setUri(uri)

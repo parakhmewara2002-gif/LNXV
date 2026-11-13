@@ -78,6 +78,15 @@ fun LNXVNavigationHost(navController: NavHostController) {
             val videoId = backStackEntry.arguments?.getLong("videoId") ?: 0L
             val playerViewModel: PlayerViewModel = viewModel()
             val playerUi by playerViewModel.uiState.collectAsState()
+            val ctx = androidx.compose.ui.platform.LocalContext.current
+            androidx.compose.runtime.LaunchedEffect(Unit) {
+                app.playerManager.playbackError.collect { msg ->
+                    if (msg != null) {
+                        android.widget.Toast.makeText(ctx, msg, android.widget.Toast.LENGTH_LONG).show()
+                        app.playerManager.clearPlaybackError()
+                    }
+                }
+            }
             androidx.compose.runtime.LaunchedEffect(playerUi.accessDenied) {
                 if (playerUi.accessDenied) navController.popBackStack()
             }

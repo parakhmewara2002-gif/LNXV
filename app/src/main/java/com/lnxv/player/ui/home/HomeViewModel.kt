@@ -215,4 +215,44 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             repository.deleteVideo(video.id)
         }
     }
+
+    /** Recent network stream URLs (credentials already stripped when saved). */
+    val recentStreams: kotlinx.coroutines.flow.StateFlow<List<String>> = dataStore.userPreferencesFlow
+        .map { com.lnxv.player.core.util.StreamUrl.decodeList(it.recentStreams) }
+        .stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun rememberStream(url: String) {
+        viewModelScope.launch {
+            val clean = com.lnxv.player.core.util.StreamUrl.stripCredentials(url)
+            val current = com.lnxv.player.core.util.StreamUrl.decodeList(dataStore.userPreferencesFlow.first().recentStreams)
+            dataStore.saveRecentStreams(
+                com.lnxv.player.core.util.StreamUrl.encodeList(com.lnxv.player.core.util.StreamUrl.addRecent(current, clean))
+            )
+        }
+    }
+
+    fun clearRecentStreams() {
+        viewModelScope.launch { dataStore.saveRecentStreams("") }
+    }
+
+    /** Validates and opens a network stream through the transient-video player route. Returns an error text or null. */
+    fun openStream(rawUrl: String): String? {
+        val debuggable = app.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE != 0
+        return when (val r = com.lnxv.player.core.util.StreamUrl.validate(rawUrl, allowCleartextHttp = debuggable)) {
+            is com.lnxv.player.core.util.StreamUrl.Result.Error -> r.message
+            is com.lnxv.player.core.util.StreamUrl.Result.Ok -> {
+                rememberStream(r.url)
+                app.transientVideo = VideoItem(
+                    id = LNXVApplication.TRANSIENT_VIDEO_ID,
+                    title = com.lnxv.player.core.util.StreamUrl.titleFor(r.url),
+                    uri = android.net.Uri.parse(r.url),
+                    path = "", durationMs = 0L, sizeBytes = 0L, width = 0, height = 0,
+                    mimeType = "video/*", dateAddedSec = System.currentTimeMillis() / 1000,
+                    folderPath = "Network Streams", folderName = "Network"
+                )
+                app.pendingOpenVideoId.value = LNXVApplication.TRANSIENT_VIDEO_ID
+                null
+            }
+        }
+    }
 }
