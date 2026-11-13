@@ -7,6 +7,7 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.VisibilityThreshold
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -180,9 +181,11 @@ fun BoxScope.PlayerSidePanel(
     }
 
     BoxWithConstraints(modifier = Modifier.matchParentSize()) {
-        val landscape = maxWidth > maxHeight
+        val screenW = maxWidth
+        val screenH = maxHeight
+        val landscape = screenW > screenH
         if (landscape) {
-            val panelWidth = 380.dp.coerceAtMost(maxWidth * 0.6f)
+            val panelWidth = 380.dp.coerceAtMost(screenW * 0.6f)
             val shape = RoundedCornerShape(topStart = 28.dp, bottomStart = 28.dp)
             AnimatedVisibility(
                 visible = visible,
@@ -199,7 +202,7 @@ fun BoxScope.PlayerSidePanel(
                     icon = icon,
                     onDismiss = onDismiss,
                     backdrop = backdrop,
-                    geometry = BackdropGeometry(maxWidth, maxHeight, maxWidth - panelWidth, 0.dp),
+                    geometry = BackdropGeometry(screenW, screenH, screenW - panelWidth, 0.dp),
                     fillHeight = true,
                     content = content
                 )
@@ -215,7 +218,7 @@ fun BoxScope.PlayerSidePanel(
                 modifier = Modifier.align(Alignment.BottomCenter)
             ) {
                 PanelSurface(
-                    modifier = Modifier.fillMaxWidth().heightIn(max = maxHeight * 0.8f),
+                    modifier = Modifier.fillMaxWidth().heightIn(max = screenH * 0.8f),
                     shape = shape,
                     title = title,
                     icon = icon,
@@ -324,6 +327,8 @@ fun BoxScope.PlayerOverflowMenu(
     }
 
     BoxWithConstraints(modifier = Modifier.matchParentSize()) {
+        val screenW = maxWidth
+        val screenH = maxHeight
         val menuWidth = 250.dp
         val menuEnd = 12.dp
         val menuTop = 56.dp
@@ -339,13 +344,13 @@ fun BoxScope.PlayerOverflowMenu(
             Box(
                 modifier = Modifier
                     .width(menuWidth)
-                    .heightIn(max = maxHeight - menuTop - 16.dp)
+                    .heightIn(max = screenH - menuTop - 16.dp)
                     .clip(shape)
                     .border(width = 1.dp, brush = GlassBorder, shape = shape)
             ) {
                 GlassLayers(
                     backdrop = backdrop,
-                    geometry = BackdropGeometry(maxWidth, maxHeight, maxWidth - menuEnd - menuWidth, menuTop)
+                    geometry = BackdropGeometry(screenW, screenH, screenW - menuEnd - menuWidth, menuTop)
                 )
                 Column(
                     modifier = Modifier
