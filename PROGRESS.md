@@ -11,11 +11,19 @@ Build status: authoring environment had no Android SDK/Maven access; every chang
 - Phase 1.6 narrower ProGuard, CI checksum + lint
 - G2 flags, G3 startup (no runBlocking, splash, StrictMode), G5 app scope, G6 reflection guard, G8 LeakCanary
 
+## Done (increment 2, CI green)
+- Phase 1 gap: Change-PIN; README security model rewritten
+- Phase 2.1 Open-with (VIEW intents validated, library video reused for resume, else transient, flag OPEN_WITH_INTENTS)
+- Phase 2.2 background playback: MediaSession service bound via controller only while background play is on, audio focus + becoming-noisy, vault titles hidden ("Private video"), POST_NOTIFICATIONS asked lazily
+- Phase 2.3 network streams: HLS/DASH/RTSP modules added, URL validator, recent list without credentials, friendly errors (Plain HTTP blocked in release)
+
 ## In progress / remaining in Phase 1
 - BiometricPrompt unlock (needs FragmentActivity + androidx.biometric)
-- Change-PIN screen
 - detekt/ktlint/OWASP dependency-check in CI; pin Actions to SHAs
 - REQUEST_INSTALL_PACKAGES only in sideload flavor (with Phase 4 flavors)
 
+## Next
+Phase 2.4 queue/playlists, 2.5 subtitle/audio delay, 2.6 optional
+
 ## Not started
-Phases 2, 3, 4, 5, 6 and the LOW RAM / LOW STORAGE rules (A–D).
+Phases 3, 4, 5, 6 and the LOW RAM / LOW STORAGE rules (A–D).

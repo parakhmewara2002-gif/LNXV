@@ -69,3 +69,12 @@ Tests added: `PinHasherTest`, `LockoutPolicyTest`, `ChunkedAeadTest` (round-trip
 
 ### Known gaps in this increment (see PROGRESS.md)
 Biometric unlock, Change-PIN screen (repository supports re-keying only via forgot/wipe), REQUEST_INSTALL_PACKAGES split into a sideload flavor (Phase 4), true byte-level resume of an interrupted encryption (a cancelled/crashed copy is discarded and restarted; no orphan files remain), "hide vault from PiP/notification metadata" (no media notification exists yet — Phase 2.2), pinning GitHub Actions to commit SHAs (SHAs could not be verified offline), detekt/ktlint/OWASP in CI. MKV late-Cues seek fix does not apply to encrypted MKV files (the inspector reads `content://`/`file://` only); seeking still works through Matroska's normal Cues handling.
+
+## 5. Increment 2 (CI-compiled, NOT DEVICE-TESTED)
+| Item | Change | Files |
+|---|---|---|
+| Change PIN | Verifies old PIN (lockout applies), stores new PBKDF2 credential; key is Keystore-wrapped so no re-encryption | `VaultRepository.changePin`, `VaultScreen.kt` |
+| 2.1 Open with | `MainActivity` handles VIEW in onCreate/onNewIntent (`singleTask`), validates scheme/mime, reuses a library video when the URI is a MediaStore id, else plays a transient `VideoItem` (id -1, not in Room); persistable permission taken when offered | `MainActivity.kt`, `LNXVNavigationHost.kt`, `PlayerViewModel.kt`, manifest |
+| 2.2 Background play | `BackgroundPlaybackConnector` binds `LNXVPlaybackService` only when the setting is on; ExoPlayer now has audio focus + `handleAudioBecomingNoisy`; media metadata title set (vault = "Private video"); service never releases the shared player | `playback/service/*`, `Media3PlayerManager.kt` |
+| 2.3 Network streams | `StreamUrl` validator (HTTP(S)/RTSP, HTTP only in debug), recent URLs (max 10, credentials stripped), Home "Open network stream" dialog, friendly playback errors. New deps: media3-exoplayer-hls/dash/rtsp (same pinned 1.4.1; required for HLS/DASH/RTSP). R8 reflection loading of these factories relies on Media3 consumer rules: NOT TESTED on a release build. | `core/util/StreamUrl.kt`, `HomeScreen.kt`, `Media3PlayerManager.kt` |
+Known limits: per-video resume for transient opens is not stored; network-specific larger buffers (rule C) not yet applied.
