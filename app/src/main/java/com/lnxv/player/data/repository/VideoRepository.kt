@@ -66,6 +66,10 @@ class VideoRepository(
         }
     }
 
+    suspend fun getFolderVideoIds(folderPath: String): List<Long> = withContext(Dispatchers.IO) {
+        videoDao.getFolderVideoIds(folderPath)
+    }
+
     suspend fun getVideoById(id: Long): VideoItem? = withContext(Dispatchers.IO) {
         videoDao.getVideoById(id)?.toModel()
     }

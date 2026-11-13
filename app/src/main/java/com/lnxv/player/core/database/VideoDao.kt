@@ -13,6 +13,9 @@ interface VideoDao {
     @Query("SELECT * FROM videos WHERE isVault = 0 ORDER BY dateAddedSec DESC")
     fun getAllVideos(): Flow<List<VideoEntity>>
 
+    @Query("SELECT id FROM videos WHERE isVault = 0 AND folderPath = :folderPath ORDER BY title COLLATE NOCASE ASC")
+    suspend fun getFolderVideoIds(folderPath: String): List<Long>
+
     @Query("SELECT * FROM videos WHERE isVault = 0 AND folderPath = :folderPath ORDER BY title ASC")
     fun getVideosInFolder(folderPath: String): Flow<List<VideoEntity>>
 

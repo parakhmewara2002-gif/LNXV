@@ -18,9 +18,22 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.distinctUntilChanged
+import com.lnxv.player.core.model.QueueLogic
+import com.lnxv.player.core.model.RepeatMode
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+
+@Immutable
+data class QueueUi(
+    val size: Int = 0,
+    val hasNext: Boolean = false,
+    val hasPrevious: Boolean = false,
+    val shuffle: Boolean = false,
+    val repeat: RepeatMode = RepeatMode.OFF
+)
 
 @Immutable
 data class PlayerUiState(
@@ -61,16 +74,95 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     private val _uiState = MutableStateFlow(PlayerUiState())
     val uiState: StateFlow<PlayerUiState> = _uiState.asStateFlow()
 
+    private var queue: QueueLogic? = null
+    private val _queueUi = MutableStateFlow(QueueUi())
+    val queueUi: StateFlow<QueueUi> = _queueUi.asStateFlow()
+
+    init {
+        // Auto-play next: when the current item ends, advance the queue (repeat-one is handled by ExoPlayer itself).
+        viewModelScope.launch {
+            playerManager.playbackState.map { it.isEnded }.distinctUntilChanged().collect { ended ->
+                if (ended && !closed && playerManager.owner === this@PlayerViewModel) playNext()
+            }
+        }
+    }
+
+    private fun publishQueue() {
+        val q = queue
+        _queueUi.value = if (q == null) QueueUi() else QueueUi(q.size, q.hasNext, q.hasPrevious, q.shuffle, q.repeat)
+    }
+
+    private suspend fun buildQueue(video: VideoItem) {
+        val app = getApplication<Application>() as LNXVApplication
+        val override = app.queueOverride
+        app.queueOverride = null
+        val ids = when {
+            override != null -> override
+            video.isVault || video.id == LNXVApplication.TRANSIENT_VIDEO_ID -> emptyList()
+            else -> videoRepository.getFolderVideoIds(video.folderPath)
+        }
+        val keep = queue
+        queue = if (ids.size > 1) QueueLogic(
+            ids, video.id,
+            shuffle = keep?.shuffle ?: false,
+            repeat = keep?.repeat ?: RepeatMode.OFF
+        ) else null
+        publishQueue()
+    }
+
+    fun playNext() {
+        val id = queue?.next() ?: return
+        publishQueue()
+        switchTo(id)
+    }
+
+    fun playPrevious() {
+        // Like most players: restart the current video when more than 3 s in, otherwise go to the previous one.
+        if (positionMs.value > 3_000L) { playerManager.seekTo(0L); return }
+        val id = queue?.previous() ?: return
+        publishQueue()
+        switchTo(id)
+    }
+
+    fun toggleShuffle() {
+        queue?.let { it.setShuffle(!it.shuffle); publishQueue() }
+    }
+
+    fun cycleRepeat() {
+        val q = queue ?: return
+        val mode = q.cycleRepeat()
+        playerManager.exoPlayer.repeatMode =
+            if (mode == RepeatMode.ONE) androidx.media3.common.Player.REPEAT_MODE_ONE else androidx.media3.common.Player.REPEAT_MODE_OFF
+        publishQueue()
+    }
+
+    private fun switchTo(videoId: Long) {
+        if (closed) return
+        saveProgress()
+        viewModelScope.launch {
+            val video = videoRepository.getVideoById(videoId) ?: return@launch
+            begin(video, rebuildQueue = false)
+        }
+    }
+
     fun loadVideo(videoId: Long) {
         if (_uiState.value.currentVideo?.id == videoId) return
         viewModelScope.launch {
             val app = getApplication<Application>() as LNXVApplication
             val video = (if (videoId == LNXVApplication.TRANSIENT_VIDEO_ID) app.transientVideo
                 else videoRepository.getVideoById(videoId)) ?: return@launch
+            begin(video, rebuildQueue = true)
+        }
+    }
+
+    private suspend fun begin(video: VideoItem, rebuildQueue: Boolean) {
+        run {
+            val app = getApplication<Application>() as LNXVApplication
             if (video.isVault && !app.vaultRepository.isUnlocked) {
                 _uiState.value = _uiState.value.copy(accessDenied = true)
-                return@launch
+                return
             }
+            if (rebuildQueue) buildQueue(video)
             app.playingVaultItem = video.isVault
             playerManager.owner = this@PlayerViewModel
             val prefs = dataStore.userPreferencesFlow.first()
@@ -242,6 +334,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         if (playerManager.owner === this) {
             playerManager.owner = null
             playerManager.isVideoScreenActive = false
+            playerManager.exoPlayer.repeatMode = androidx.media3.common.Player.REPEAT_MODE_OFF
             playerManager.stopPlayback()
         }
     }

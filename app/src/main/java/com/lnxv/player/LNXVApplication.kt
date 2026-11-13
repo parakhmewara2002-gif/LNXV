@@ -49,6 +49,9 @@ class LNXVApplication : Application(), ImageLoaderFactory {
     /** Transient "Open with" video (never written to Room); played via route id [TRANSIENT_VIDEO_ID]. */
     @Volatile var transientVideo: com.lnxv.player.core.model.VideoItem? = null
 
+    /** Explicit play queue (e.g. a playlist) consumed once by the next player session; null = use the folder queue. */
+    @Volatile var queueOverride: List<Long>? = null
+
     /** Set by MainActivity when a VIEW intent was accepted; consumed (set back to null) by the nav host. */
     val pendingOpenVideoId = kotlinx.coroutines.flow.MutableStateFlow<Long?>(null)
 

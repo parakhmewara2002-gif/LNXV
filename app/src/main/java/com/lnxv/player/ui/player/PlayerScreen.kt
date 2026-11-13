@@ -31,6 +31,8 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.AspectRatio
 import androidx.compose.material.icons.filled.Audiotrack
 import androidx.compose.material.icons.filled.FastForward
+import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.FastRewind
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.Info
@@ -135,6 +137,7 @@ fun PlayerScreen(
     val uiState by viewModel.uiState.collectAsState()
     val audioTracks by viewModel.audioTracks.collectAsState()
     val subtitleTracks by viewModel.subtitleTracks.collectAsState()
+    val queueUi by viewModel.queueUi.collectAsState()
 
     var overlayState by remember { mutableStateOf(GestureOverlayState()) }
     var isMoreMenuOpen by remember { mutableStateOf(false) }
@@ -497,8 +500,16 @@ fun PlayerScreen(
                                 )
                                 .padding(horizontal = 16.dp, vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(20.dp)
+                            horizontalArrangement = Arrangement.spacedBy(if (queueUi.size > 1) 10.dp else 20.dp)
                         ) {
+                            if (queueUi.size > 1) {
+                                GlassIconButton(
+                                    icon = Icons.Default.SkipPrevious,
+                                    contentDescription = "Previous video",
+                                    onClick = { viewModel.playPrevious() },
+                                    size = 40.dp
+                                )
+                            }
                             GlassIconButton(
                                 icon = Icons.Default.FastRewind,
                                 contentDescription = "Seek -10s",
@@ -529,6 +540,14 @@ fun PlayerScreen(
                                 onClick = { viewModel.seekRelative(10000L) },
                                 size = 44.dp
                             )
+                            if (queueUi.size > 1) {
+                                GlassIconButton(
+                                    icon = Icons.Default.SkipNext,
+                                    contentDescription = "Next video",
+                                    onClick = { viewModel.playNext() },
+                                    size = 40.dp
+                                )
+                            }
                         }
 
                         // Bottom Gradient & Timeline HUD
@@ -797,6 +816,24 @@ fun PlayerScreen(
                                                     isMoreMenuOpen = false
                                                 }
                                             )
+                                            if (queueUi.size > 1) {
+                                                PlayerMenuItem(
+                                                    text = { Text(if (queueUi.shuffle) "Shuffle: on" else "Shuffle: off") },
+                                                    onClick = { viewModel.toggleShuffle() }
+                                                )
+                                                PlayerMenuItem(
+                                                    text = {
+                                                        Text(
+                                                            when (queueUi.repeat) {
+                                                                com.lnxv.player.core.model.RepeatMode.OFF -> "Repeat: off"
+                                                                com.lnxv.player.core.model.RepeatMode.ONE -> "Repeat: one"
+                                                                com.lnxv.player.core.model.RepeatMode.ALL -> "Repeat: all"
+                                                            }
+                                                        )
+                                                    },
+                                                    onClick = { viewModel.cycleRepeat() }
+                                                )
+                                            }
                                             PlayerMenuItem(
                                                 text = { Text("Previous frame") },
                                                 onClick = {
