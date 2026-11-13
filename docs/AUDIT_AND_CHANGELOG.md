@@ -78,3 +78,12 @@ Biometric unlock, Change-PIN screen (repository supports re-keying only via forg
 | 2.2 Background play | `BackgroundPlaybackConnector` binds `LNXVPlaybackService` only when the setting is on; ExoPlayer now has audio focus + `handleAudioBecomingNoisy`; media metadata title set (vault = "Private video"); service never releases the shared player | `playback/service/*`, `Media3PlayerManager.kt` |
 | 2.3 Network streams | `StreamUrl` validator (HTTP(S)/RTSP, HTTP only in debug), recent URLs (max 10, credentials stripped), Home "Open network stream" dialog, friendly playback errors. New deps: media3-exoplayer-hls/dash/rtsp (same pinned 1.4.1; required for HLS/DASH/RTSP). R8 reflection loading of these factories relies on Media3 consumer rules: NOT TESTED on a release build. | `core/util/StreamUrl.kt`, `HomeScreen.kt`, `Media3PlayerManager.kt` |
 Known limits: per-video resume for transient opens is not stored; network-specific larger buffers (rule C) not yet applied.
+
+## 6. Increment 3 (CI-compiled, NOT DEVICE-TESTED)
+| Item | Change | Files |
+|---|---|---|
+| 2.4 Queue | Per-folder queue (title order), auto-play next on end, previous (restarts if >3 s in), shuffle (current first), repeat off/one/all (one = ExoPlayer REPEAT_MODE_ONE). Prev/Next buttons appear when the queue has >1 item; shuffle/repeat in the overflow menu. Vault and transient videos get no queue. | `core/model/QueueLogic.kt`, `PlayerViewModel.kt`, `PlayerScreen.kt` |
+| 2.4 Playlists | Room v3 (`playlists`, `playlist_items`), migration 2→3. Home: "Add to playlist" in video menus, Playlists tab (tap = play whole playlist as queue, Delete). Vault rows are excluded by the queries. Not done: rename, remove single item, reorder. | `core/database/PlaylistEntities.kt`, `LNXVDatabase.kt`, `HomeViewModel.kt`, `HomeScreen.kt` |
+| 2.5 Audio delay | `AudioDelayProcessor` (16-bit PCM only, inactive otherwise) inserts silence; changing delay while playing inserts/drops samples; re-applied after seek. Range 0..+2000 ms. **Negative delay is not supported** (advancing audio would require delaying the video). | `playback/engine/AudioDelayProcessor.kt`, `Media3PlayerManager.kt` |
+| 2.5 Subtitle delay | Existing delay works for external SRT/VTT (cue-shifted copy). **Embedded and ASS/SSA tracks cannot be shifted with Media3 1.4.1** (no public API to offset text-track timing): documented limit. | — |
+| 2.6 | Skipped (optional): no floating mini player (SYSTEM_ALERT_WINDOW removed) and no Cast. | — |
