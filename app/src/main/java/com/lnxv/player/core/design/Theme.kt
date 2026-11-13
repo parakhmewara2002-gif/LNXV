@@ -6,6 +6,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
@@ -53,7 +54,12 @@ fun LNXVTheme(
             if (amoled) DarkColorScheme.copy(background = AmoledBlack)
             else DarkColorScheme.copy(background = Color(0xFF16191F), surface = Color(0xFF1F232B))
         }
-        else -> LightColorScheme
+        else -> LightColorScheme.copy(primary = LightPalette.accent, background = LightPalette.background)
+    }
+    val palette = when {
+        !darkTheme -> LightPalette
+        amoled -> AmoledPalette
+        else -> DarkPalette
     }
 
     val view = LocalView.current
@@ -67,9 +73,23 @@ fun LNXVTheme(
         }
     }
 
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = Typography,
-        content = content
-    )
+    CompositionLocalProvider(LocalLNXVColors provides palette) {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            typography = Typography,
+            content = content
+        )
+    }
+}
+
+/** The video player is always dark (like most players), whatever theme the rest of the app uses. */
+@Composable
+fun LNXVPlayerTheme(content: @Composable () -> Unit) {
+    CompositionLocalProvider(LocalLNXVColors provides AmoledPalette) {
+        MaterialTheme(
+            colorScheme = DarkColorScheme.copy(background = Color.Black),
+            typography = Typography,
+            content = content
+        )
+    }
 }

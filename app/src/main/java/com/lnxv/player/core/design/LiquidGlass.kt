@@ -49,7 +49,7 @@ fun Modifier.liquidGlassSurface(
     .background(
         brush = Brush.verticalGradient(
             colors = listOf(
-                backgroundColor.copy(alpha = backgroundColor.alpha * 1.25f),
+                backgroundColor.copy(alpha = (backgroundColor.alpha * 1.25f).coerceAtMost(1f)),
                 backgroundColor.copy(alpha = backgroundColor.alpha * 0.75f)
             )
         ),
@@ -84,8 +84,8 @@ fun Modifier.liquidGlassSurface(
 fun GlassPanel(
     modifier: Modifier = Modifier,
     shape: Shape = RoundedCornerShape(24.dp),
-    backgroundColor: Color = Color(0x33101622),
-    borderColor: Color = Color(0x33FFFFFF),
+    backgroundColor: Color = appColors.glassFill,
+    borderColor: Color = appColors.glassBorder,
     borderWidth: Dp = 1.dp,
     content: @Composable BoxScope.() -> Unit
 ) {
@@ -120,16 +120,17 @@ fun GlassButton(
         label = "glass_button_scale"
     )
 
+    val colors = appColors
     val bgColor = when {
-        !enabled -> Color(0x1AFFFFFF)
-        isPrimary -> NeonCyan.copy(alpha = 0.35f)
-        else -> Color(0x2BFFFFFF)
+        !enabled -> colors.glassSubtle
+        isPrimary -> colors.accent.copy(alpha = 0.35f)
+        else -> if (colors.isDark) Color(0x2BFFFFFF) else Color(0x14000000)
     }
 
     val textColor = when {
-        !enabled -> Color(0x66FFFFFF)
-        isPrimary -> NeonCyan
-        else -> Color.White
+        !enabled -> colors.textTertiary
+        isPrimary -> colors.accent
+        else -> colors.textPrimary
     }
 
     Box(
@@ -138,7 +139,7 @@ fun GlassButton(
             .liquidGlassSurface(
                 shape = RoundedCornerShape(16.dp),
                 backgroundColor = bgColor,
-                borderColor = if (isPrimary) NeonCyan.copy(alpha = 0.6f) else Color(0x33FFFFFF)
+                borderColor = if (isPrimary) colors.accent.copy(alpha = 0.6f) else colors.glassBorder
             )
             .clickable(
                 interactionSource = interactionSource,
@@ -176,8 +177,8 @@ fun GlassIconButton(
     contentDescription: String?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    tint: Color = Color.White,
-    backgroundColor: Color = Color(0x33101622),
+    tint: Color = appColors.textPrimary,
+    backgroundColor: Color = appColors.glassFill,
     size: Dp = 44.dp
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -198,7 +199,7 @@ fun GlassIconButton(
             .liquidGlassSurface(
                 shape = CircleShape,
                 backgroundColor = backgroundColor,
-                borderColor = Color(0x40FFFFFF),
+                borderColor = appColors.glassBorder,
                 borderWidth = 1.dp
             )
             .clickable(

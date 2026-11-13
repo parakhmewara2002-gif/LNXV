@@ -38,6 +38,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.lnxv.player.core.design.ambientBackground
+import com.lnxv.player.core.design.appColors
 import com.lnxv.player.core.design.CrimsonAlert
 import com.lnxv.player.core.design.GlassIconButton
 import com.lnxv.player.core.design.GlassPanel
@@ -56,7 +58,8 @@ fun VaultScreen(
     val vaultVideos by viewModel.vaultVideos.collectAsState()
 
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
+        modifier = Modifier.fillMaxSize().ambientBackground(),
+        containerColor = Color.Transparent,
         topBar = {
             Row(
                 modifier = Modifier
@@ -72,7 +75,7 @@ fun VaultScreen(
                 Spacer(modifier = Modifier.width(16.dp))
                 Text(
                     text = "Private Vault",
-                    color = Color.White,
+                    color = appColors.textPrimary,
                     style = Typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
@@ -95,20 +98,20 @@ fun VaultScreen(
                             Icon(
                                 imageVector = Icons.Default.Lock,
                                 contentDescription = null,
-                                tint = Color(0x66FFFFFF),
+                                tint = appColors.textTertiary,
                                 modifier = Modifier.size(64.dp)
                             )
                             Spacer(modifier = Modifier.height(16.dp))
                             Text(
                                 text = "Your Vault is Empty",
-                                color = Color.White,
+                                color = appColors.textPrimary,
                                 style = Typography.titleMedium,
                                 fontWeight = FontWeight.SemiBold
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
                                 text = "Move videos here from the home screen options menu.",
-                                color = Color(0x80FFFFFF),
+                                color = appColors.textTertiary,
                                 fontSize = 13.sp
                             )
                         }
@@ -126,7 +129,7 @@ fun VaultScreen(
                                     .fillMaxWidth()
                                     .clickable { onVideoClick(video) },
                                 shape = RoundedCornerShape(16.dp),
-                                backgroundColor = Color(0x261E293B)
+                                backgroundColor = appColors.glassFill
                             ) {
                                 Row(
                                     modifier = Modifier
@@ -138,13 +141,13 @@ fun VaultScreen(
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text(
                                             text = video.title,
-                                            color = Color.White,
+                                            color = appColors.textPrimary,
                                             style = Typography.titleSmall
                                         )
                                         Spacer(modifier = Modifier.height(4.dp))
                                         Text(
                                             text = "${video.durationFormatted} • ${video.sizeFormatted}",
-                                            color = Color(0x80FFFFFF),
+                                            color = appColors.textTertiary,
                                             fontSize = 12.sp
                                         )
                                     }
@@ -152,7 +155,7 @@ fun VaultScreen(
                                         Icon(
                                             imageVector = Icons.Default.Restore,
                                             contentDescription = "Restore to Library",
-                                            tint = NeonCyan
+                                            tint = appColors.accent
                                         )
                                     }
                                 }
@@ -174,15 +177,15 @@ fun VaultScreen(
                             .size(72.dp)
                             .liquidGlassSurface(
                                 shape = CircleShape,
-                                backgroundColor = NeonCyan.copy(alpha = 0.15f),
-                                borderColor = NeonCyan.copy(alpha = 0.5f)
+                                backgroundColor = appColors.accent.copy(alpha = 0.15f),
+                                borderColor = appColors.accent.copy(alpha = 0.5f)
                             ),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Default.Lock,
                             contentDescription = null,
-                            tint = NeonCyan,
+                            tint = appColors.accent,
                             modifier = Modifier.size(36.dp)
                         )
                     }
@@ -198,7 +201,7 @@ fun VaultScreen(
 
                     Text(
                         text = promptText,
-                        color = Color.White,
+                        color = appColors.textPrimary,
                         style = Typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
@@ -217,7 +220,7 @@ fun VaultScreen(
                                     .size(16.dp)
                                     .clip(CircleShape)
                                     .background(
-                                        if (isFilled) NeonCyan else Color(0x33FFFFFF)
+                                        if (isFilled) appColors.accent else appColors.glassBorder
                                     )
                             )
                         }
@@ -266,7 +269,7 @@ fun VaultScreen(
                                             Icon(
                                                 imageVector = Icons.Default.Backspace,
                                                 contentDescription = "Delete",
-                                                tint = Color.White
+                                                tint = appColors.textPrimary
                                             )
                                         }
                                     } else {
@@ -275,15 +278,15 @@ fun VaultScreen(
                                                 .size(68.dp)
                                                 .liquidGlassSurface(
                                                     shape = CircleShape,
-                                                    backgroundColor = Color(0x2BFFFFFF),
-                                                    borderColor = Color(0x33FFFFFF)
+                                                    backgroundColor = appColors.glassSubtle,
+                                                    borderColor = appColors.glassBorder
                                                 )
                                                 .clickable { viewModel.enterDigit(key) },
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Text(
                                                 text = key,
-                                                color = Color.White,
+                                                color = appColors.textPrimary,
                                                 fontSize = 24.sp,
                                                 fontWeight = FontWeight.SemiBold
                                             )

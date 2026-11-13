@@ -63,6 +63,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    fun setThemeMode(mode: String) {
+        viewModelScope.launch { dataStore.updateThemeMode(mode) }
+    }
+
     fun setResumeMode(mode: String) {
         viewModelScope.launch { dataStore.updateResumeMode(mode) }
     }

@@ -39,7 +39,8 @@ data class UserPreferences(
     val rememberSpeed: Boolean = false,
     val lastSpeed: Float = 1.0f,
     val hiddenFolders: Set<String> = emptySet(),
-    val libraryViewMode: String = "LIST"
+    val libraryViewMode: String = "LIST",
+    val themeMode: String = "DARK"
 )
 
 class UserPreferencesDataStore(private val context: Context) {
@@ -66,6 +67,7 @@ class UserPreferencesDataStore(private val context: Context) {
         val LAST_SPEED = floatPreferencesKey("last_speed")
         val HIDDEN_FOLDERS = stringSetPreferencesKey("hidden_folders")
         val VIEW_MODE = stringPreferencesKey("library_view_mode")
+        val THEME_MODE = stringPreferencesKey("theme_mode")
     }
 
     val userPreferencesFlow: Flow<UserPreferences> = context.dataStore.data.map { prefs ->
@@ -90,7 +92,8 @@ class UserPreferencesDataStore(private val context: Context) {
             rememberSpeed = prefs[PreferencesKeys.REMEMBER_SPEED] ?: false,
             lastSpeed = prefs[PreferencesKeys.LAST_SPEED] ?: 1.0f,
             hiddenFolders = prefs[PreferencesKeys.HIDDEN_FOLDERS] ?: emptySet(),
-            libraryViewMode = prefs[PreferencesKeys.VIEW_MODE] ?: "LIST"
+            libraryViewMode = prefs[PreferencesKeys.VIEW_MODE] ?: "LIST",
+            themeMode = prefs[PreferencesKeys.THEME_MODE] ?: "DARK"
         )
     }
 
@@ -152,6 +155,10 @@ class UserPreferencesDataStore(private val context: Context) {
 
     suspend fun updateSubtitleColor(hex: String) {
         context.dataStore.edit { it[PreferencesKeys.SUBTITLE_COLOR] = hex }
+    }
+
+    suspend fun updateThemeMode(mode: String) {
+        context.dataStore.edit { it[PreferencesKeys.THEME_MODE] = mode }
     }
 
     suspend fun updateViewMode(mode: String) {

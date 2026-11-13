@@ -34,10 +34,12 @@ Run: `./gradlew testDebugUnitTest`. CI prints the result as a `Unit tests` annot
 
 **MKV seek workaround (found from a real diagnostic report):** the user's 2.67 GB mkvmerge-produced MKV has Cues at the end of the file, but the SeekHead at the start lists only Info/Tracks/*another SeekHead*; Cues are listed only in that second SeekHead after the video data. Media3 1.4.1 `MatroskaExtractor` only accepts a Cues entry directly (source: `endMasterElement(ID_SEEK)`), so at the first Cluster it sends `SeekMap.Unseekable` -> every seek restarts from 0 (the original "forward seek goes backward" symptom). LNXV now reads the nested SeekHeads (cheap: a few small reads) and tells a `MatroskaExtractor` subclass where Cues are (private field `cuesContentPosition`, set via reflection, kept by an R8 rule). Healthy files are untouched. The earlier inspector verdict "seeking should work" for this file was wrong because it merged all SeekHeads; it now reports start vs. late SeekHeads separately. NOT device-tested yet.
 
+**Themes (System / Light / Dark + AMOLED True Black):** new `LNXVColors` palette (`Palette.kt`) provided through a CompositionLocal; Home, Settings and Vault read colours from it instead of hard-coded white/black, so Light theme is now real. Glass cards use a light-tinted fill/border in Light theme; a soft two-colour glow (`ambientBackground`) sits behind the glass in Light and Dark so the translucency is visible (AMOLED stays pure #000000). Settings -> Appearance has a System/Light/Dark chooser (persisted in DataStore); AMOLED applies to Dark. The video player is always dark. NOT device-tested.
+
 ## 4. Not done / not verified (honest list)
 - No instrumented/UI tests (fullscreen, lifecycle, theme persistence, navigation): need a device or emulator.
 - No real-device testing was possible here.
-- Light theme is not implemented (screens use hard-coded white text); "Dark mode" is forced dark.
+- Light theme covers Home, Settings and Vault; the video player and its dialogs intentionally stay dark.
 - Audio delay not implemented (Media3 has no built-in offset). Subtitle delay only works on loaded external SRT/VTT, not embedded or ASS subtitles.
 - True background audio (foreground service + notification) is not wired; with the setting ON playback simply continues while the process lives.
 - Only a focused subset of Phase 4 was done (see 3b); no profiling was performed and no performance numbers are claimed.

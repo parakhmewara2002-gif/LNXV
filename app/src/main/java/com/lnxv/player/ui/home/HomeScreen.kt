@@ -2,6 +2,8 @@ package com.lnxv.player.ui.home
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
+import com.lnxv.player.core.design.ambientBackground
+import com.lnxv.player.core.design.appColors
 import com.lnxv.player.core.design.bouncyClickable
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.graphics.graphicsLayer
@@ -102,15 +104,16 @@ fun HomeScreen(
     BackHandler(enabled = uiState.openFolderPath != null) { viewModel.closeFolder() }
 
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
+        modifier = Modifier.fillMaxSize().ambientBackground(),
+        containerColor = Color.Transparent,
         topBar = {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .liquidGlassSurface(
                         shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp),
-                        backgroundColor = Color(0xCC0D1117),
-                        borderColor = Color(0x26FFFFFF),
+                        backgroundColor = appColors.barFill,
+                        borderColor = appColors.glassBorder,
                         borderWidth = 1.dp
                     )
                     .padding(top = 40.dp, bottom = 12.dp, start = 16.dp, end = 16.dp)
@@ -126,22 +129,22 @@ fun HomeScreen(
                                 .size(36.dp)
                                 .liquidGlassSurface(
                                     shape = CircleShape,
-                                    backgroundColor = NeonCyan.copy(alpha = 0.2f),
-                                    borderColor = NeonCyan.copy(alpha = 0.6f)
+                                    backgroundColor = appColors.accent.copy(alpha = 0.2f),
+                                    borderColor = appColors.accent.copy(alpha = 0.6f)
                                 ),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.PlayArrow,
                                 contentDescription = null,
-                                tint = NeonCyan,
+                                tint = appColors.accent,
                                 modifier = Modifier.size(20.dp)
                             )
                         }
                         Spacer(modifier = Modifier.width(10.dp))
                         Text(
                             text = "LNXV",
-                            color = Color.White,
+                            color = appColors.textPrimary,
                             style = Typography.headlineMedium,
                             fontWeight = FontWeight.Bold,
                             letterSpacing = 1.sp
@@ -177,15 +180,15 @@ fun HomeScreen(
                     TextField(
                         value = uiState.searchQuery,
                         onValueChange = { viewModel.updateSearchQuery(it) },
-                        placeholder = { Text("Search videos or folders…", color = Color(0x80FFFFFF)) },
+                        placeholder = { Text("Search videos or folders…", color = appColors.textTertiary) },
                         modifier = Modifier
                             .fillMaxWidth()
                             .liquidGlassSurface(shape = RoundedCornerShape(14.dp)),
                         colors = TextFieldDefaults.colors(
                             focusedContainerColor = Color.Transparent,
                             unfocusedContainerColor = Color.Transparent,
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
+                            focusedTextColor = appColors.textPrimary,
+                            unfocusedTextColor = appColors.textPrimary,
                             focusedIndicatorColor = Color.Transparent,
                             unfocusedIndicatorColor = Color.Transparent
                         ),
@@ -201,8 +204,8 @@ fun HomeScreen(
                         .fillMaxWidth()
                         .liquidGlassSurface(
                             shape = RoundedCornerShape(16.dp),
-                            backgroundColor = Color(0x40161B22),
-                            borderColor = Color(0x26FFFFFF)
+                            backgroundColor = appColors.glassFill,
+                            borderColor = appColors.glassBorder
                         )
                         .padding(4.dp),
                     horizontalArrangement = Arrangement.SpaceBetween
@@ -215,7 +218,7 @@ fun HomeScreen(
                             label = "tab_select"
                         )
                         val tabTextColor by animateColorAsState(
-                            targetValue = if (isSelected) NeonCyan else Color(0x99FFFFFF),
+                            targetValue = if (isSelected) appColors.accent else appColors.textSecondary,
                             animationSpec = tween(220),
                             label = "tab_text"
                         )
@@ -226,7 +229,7 @@ fun HomeScreen(
                                 .background(
                                     Brush.horizontalGradient(
                                         listOf(
-                                            NeonCyan.copy(alpha = 0.3f * selectAmount),
+                                            appColors.accent.copy(alpha = 0.3f * selectAmount),
                                             Color(0xFF7C4DFF).copy(alpha = 0.25f * selectAmount)
                                         )
                                     )
@@ -259,7 +262,7 @@ fun HomeScreen(
                 item {
                     Text(
                         text = "Continue Watching",
-                        color = Color.White,
+                        color = appColors.textPrimary,
                         style = Typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.padding(bottom = 8.dp)
@@ -288,7 +291,7 @@ fun HomeScreen(
                         ) {
                             Text(
                                 text = "All Videos (${uiState.videos.size})",
-                                color = Color.White,
+                                color = appColors.textPrimary,
                                 style = Typography.titleMedium,
                                 fontWeight = FontWeight.SemiBold
                             )
@@ -297,7 +300,7 @@ fun HomeScreen(
                                 Icon(
                                     imageVector = if (uiState.isGridView) Icons.Default.ViewAgenda else Icons.Default.GridView,
                                     contentDescription = "Toggle grid/list",
-                                    tint = NeonCyan
+                                    tint = appColors.accent
                                 )
                             }
                             Box {
@@ -305,7 +308,7 @@ fun HomeScreen(
                                     Icon(
                                         imageVector = Icons.Default.Sort,
                                         contentDescription = "Sort",
-                                        tint = NeonCyan
+                                        tint = appColors.accent
                                     )
                                 }
                                 DropdownMenu(
@@ -372,12 +375,12 @@ fun HomeScreen(
                                 Icon(
                                     imageVector = Icons.Default.ArrowBack,
                                     contentDescription = "Back",
-                                    tint = NeonCyan
+                                    tint = appColors.accent
                                 )
                                 Spacer(modifier = Modifier.width(10.dp))
                                 Text(
                                     text = "${uiState.openFolderName} (${uiState.folderVideos.size})",
-                                    color = Color.White,
+                                    color = appColors.textPrimary,
                                     style = Typography.titleMedium,
                                     fontWeight = FontWeight.SemiBold,
                                     maxLines = 1,
@@ -460,8 +463,8 @@ fun VideoItemRow(
             .fillMaxWidth()
             .bouncyClickable { onClick() },
         shape = RoundedCornerShape(16.dp),
-        backgroundColor = Color(0x261E293B),
-        borderColor = Color(0x26FFFFFF)
+        backgroundColor = appColors.glassFill,
+        borderColor = appColors.glassBorder
     ) {
         Row(
             modifier = Modifier
@@ -474,7 +477,7 @@ fun VideoItemRow(
                 modifier = Modifier
                     .size(width = 110.dp, height = 70.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .background(Color(0xFF0F141C))
+                    .background(appColors.placeholder)
             ) {
                 AsyncImage(
                     model = ImageRequest.Builder(LocalContext.current)
@@ -522,7 +525,7 @@ fun VideoItemRow(
             ) {
                 Text(
                     text = video.title,
-                    color = Color.White,
+                    color = appColors.textPrimary,
                     style = Typography.titleSmall,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
@@ -531,7 +534,7 @@ fun VideoItemRow(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = "${video.sizeFormatted} • ${video.folderName}",
-                        color = Color(0x99FFFFFF),
+                        color = appColors.textSecondary,
                         fontSize = 11.sp
                     )
                 }
@@ -543,7 +546,7 @@ fun VideoItemRow(
                     Icon(
                         imageVector = Icons.Default.MoreVert,
                         contentDescription = "Options",
-                        tint = Color(0x80FFFFFF)
+                        tint = appColors.textTertiary
                     )
                 }
                 DropdownMenu(
@@ -589,7 +592,7 @@ fun FolderItemRow(
             .fillMaxWidth()
             .bouncyClickable { onClick() },
         shape = RoundedCornerShape(16.dp),
-        backgroundColor = Color(0x261E293B)
+        backgroundColor = appColors.glassFill
     ) {
         Row(
             modifier = Modifier
@@ -602,15 +605,15 @@ fun FolderItemRow(
                     .size(44.dp)
                     .liquidGlassSurface(
                         shape = RoundedCornerShape(12.dp),
-                        backgroundColor = NeonCyan.copy(alpha = 0.15f),
-                        borderColor = NeonCyan.copy(alpha = 0.4f)
+                        backgroundColor = appColors.accent.copy(alpha = 0.15f),
+                        borderColor = appColors.accent.copy(alpha = 0.4f)
                     ),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.Folder,
                     contentDescription = null,
-                    tint = NeonCyan,
+                    tint = appColors.accent,
                     modifier = Modifier.size(24.dp)
                 )
             }
@@ -618,7 +621,7 @@ fun FolderItemRow(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = folder.name,
-                    color = Color.White,
+                    color = appColors.textPrimary,
                     style = Typography.titleMedium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -627,7 +630,7 @@ fun FolderItemRow(
                 Text(
                     text = "${folder.videoCount} videos • ${folder.sizeFormatted}" +
                         if (folder.isHidden) " • Hidden" else "",
-                    color = if (folder.isHidden) NeonCyan.copy(alpha = 0.7f) else Color(0x80FFFFFF),
+                    color = if (folder.isHidden) appColors.accent.copy(alpha = 0.7f) else appColors.textTertiary,
                     fontSize = 12.sp
                 )
             }
@@ -636,7 +639,7 @@ fun FolderItemRow(
                     Icon(
                         imageVector = Icons.Default.MoreVert,
                         contentDescription = "Folder options",
-                        tint = Color(0x80FFFFFF)
+                        tint = appColors.textTertiary
                     )
                 }
                 DropdownMenu(
@@ -666,7 +669,7 @@ fun ContinueWatchingCard(
             .width(200.dp)
             .liquidGlassSurface(
                 shape = RoundedCornerShape(16.dp),
-                backgroundColor = Color(0x331E293B)
+                backgroundColor = appColors.glassFill
             )
             .clickable { onClick() }
     ) {
@@ -703,7 +706,7 @@ fun ContinueWatchingCard(
                         .size(36.dp)
                         .align(Alignment.Center)
                         .clip(CircleShape)
-                        .background(NeonCyan.copy(alpha = 0.85f)),
+                        .background(appColors.accent.copy(alpha = 0.85f)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -716,7 +719,7 @@ fun ContinueWatchingCard(
             Column(modifier = Modifier.padding(10.dp)) {
                 Text(
                     text = video.title,
-                    color = Color.White,
+                    color = appColors.textPrimary,
                     style = Typography.titleSmall,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -731,8 +734,8 @@ fun ContinueWatchingCard(
                         .fillMaxWidth()
                         .height(3.dp)
                         .clip(CircleShape),
-                    color = NeonCyan,
-                    trackColor = Color(0x33FFFFFF)
+                    color = appColors.accent,
+                    trackColor = appColors.glassBorder
                 )
             }
         }
@@ -762,21 +765,21 @@ fun EmptyStateView(message: String) {
             modifier = Modifier
                 .size(72.dp)
                 .clip(CircleShape)
-                .background(Color(0x14FFFFFF))
-                .border(1.dp, Color(0x26FFFFFF), CircleShape),
+                .background(appColors.glassSubtle)
+                .border(1.dp, appColors.glassBorder, CircleShape),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = Icons.Default.VideoLibrary,
                 contentDescription = null,
-                tint = NeonCyan.copy(alpha = 0.8f),
+                tint = appColors.accent.copy(alpha = 0.8f),
                 modifier = Modifier.size(32.dp)
             )
         }
         Spacer(modifier = Modifier.height(16.dp))
         Text(
             text = message,
-            color = Color(0x99FFFFFF),
+            color = appColors.textSecondary,
             style = Typography.bodyMedium,
             textAlign = TextAlign.Center
         )
@@ -798,8 +801,8 @@ fun VideoGridCard(
     GlassPanel(
         modifier = modifier.bouncyClickable { onClick() },
         shape = RoundedCornerShape(16.dp),
-        backgroundColor = Color(0x261E293B),
-        borderColor = Color(0x26FFFFFF)
+        backgroundColor = appColors.glassFill,
+        borderColor = appColors.glassBorder
     ) {
         Column {
             Box(
@@ -807,7 +810,7 @@ fun VideoGridCard(
                     .fillMaxWidth()
                     .height(100.dp)
                     .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
-                    .background(Color(0xFF0F141C))
+                    .background(appColors.placeholder)
             ) {
                 AsyncImage(
                     model = ImageRequest.Builder(LocalContext.current)
@@ -845,7 +848,7 @@ fun VideoGridCard(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = video.title,
-                        color = Color.White,
+                        color = appColors.textPrimary,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium,
                         maxLines = 2,
@@ -853,7 +856,7 @@ fun VideoGridCard(
                     )
                     Text(
                         text = video.sizeFormatted,
-                        color = Color(0x99FFFFFF),
+                        color = appColors.textSecondary,
                         fontSize = 11.sp
                     )
                 }
@@ -862,7 +865,7 @@ fun VideoGridCard(
                         Icon(
                             imageVector = Icons.Default.MoreVert,
                             contentDescription = "Options",
-                            tint = Color(0x80FFFFFF)
+                            tint = appColors.textTertiary
                         )
                     }
                     DropdownMenu(

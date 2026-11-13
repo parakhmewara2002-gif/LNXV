@@ -1,5 +1,8 @@
 package com.lnxv.player.ui.settings
 
+import androidx.compose.ui.draw.clip
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.border
@@ -40,6 +43,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.lnxv.player.core.design.ambientBackground
+import com.lnxv.player.core.design.appColors
 import com.lnxv.player.core.design.GlassIconButton
 import com.lnxv.player.core.design.GlassPanel
 import com.lnxv.player.core.design.NeonCyan
@@ -57,7 +62,8 @@ fun SettingsScreen(
     LaunchedEffect(Unit) { viewModel.checkForUpdate() }
 
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
+        modifier = Modifier.fillMaxSize().ambientBackground(),
+        containerColor = Color.Transparent,
         topBar = {
             Row(
                 modifier = Modifier
@@ -73,7 +79,7 @@ fun SettingsScreen(
                 Spacer(modifier = Modifier.width(16.dp))
                 Text(
                     text = "Settings",
-                    color = Color.White,
+                    color = appColors.textPrimary,
                     style = Typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
@@ -92,12 +98,54 @@ fun SettingsScreen(
                 GlassPanel(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
-                    backgroundColor = Color(0x261E293B)
+                    backgroundColor = appColors.glassFill
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            text = "Theme",
+                            color = appColors.textPrimary,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            listOf("SYSTEM" to "System", "LIGHT" to "Light", "DARK" to "Dark").forEach { (mode, label) ->
+                                val selected = prefs.themeMode == mode
+                                val chipBg by animateColorAsState(
+                                    targetValue = if (selected) appColors.accent.copy(alpha = 0.22f) else appColors.glassSubtle,
+                                    animationSpec = tween(200),
+                                    label = "theme_chip_bg"
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(chipBg)
+                                        .border(
+                                            width = 1.dp,
+                                            color = if (selected) appColors.accent else appColors.glassBorder,
+                                            shape = RoundedCornerShape(12.dp)
+                                        )
+                                        .clickable { viewModel.setThemeMode(mode) }
+                                        .padding(vertical = 10.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = label,
+                                        color = if (selected) appColors.accent else appColors.textPrimary,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                }
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(14.dp))
                         SettingSwitchRow(
                             title = "AMOLED True Black",
-                            subtitle = "Enhance contrast and save battery on OLED screens",
+                            subtitle = "Pure black background in Dark theme (saves battery on OLED screens)",
                             isChecked = prefs.isAmoled,
                             onCheckedChange = { viewModel.toggleAmoled(it) }
                         )
@@ -110,7 +158,7 @@ fun SettingsScreen(
                 GlassPanel(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
-                    backgroundColor = Color(0x261E293B)
+                    backgroundColor = appColors.glassFill
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         SettingSwitchRow(
@@ -156,8 +204,8 @@ fun SettingsScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
-                                Text(text = "Resume Playback", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Medium)
-                                Text(text = "Tap to change", color = Color(0x99FFFFFF), fontSize = 12.sp)
+                                Text(text = "Resume Playback", color = appColors.textPrimary, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                                Text(text = "Tap to change", color = appColors.textSecondary, fontSize = 12.sp)
                             }
                             Text(
                                 text = when (prefs.resumePlaybackMode) {
@@ -165,7 +213,7 @@ fun SettingsScreen(
                                     "NEVER" -> "Start over"
                                     else -> "Always resume"
                                 },
-                                color = NeonCyan,
+                                color = appColors.accent,
                                 fontWeight = FontWeight.SemiBold
                             )
                         }
@@ -176,18 +224,18 @@ fun SettingsScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
-                                Text(text = "Subtitle Text Size", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Medium)
-                                Text(text = "${prefs.subtitleTextSize.toInt()} sp", color = Color(0x99FFFFFF), fontSize = 12.sp)
+                                Text(text = "Subtitle Text Size", color = appColors.textPrimary, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                                Text(text = "${prefs.subtitleTextSize.toInt()} sp", color = appColors.textSecondary, fontSize = 12.sp)
                             }
                             Text(
                                 text = "  −  ",
-                                color = NeonCyan,
+                                color = appColors.accent,
                                 fontSize = 22.sp,
                                 modifier = Modifier.clickable { viewModel.setSubtitleSize(prefs.subtitleTextSize - 2f) }
                             )
                             Text(
                                 text = "  +  ",
-                                color = NeonCyan,
+                                color = appColors.accent,
                                 fontSize = 22.sp,
                                 modifier = Modifier.clickable { viewModel.setSubtitleSize(prefs.subtitleTextSize + 2f) }
                             )
@@ -198,7 +246,7 @@ fun SettingsScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(text = "Subtitle Color", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                            Text(text = "Subtitle Color", color = appColors.textPrimary, fontSize = 15.sp, fontWeight = FontWeight.Medium)
                             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                 listOf(
                                     "#FFFFFFFF" to Color(0xFFFFFFFF),
@@ -212,7 +260,7 @@ fun SettingsScreen(
                                             .background(color, CircleShape)
                                             .border(
                                                 width = if (prefs.subtitleTextColorHex.equals(hex, ignoreCase = true)) 3.dp else 1.dp,
-                                                color = if (prefs.subtitleTextColorHex.equals(hex, ignoreCase = true)) NeonCyan else Color(0x66FFFFFF),
+                                                color = if (prefs.subtitleTextColorHex.equals(hex, ignoreCase = true)) appColors.accent else appColors.textTertiary,
                                                 shape = CircleShape
                                             )
                                             .clickable { viewModel.setSubtitleColor(hex) }
@@ -229,7 +277,7 @@ fun SettingsScreen(
                 GlassPanel(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
-                    backgroundColor = Color(0x261E293B)
+                    backgroundColor = appColors.glassFill
                 ) {
                     val st = updateState
                     Column(modifier = Modifier.padding(16.dp)) {
@@ -237,13 +285,13 @@ fun SettingsScreen(
                             Icon(
                                 imageVector = Icons.Default.Refresh,
                                 contentDescription = null,
-                                tint = NeonCyan
+                                tint = appColors.accent
                             )
                             Spacer(modifier = Modifier.width(14.dp))
                             Column {
                                 Text(
                                     text = "Version ${viewModel.currentVersion}",
-                                    color = Color.White,
+                                    color = appColors.textPrimary,
                                     style = Typography.titleMedium,
                                     fontWeight = FontWeight.SemiBold
                                 )
@@ -257,7 +305,7 @@ fun SettingsScreen(
                                         is UpdateState.Downloading -> "Downloading ${(st.progress * 100).toInt()}%"
                                         is UpdateState.Error -> st.message
                                     },
-                                    color = Color(0x99FFFFFF),
+                                    color = appColors.textSecondary,
                                     fontSize = 12.sp
                                 )
                             }
@@ -267,7 +315,7 @@ fun SettingsScreen(
                             LinearProgressIndicator(
                                 progress = { st.progress },
                                 modifier = Modifier.fillMaxWidth(),
-                                color = NeonCyan
+                                color = appColors.accent
                             )
                         }
                         if (st !is UpdateState.Checking && st !is UpdateState.Downloading) {
@@ -275,7 +323,7 @@ fun SettingsScreen(
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .background(NeonCyan.copy(alpha = 0.2f), RoundedCornerShape(12.dp))
+                                    .background(appColors.accent.copy(alpha = 0.2f), RoundedCornerShape(12.dp))
                                     .clickable {
                                         if (st is UpdateState.Available) viewModel.downloadAndInstall(st.info)
                                         else viewModel.checkForUpdate()
@@ -285,7 +333,7 @@ fun SettingsScreen(
                             ) {
                                 Text(
                                     text = if (st is UpdateState.Available) "Download & install" else "Check for updates",
-                                    color = NeonCyan,
+                                    color = appColors.accent,
                                     fontWeight = FontWeight.SemiBold
                                 )
                             }
@@ -299,7 +347,7 @@ fun SettingsScreen(
                 GlassPanel(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
-                    backgroundColor = Color(0x261E293B)
+                    backgroundColor = appColors.glassFill
                 ) {
                     Row(
                         modifier = Modifier
@@ -310,20 +358,20 @@ fun SettingsScreen(
                         Icon(
                             imageVector = Icons.Default.Info,
                             contentDescription = null,
-                            tint = NeonCyan
+                            tint = appColors.accent
                         )
                         Spacer(modifier = Modifier.width(14.dp))
                         Column {
                             Text(
                                 text = "LNXV Video Player v${viewModel.currentVersion}",
-                                color = Color.White,
+                                color = appColors.textPrimary,
                                 style = Typography.titleMedium,
                                 fontWeight = FontWeight.SemiBold
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 text = "AndroidX Media3 ExoPlayer • Jetpack Compose • Clean Architecture",
-                                color = Color(0x80FFFFFF),
+                                color = appColors.textTertiary,
                                 fontSize = 12.sp
                             )
                         }
@@ -338,7 +386,7 @@ fun SettingsScreen(
 fun SectionHeader(title: String) {
     Text(
         text = title,
-        color = NeonCyan,
+        color = appColors.accent,
         fontSize = 12.sp,
         fontWeight = FontWeight.Bold,
         letterSpacing = 1.sp,
@@ -359,9 +407,9 @@ fun SettingSwitchRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(text = title, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+            Text(text = title, color = appColors.textPrimary, fontSize = 15.sp, fontWeight = FontWeight.Medium)
             Spacer(modifier = Modifier.height(2.dp))
-            Text(text = subtitle, color = Color(0x80FFFFFF), fontSize = 12.sp)
+            Text(text = subtitle, color = appColors.textTertiary, fontSize = 12.sp)
         }
         Spacer(modifier = Modifier.width(12.dp))
         Switch(
@@ -369,9 +417,9 @@ fun SettingSwitchRow(
             onCheckedChange = onCheckedChange,
             colors = SwitchDefaults.colors(
                 checkedThumbColor = Color.Black,
-                checkedTrackColor = NeonCyan,
-                uncheckedThumbColor = Color(0x80FFFFFF),
-                uncheckedTrackColor = Color(0x33FFFFFF)
+                checkedTrackColor = appColors.accent,
+                uncheckedThumbColor = appColors.textTertiary,
+                uncheckedTrackColor = appColors.glassBorder
             )
         )
     }

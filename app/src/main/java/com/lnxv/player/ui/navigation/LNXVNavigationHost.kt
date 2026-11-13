@@ -56,11 +56,13 @@ fun LNXVNavigationHost(navController: NavHostController) {
         ) { backStackEntry ->
             val videoId = backStackEntry.arguments?.getLong("videoId") ?: 0L
             val playerViewModel: PlayerViewModel = viewModel()
-            PlayerScreen(
-                videoId = videoId,
-                viewModel = playerViewModel,
-                onBackClick = { navController.popBackStack() }
-            )
+            com.lnxv.player.core.design.LNXVPlayerTheme {
+                PlayerScreen(
+                    videoId = videoId,
+                    viewModel = playerViewModel,
+                    onBackClick = { navController.popBackStack() }
+                )
+            }
         }
 
         composable(Screen.Vault.route) {
