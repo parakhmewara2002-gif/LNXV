@@ -123,11 +123,8 @@ class LNXVApplication : Application(), ImageLoaderFactory {
     }
 
     companion object {
+        const val TRANSIENT_VIDEO_ID = -1L
         lateinit var instance: LNXVApplication
             private set
-    }
-
-    companion object {
-        const val TRANSIENT_VIDEO_ID = -1L
     }
 }
