@@ -68,6 +68,14 @@ class Media3PlayerManager(private val context: Context) : Player.Listener {
                 SeekFixExtractorsFactory(context)
             )
         )
+        .setAudioAttributes(
+            androidx.media3.common.AudioAttributes.Builder()
+                .setUsage(C.USAGE_MEDIA)
+                .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
+                .build(),
+            /* handleAudioFocus = */ true
+        )
+        .setHandleAudioBecomingNoisy(true)
         .setSeekBackIncrementMs(10000L)
         .setSeekForwardIncrementMs(10000L)
         .build().apply {
@@ -170,12 +178,16 @@ class Media3PlayerManager(private val context: Context) : Player.Listener {
     fun prepareAndPlay(
         uri: Uri,
         startPositionMs: Long = 0L,
-        externalSubtitleUri: Uri? = null
+        externalSubtitleUri: Uri? = null,
+        title: String? = null
     ) {
         externalSubtitleSource = null
         _subtitleDelayMs.value = 0L
         _hasExternalSubtitle.value = false
         val mediaItemBuilder = MediaItem.Builder().setUri(uri)
+        if (title != null) {
+            mediaItemBuilder.setMediaMetadata(androidx.media3.common.MediaMetadata.Builder().setTitle(title).build())
+        }
 
         if (externalSubtitleUri != null) {
             val mimeType = when {

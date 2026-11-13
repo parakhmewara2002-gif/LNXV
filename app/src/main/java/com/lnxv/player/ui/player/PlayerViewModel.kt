@@ -92,7 +92,12 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     private fun startPlayback(video: VideoItem, positionMs: Long, speed: Float) {
-        playerManager.prepareAndPlay(uri = video.uri, startPositionMs = positionMs)
+        // Vault videos never expose their real title to notification / lock-screen / Bluetooth metadata.
+        playerManager.prepareAndPlay(
+            uri = video.uri,
+            startPositionMs = positionMs,
+            title = if (video.isVault) "Private video" else video.title
+        )
         playerManager.setPlaybackSpeed(speed)
     }
 
@@ -126,7 +131,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
             folderName = "Network"
         )
         _uiState.value = _uiState.value.copy(currentVideo = dummyVideo)
-        playerManager.prepareAndPlay(uri)
+        playerManager.prepareAndPlay(uri, title = title)
     }
 
     fun togglePlayPause() = playerManager.togglePlayPause()

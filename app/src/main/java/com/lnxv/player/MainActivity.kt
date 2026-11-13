@@ -48,6 +48,12 @@ class MainActivity : ComponentActivity() {
     @Volatile private var autoLockEnabled = true
     private var globalSecure = false
     private var lockJob: Job? = null
+    private val backgroundConnector by lazy { com.lnxv.player.playback.service.BackgroundPlaybackConnector(this) }
+    private var askedNotificationPermission = false
+
+    private val notificationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { /* Denied is fine: playback and media-session controls still work, only the notification is hidden. */ }
 
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -81,6 +87,7 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             app.dataStore.userPreferencesFlow.collect {
                 backgroundPlayEnabled = it.isBackgroundPlayEnabled
+                updateBackgroundPlayback(it.isBackgroundPlayEnabled)
                 autoPipEnabled = it.isAutoPiPEnabled
                 autoLockMs = it.vaultAutoLockMs
                 autoLockEnabled = it.isEnabled(FeatureFlag.VAULT_AUTO_LOCK)
@@ -177,6 +184,18 @@ class MainActivity : ComponentActivity() {
         return uri.lastPathSegment?.substringAfterLast('/') ?: "Video"
     }
 
+    /** Connects the media session service only while background play is on; asks for notifications lazily. */
+    private fun updateBackgroundPlayback(enabled: Boolean) {
+        if (!enabled) { backgroundConnector.disconnect(); return }
+        backgroundConnector.connect()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !askedNotificationPermission &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            askedNotificationPermission = true
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+
     private fun applyGlobalSecure(enabled: Boolean) {
         (application as LNXVApplication).screenshotsBlockedGlobally = enabled
         if (enabled) {
@@ -211,7 +230,6 @@ class MainActivity : ComponentActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             permissions.add(Manifest.permission.READ_MEDIA_VIDEO)
             permissions.add(Manifest.permission.READ_MEDIA_AUDIO)
-            permissions.add(Manifest.permission.POST_NOTIFICATIONS)
         } else {
             permissions.add(Manifest.permission.READ_EXTERNAL_STORAGE)
         }
@@ -276,6 +294,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        backgroundConnector.disconnect()
         val app = application as LNXVApplication
         if (isFinishing) {
             app.lockVault()
