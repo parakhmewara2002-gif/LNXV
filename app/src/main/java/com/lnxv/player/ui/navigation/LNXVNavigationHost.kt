@@ -35,6 +35,15 @@ fun LNXVNavigationHost(navController: NavHostController) {
             }
         }
     }
+    // "Open with": navigate to the player when MainActivity accepted a VIEW intent.
+    androidx.compose.runtime.LaunchedEffect(navController) {
+        app.pendingOpenVideoId.collect { id ->
+            if (id != null) {
+                navController.navigate(Screen.Player.createRoute(id)) { launchSingleTop = true }
+                app.pendingOpenVideoId.value = null
+            }
+        }
+    }
     NavHost(
         navController = navController,
         startDestination = Screen.Home.route,

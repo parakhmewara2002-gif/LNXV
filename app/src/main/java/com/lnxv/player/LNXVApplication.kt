@@ -46,6 +46,12 @@ class LNXVApplication : Application(), ImageLoaderFactory {
         appScope.launch(Dispatchers.IO) { dataStore.userPreferencesFlow.first() }
     }
 
+    /** Transient "Open with" video (never written to Room); played via route id [TRANSIENT_VIDEO_ID]. */
+    @Volatile var transientVideo: com.lnxv.player.core.model.VideoItem? = null
+
+    /** Set by MainActivity when a VIEW intent was accepted; consumed (set back to null) by the nav host. */
+    val pendingOpenVideoId = kotlinx.coroutines.flow.MutableStateFlow<Long?>(null)
+
     /** True while a vault video is loaded in the shared player (drives FLAG_SECURE and lock handling). */
     @Volatile var playingVaultItem: Boolean = false
 
@@ -119,5 +125,9 @@ class LNXVApplication : Application(), ImageLoaderFactory {
     companion object {
         lateinit var instance: LNXVApplication
             private set
+    }
+
+    companion object {
+        const val TRANSIENT_VIDEO_ID = -1L
     }
 }

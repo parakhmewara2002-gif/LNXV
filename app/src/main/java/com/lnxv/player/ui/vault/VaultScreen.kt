@@ -35,6 +35,8 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
@@ -93,6 +95,50 @@ fun VaultScreen(
         }
     }
 
+    if (uiState.showChangePin) {
+        var oldPin by remember { mutableStateOf("") }
+        var newPin by remember { mutableStateOf("") }
+        AlertDialog(
+            onDismissRequest = viewModel::closeChangePin,
+            title = { Text("Change PIN") },
+            text = {
+                Column {
+                    androidx.compose.material3.OutlinedTextField(
+                        value = oldPin,
+                        onValueChange = { oldPin = it.filter(Char::isDigit).take(8) },
+                        label = { Text("Current PIN") },
+                        singleLine = true,
+                        visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                            keyboardType = androidx.compose.ui.text.input.KeyboardType.NumberPassword
+                        )
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    androidx.compose.material3.OutlinedTextField(
+                        value = newPin,
+                        onValueChange = { newPin = it.filter(Char::isDigit).take(8) },
+                        label = { Text("New PIN (4-8 digits)") },
+                        singleLine = true,
+                        visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                            keyboardType = androidx.compose.ui.text.input.KeyboardType.NumberPassword
+                        )
+                    )
+                    uiState.changePinMessage?.let {
+                        Spacer(Modifier.height(8.dp))
+                        Text(it, color = CrimsonAlert, fontSize = 13.sp)
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { viewModel.changePin(oldPin, newPin) }, enabled = oldPin.length >= 4 && newPin.length >= 4) {
+                    Text("Change")
+                }
+            },
+            dismissButton = { TextButton(onClick = viewModel::closeChangePin) { Text("Cancel") } }
+        )
+    }
+
     if (uiState.showForgotConfirm) {
         AlertDialog(
             onDismissRequest = viewModel::dismissForgotPin,
@@ -132,6 +178,7 @@ fun VaultScreen(
                     modifier = Modifier.weight(1f)
                 )
                 if (uiState.authState == VaultAuthState.AUTHENTICATED) {
+                    TextButton(onClick = viewModel::openChangePin) { Text("Change PIN", color = appColors.textTertiary) }
                     TextButton(onClick = {
                         viewModel.lock()
                         onBackClick()

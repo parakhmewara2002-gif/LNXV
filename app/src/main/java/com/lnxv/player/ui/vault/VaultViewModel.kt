@@ -33,6 +33,8 @@ data class VaultUiState(
     val lockoutRemainingSec: Long = 0L,
     val shakeCount: Int = 0,
     val showForgotConfirm: Boolean = false,
+    val showChangePin: Boolean = false,
+    val changePinMessage: String? = null,
     val busy: Boolean = false
 ) {
     /** While entering an existing PIN its length is known; during setup the user chooses 4-8 and confirms. */
@@ -168,6 +170,27 @@ class VaultViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
             VaultAuthState.AUTHENTICATED -> {}
+        }
+    }
+
+    fun openChangePin() { _uiState.value = _uiState.value.copy(showChangePin = true, changePinMessage = null) }
+    fun closeChangePin() { _uiState.value = _uiState.value.copy(showChangePin = false, changePinMessage = null) }
+
+    fun changePin(oldPin: String, newPin: String) {
+        if (!PinHasher.isValidPin(newPin)) {
+            _uiState.value = _uiState.value.copy(changePinMessage = "New PIN must be 4-8 digits")
+            return
+        }
+        viewModelScope.launch {
+            when (val r = vaultRepo.changePin(oldPin, newPin)) {
+                is VerifyResult.Success -> _uiState.value = _uiState.value.copy(
+                    showChangePin = false, changePinMessage = null, pinLength = newPin.length
+                )
+                is VerifyResult.Wrong -> _uiState.value = _uiState.value.copy(changePinMessage = "Current PIN is incorrect")
+                is VerifyResult.Locked -> _uiState.value = _uiState.value.copy(
+                    changePinMessage = "Too many attempts. Try again in ${(r.remainingMs + 999) / 1000}s"
+                )
+            }
         }
     }
 

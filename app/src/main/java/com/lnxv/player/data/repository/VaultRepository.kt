@@ -112,6 +112,17 @@ class VaultRepository(
         }
     }
 
+    /**
+     * Change PIN: verifies the old PIN (counts toward lockout) and stores a new PBKDF2 credential.
+     * The master key is wrapped by the Keystore, not derived from the PIN, so no file re-encryption is needed.
+     */
+    suspend fun changePin(oldPin: String, newPin: String): VerifyResult {
+        if (!PinHasher.isValidPin(newPin)) return VerifyResult.Wrong(LockoutPolicy.FREE_ATTEMPTS)
+        val r = verifyPin(oldPin)
+        if (r is VerifyResult.Success) setPin(newPin)
+        return r
+    }
+
     /** Clears the in-memory key. Callers also cancel running transfers and drop vault UI state. */
     fun lock() = keys.lock()
 

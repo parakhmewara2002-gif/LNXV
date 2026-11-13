@@ -23,6 +23,13 @@ import androidx.navigation.compose.rememberNavController
 import com.lnxv.player.core.datastore.UserPreferences
 import com.lnxv.player.core.design.LNXVTheme
 import com.lnxv.player.core.flags.FeatureFlag
+import com.lnxv.player.core.model.VideoItem
+import com.lnxv.player.core.util.IncomingIntentValidator
+import android.content.Intent
+import android.net.Uri
+import android.provider.OpenableColumns
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.first
 import com.lnxv.player.playback.pip.PipManager
 import com.lnxv.player.ui.navigation.LNXVNavigationHost
 import kotlinx.coroutines.Dispatchers
@@ -95,6 +102,8 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+        if (savedInstanceState == null) handleViewIntent(intent)
+
         setContent {
             val prefs by prefsState.collectAsState()
             val p = prefs
@@ -111,6 +120,61 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleViewIntent(intent)
+    }
+
+    /** Opens a video handed over by another app (VIEW intent): validated, played transiently, not saved to Room. */
+    private fun handleViewIntent(intent: Intent?) {
+        if (intent?.action != Intent.ACTION_VIEW) return
+        val uri = intent.data ?: return
+        if (!IncomingIntentValidator.isAllowedViewData(uri.scheme, intent.type)) return
+        val app = application as LNXVApplication
+        lifecycleScope.launch {
+            val prefs = app.dataStore.userPreferencesFlow.first()
+            if (!prefs.isEnabled(FeatureFlag.OPEN_WITH_INTENTS)) return@launch
+            val known = withContext(Dispatchers.IO) { findLibraryVideoId(app, uri) }
+            if (known != null) { // already in the library: reuse it so resume position works
+                app.pendingOpenVideoId.value = known
+                return@launch
+            }
+            if (uri.scheme == "content" && (intent.flags and Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION) != 0) {
+                runCatching { contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
+            }
+            val title = withContext(Dispatchers.IO) { displayNameOf(uri) }
+            app.transientVideo = VideoItem(
+                id = LNXVApplication.TRANSIENT_VIDEO_ID,
+                title = title,
+                uri = uri,
+                path = if (uri.scheme == "file") uri.path.orEmpty() else "",
+                durationMs = 0L, sizeBytes = 0L, width = 0, height = 0,
+                mimeType = intent.type ?: "video/*",
+                dateAddedSec = System.currentTimeMillis() / 1000,
+                folderPath = "Opened with", folderName = "Opened with"
+            )
+            app.pendingOpenVideoId.value = LNXVApplication.TRANSIENT_VIDEO_ID
+        }
+    }
+
+    private suspend fun findLibraryVideoId(app: LNXVApplication, uri: Uri): Long? {
+        if (uri.scheme != "content" || uri.authority != "media") return null
+        val id = uri.lastPathSegment?.toLongOrNull() ?: return null
+        return if (app.videoRepository.getVideoById(id) != null) id else null
+    }
+
+    private fun displayNameOf(uri: Uri): String {
+        if (uri.scheme == "content") {
+            runCatching {
+                contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
+                    if (c.moveToFirst()) c.getString(0)?.let { return it }
+                }
+            }
+        }
+        return uri.lastPathSegment?.substringAfterLast('/') ?: "Video"
     }
 
     private fun applyGlobalSecure(enabled: Boolean) {

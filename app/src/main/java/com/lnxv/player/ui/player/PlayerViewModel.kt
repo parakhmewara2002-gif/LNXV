@@ -64,8 +64,9 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     fun loadVideo(videoId: Long) {
         if (_uiState.value.currentVideo?.id == videoId) return
         viewModelScope.launch {
-            val video = videoRepository.getVideoById(videoId) ?: return@launch
             val app = getApplication<Application>() as LNXVApplication
+            val video = (if (videoId == LNXVApplication.TRANSIENT_VIDEO_ID) app.transientVideo
+                else videoRepository.getVideoById(videoId)) ?: return@launch
             if (video.isVault && !app.vaultRepository.isUnlocked) {
                 _uiState.value = _uiState.value.copy(accessDenied = true)
                 return@launch
