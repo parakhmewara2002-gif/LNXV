@@ -179,10 +179,29 @@ fun VideoItemRow(
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (!video.isVault && com.lnxv.player.core.model.SmartCollection.isNew(video, System.currentTimeMillis() / 1000L)) {
+                        Text(
+                            text = "NEW",
+                            color = appColors.accent,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(end = 6.dp)
+                        )
+                    }
                     Text(
                         text = "${video.sizeFormatted} • ${video.folderName}",
                         color = appColors.textSecondary,
                         fontSize = 11.sp
+                    )
+                }
+                val watched = com.lnxv.player.core.model.SmartCollection.watchedFraction(video)
+                if (watched > 0f && !video.isVault) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    LinearProgressIndicator(
+                        progress = { watched },
+                        modifier = Modifier.fillMaxWidth().height(2.dp),
+                        color = appColors.accent,
+                        trackColor = appColors.textTertiary.copy(alpha = 0.3f)
                     )
                 }
             }

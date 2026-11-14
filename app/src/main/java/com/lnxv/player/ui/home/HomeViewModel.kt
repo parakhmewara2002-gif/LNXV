@@ -50,7 +50,8 @@ data class HomeUiState(
     val openFolderPath: String? = null,
     val openFolderName: String = "",
     val folderVideos: List<VideoItem> = emptyList(),
-    val isGridView: Boolean = false
+    val isGridView: Boolean = false,
+    val collection: com.lnxv.player.core.model.SmartCollection = com.lnxv.player.core.model.SmartCollection.ALL
 )
 
 class HomeViewModel(application: Application) : AndroidViewModel(application) {
@@ -65,22 +66,27 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val _sortOption = MutableStateFlow(SortOption.DATE_DESC)
     private val _isRefreshing = MutableStateFlow(false)
     private val _openFolder = MutableStateFlow<String?>(null)
+    private val _collection = MutableStateFlow(com.lnxv.player.core.model.SmartCollection.ALL)
 
     private data class Controls(
         val tab: HomeTab,
         val query: String,
         val sort: SortOption,
         val refreshing: Boolean,
-        val openFolder: String?
+        val openFolder: String?,
+        val collection: com.lnxv.player.core.model.SmartCollection = com.lnxv.player.core.model.SmartCollection.ALL
     )
 
     private val controlsFlow = combine(
-        _selectedTab,
-        _searchQuery,
-        _sortOption,
-        _isRefreshing,
-        _openFolder
-    ) { tab, query, sort, refreshing, folder -> Controls(tab, query, sort, refreshing, folder) }
+        combine(
+            _selectedTab,
+            _searchQuery,
+            _sortOption,
+            _isRefreshing,
+            _openFolder
+        ) { tab, query, sort, refreshing, folder -> Controls(tab, query, sort, refreshing, folder) },
+        _collection
+    ) { c, collection -> c.copy(collection = collection) }
 
     // hidden folders + grid/list mode
     private val libraryPrefsFlow = dataStore.userPreferencesFlow
@@ -110,10 +116,13 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         // Hidden folders are removed from Videos / Recents / Favorites (but stay in the Folders tab)
         val visible = if (hidden.isEmpty()) allVids else allVids.filter { it.folderPath !in hidden }
 
+        val nowSec = System.currentTimeMillis() / 1000L
+        val inCollection = if (controls.collection == com.lnxv.player.core.model.SmartCollection.ALL) visible
+            else visible.filter { controls.collection.matches(it, nowSec) }
         val filteredVideos = if (query.isBlank()) {
-            visible
+            inCollection
         } else {
-            visible.filter {
+            inCollection.filter {
                 it.title.contains(query, ignoreCase = true) || it.folderName.contains(query, ignoreCase = true)
             }
         }
@@ -140,7 +149,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             openFolderPath = openPath,
             openFolderName = folders.firstOrNull { it.path == openPath }?.name ?: "",
             folderVideos = folderVideos,
-            isGridView = libPrefs.second
+            isGridView = libPrefs.second,
+            collection = controls.collection
         )
     }.flowOn(Dispatchers.Default).stateIn(
         scope = viewModelScope,
@@ -159,6 +169,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     fun updateSearchQuery(query: String) {
         _searchQuery.value = query
+    }
+
+    fun selectCollection(c: com.lnxv.player.core.model.SmartCollection) {
+        _collection.value = c
     }
 
     fun updateSortOption(sort: SortOption) {

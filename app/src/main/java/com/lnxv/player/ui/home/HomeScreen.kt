@@ -428,6 +428,20 @@ fun HomeScreen(
                             }
                         }
                     }
+                    item {
+                        androidx.compose.foundation.lazy.LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            items(com.lnxv.player.core.model.SmartCollection.values().toList()) { c ->
+                                androidx.compose.material3.FilterChip(
+                                    selected = uiState.collection == c,
+                                    onClick = { viewModel.selectCollection(c) },
+                                    label = { Text(c.label) }
+                                )
+                            }
+                        }
+                    }
                     if (uiState.videos.isEmpty()) {
                         item { EmptyStateView(message = "No videos discovered on device") }
                     } else if (uiState.isGridView) {
