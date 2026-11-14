@@ -121,3 +121,7 @@ Known limits: per-video resume for transient opens is not stored; network-specif
 - DI: Koin 3.5.6 (no codegen, no reflection, so R8-safe; chosen over Hilt to avoid KSP/kapt risk without a local build). `AppModule.kt` exposes LNXVApplication's lazy singletons; `PlayerController` abstracts the engine.
 - Baseline profile rules are wildcard-based (all app code), a deliberate coarse default; regenerate with the :benchmark generator on a device and compare StartupBenchmark None vs Partial.
 - Static analysis is non-blocking until the first triage; findings (e.g. SettingsScreen complexity 43, SettingsViewModel 26 functions) are in the CI artifact.
+
+## 13. Phase 5 closure
+- Audio-only mode via TrackSelector (video track type disabled), reset when the next video is prepared.
+- Closed as infeasible on the current stack (not skipped by choice): chapters (no Media3 1.4.1 API for MP4/MKV chapter lists), brightness/contrast/saturation (needs a GL effect pipeline on the ExoPlayer surface; Media3 effects target Transformer / ExoPlayer.setVideoEffects with a texture surface, incompatible with the current SurfaceView path), true loudness normalization (Media3 loudness controller needs API 35 / newer Media3), online subtitle search (needs a third-party API key and a UI to hold it).
