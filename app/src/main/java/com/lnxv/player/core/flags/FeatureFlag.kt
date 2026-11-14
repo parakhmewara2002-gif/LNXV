@@ -31,6 +31,11 @@ enum class FeatureFlag(val title: String, val description: String, val defaultEn
         "Remember the playback speed separately for each video (not stored for vault videos).",
         true
     ),
+    GESTURE_SENSITIVITY(
+        "Gesture sensitivity",
+        "Adjust how strongly swipe gestures change brightness, volume and seek position (Settings).",
+        true
+    ),
     SUBTITLE_STYLING(
         "Subtitle styling",
         "Subtitle background opacity, edge style and vertical position in Settings. When off, the default style is used.",

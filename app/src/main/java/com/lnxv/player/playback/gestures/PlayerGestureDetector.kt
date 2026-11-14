@@ -56,6 +56,7 @@ fun PlayerGestureDetector(
     seekEnabled: Boolean = true,
     longPressEnabled: Boolean = true,
     doubleTapSeekMs: Long = 10_000L,
+    sensitivity: Float = 1f,
     onSingleTap: () -> Unit,
     onDoubleTapSeek: (deltaMs: Long) -> Unit,
     onDoubleTapCenter: () -> Unit,
@@ -78,6 +79,7 @@ fun PlayerGestureDetector(
     val latestSeekEnabled by rememberUpdatedState(seekEnabled)
     val latestLongPressEnabled by rememberUpdatedState(longPressEnabled)
     val latestDoubleTapMs by rememberUpdatedState(doubleTapSeekMs)
+    val latestSensitivity by rememberUpdatedState(sensitivity.coerceIn(0.5f, 2f))
 
     var overlayState by remember { mutableStateOf(GestureOverlayState()) }
     var zoomScale by remember { mutableFloatStateOf(1f) }
@@ -189,7 +191,7 @@ fun PlayerGestureDetector(
 
                                 when (mode) {
                                     GestureType.SEEK -> {
-                                        seekTarget = SeekMath.dragTarget(startPos, accX, w, latestDuration)
+                                        seekTarget = SeekMath.dragTarget(startPos, accX * latestSensitivity, w, latestDuration)
                                         publish(
                                             overlayState.copy(
                                                 activeGesture = GestureType.SEEK,
@@ -200,7 +202,7 @@ fun PlayerGestureDetector(
                                         change.consume()
                                     }
                                     GestureType.BRIGHTNESS -> {
-                                        val b = (startBrightness - accY / h * 1.2f).coerceIn(0.02f, 1f)
+                                        val b = (startBrightness - accY / h * 1.2f * latestSensitivity).coerceIn(0.02f, 1f)
                                         activity?.window?.let { win ->
                                             val lp = win.attributes
                                             lp.screenBrightness = b
@@ -215,7 +217,7 @@ fun PlayerGestureDetector(
                                         change.consume()
                                     }
                                     GestureType.VOLUME -> {
-                                        val frac = (startVolume - accY / h * 1.2f).coerceIn(0f, 1f)
+                                        val frac = (startVolume - accY / h * 1.2f * latestSensitivity).coerceIn(0f, 1f)
                                         val maxVol = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
                                         audioManager.setStreamVolume(
                                             AudioManager.STREAM_MUSIC,

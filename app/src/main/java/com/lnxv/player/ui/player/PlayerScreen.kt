@@ -328,6 +328,7 @@ fun PlayerScreen(
             seekEnabled = prefs.isSeekGestureEnabled,
             longPressEnabled = prefs.isLongPressSpeedEnabled,
             doubleTapSeekMs = prefs.doubleTapSeekSeconds * 1000L,
+            sensitivity = if (prefs.isEnabled(com.lnxv.player.core.flags.FeatureFlag.GESTURE_SENSITIVITY)) prefs.gestureSensitivityPct / 100f else 1f,
             onSingleTap = { viewModel.toggleControlsVisibility() },
             onDoubleTapSeek = { delta ->
                 haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
