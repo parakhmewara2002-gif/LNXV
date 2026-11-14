@@ -935,7 +935,12 @@ fun PlayerScreen(
                                                 text = { Text("Screenshot") },
                                                 onClick = {
                                                     isMoreMenuOpen = false
-                                                    playerViewRef?.let { ScreenshotHelper.capture(context, it) }
+                                                    // Never capture frames of vault videos.
+                                                    if (uiState.currentVideo?.isVault == true) {
+                                                        android.widget.Toast.makeText(context, "Screenshots are disabled for vault videos", android.widget.Toast.LENGTH_SHORT).show()
+                                                    } else {
+                                                        playerViewRef?.let { ScreenshotHelper.capture(context, it) }
+                                                    }
                                                 }
                                             )
                                             PlayerMenuItem(

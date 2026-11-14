@@ -373,6 +373,10 @@ class Media3PlayerManager(private val context: Context) : Player.Listener {
         }
     }
 
+    fun setSkipSilence(enabled: Boolean) {
+        exoPlayer.skipSilenceEnabled = enabled
+    }
+
     fun setPlaybackSpeed(speed: Float) {
         val clamped = speed.coerceIn(0.25f, 4.0f)
         exoPlayer.playbackParameters = PlaybackParameters(clamped)

@@ -26,6 +26,16 @@ enum class FeatureFlag(val title: String, val description: String, val defaultEn
         "Play videos opened from other apps (VIEW intents).",
         true
     ),
+    PER_VIDEO_SPEED(
+        "Per-video speed",
+        "Remember the playback speed separately for each video (not stored for vault videos).",
+        true
+    ),
+    SKIP_SILENCE(
+        "Skip silence",
+        "Skip silent parts of the audio during playback (takes effect on the next video you open). Experimental: can make audio sound clipped.",
+        false
+    ),
     SLEEP_TIMER_EXTRAS(
         "Sleep timer extras",
         "Adds an 'End of video' option and fades the volume out over the last 10 seconds before the timer stops playback.",

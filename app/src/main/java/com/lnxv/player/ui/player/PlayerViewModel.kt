@@ -172,7 +172,9 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
             val prefs = dataStore.userPreferencesFlow.first()
             val last = video.lastPositionMs
             val canResume = last > 5_000L && (video.durationMs <= 0L || last < video.durationMs - 5_000L)
-            val speed = if (prefs.rememberSpeed) prefs.lastSpeed else prefs.defaultSpeed
+            val perVideo = if (prefs.isEnabled(com.lnxv.player.core.flags.FeatureFlag.PER_VIDEO_SPEED) && !video.isVault)
+                com.lnxv.player.core.model.PerVideoSpeed.get(prefs.perVideoSpeeds, video.id) else null
+            val speed = perVideo ?: if (prefs.rememberSpeed) prefs.lastSpeed else prefs.defaultSpeed
             _uiState.value = _uiState.value.copy(currentVideo = video, resumePromptPositionMs = null)
 
             when {
@@ -195,6 +197,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
             title = if (video.isVault) "Private video" else video.title
         )
         playerManager.setPlaybackSpeed(speed)
+        playerManager.setSkipSilence(userPrefs.value.isEnabled(com.lnxv.player.core.flags.FeatureFlag.SKIP_SILENCE))
     }
 
     fun resumeFromPrompt() {
@@ -240,6 +243,10 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         playerManager.setPlaybackSpeed(speed)
         if (userPrefs.value.rememberSpeed) {
             viewModelScope.launch { dataStore.updateLastSpeed(speed) }
+        }
+        val cur = _uiState.value.currentVideo
+        if (cur != null && !cur.isVault && userPrefs.value.isEnabled(com.lnxv.player.core.flags.FeatureFlag.PER_VIDEO_SPEED)) {
+            viewModelScope.launch { dataStore.setVideoSpeed(cur.id, speed) }
         }
     }
 

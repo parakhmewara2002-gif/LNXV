@@ -59,6 +59,7 @@ data class UserPreferences(
     val effectsMode: String = "AUTO",
     /** Newline-separated recent stream URLs (credentials stripped). */
     val recentStreams: String = "",
+    val perVideoSpeeds: String = "",
     val skippedUpdateBuild: Int = 0,
     val featureFlags: Map<FeatureFlag, Boolean> = FeatureFlag.defaults()
 ) {
@@ -101,6 +102,7 @@ class UserPreferencesDataStore(private val context: Context) {
         val VAULT_AUTOLOCK = longPreferencesKey("vault_autolock_ms")
         val BLOCK_SCREENSHOTS = booleanPreferencesKey("block_screenshots")
         val RECENT_STREAMS = stringPreferencesKey("recent_streams")
+        val PER_VIDEO_SPEEDS = stringPreferencesKey("per_video_speeds")
         val DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
         val EFFECTS_MODE = stringPreferencesKey("effects_mode")
         val UPDATE_WIFI_ONLY = booleanPreferencesKey("update_wifi_only")
@@ -144,6 +146,7 @@ class UserPreferencesDataStore(private val context: Context) {
             dynamicColor = prefs[PreferencesKeys.DYNAMIC_COLOR] ?: false,
             effectsMode = prefs[PreferencesKeys.EFFECTS_MODE] ?: "AUTO",
             recentStreams = prefs[PreferencesKeys.RECENT_STREAMS] ?: "",
+            perVideoSpeeds = prefs[PreferencesKeys.PER_VIDEO_SPEEDS] ?: "",
             skippedUpdateBuild = prefs[PreferencesKeys.UPDATE_SKIPPED] ?: 0,
             featureFlags = FeatureFlag.values().associateWith { f ->
                 prefs[PreferencesKeys.flagKey(f)] ?: f.defaultEnabled
@@ -259,6 +262,13 @@ class UserPreferencesDataStore(private val context: Context) {
 
     suspend fun updateVaultAutoLock(ms: Long) {
         context.dataStore.edit { it[PreferencesKeys.VAULT_AUTOLOCK] = ms }
+    }
+
+    suspend fun setVideoSpeed(videoId: Long, speed: Float) {
+        context.dataStore.edit {
+            it[PreferencesKeys.PER_VIDEO_SPEEDS] =
+                com.lnxv.player.core.model.PerVideoSpeed.with(it[PreferencesKeys.PER_VIDEO_SPEEDS] ?: "", videoId, speed)
+        }
     }
 
     suspend fun saveRecentStreams(encoded: String) {
