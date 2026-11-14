@@ -105,3 +105,9 @@ Known limits: per-video resume for transient opens is not stored; network-specif
 - Fixed: Screenshot menu item previously captured vault frames; now blocked.
 - Unit tests: SleepFade, PerVideoSpeed, EqPreset.
 - Risks: audio effects may be refused by some ROMs (caught, no crash); skip-silence interaction with the AudioDelayProcessor is untested on device.
+
+## 10. Phase 5 increment 2 (CI-compiled, NOT DEVICE-TESTED)
+- VIDEO_TRANSFORMS: rotate/flip via graphicsLayer on the video view. Risk: SurfaceView may ignore or mis-render transforms on some devices; default OFF.
+- Volume boost (LoudnessEnhancer, 3/6/9 dB) is a fixed gain, NOT loudness normalization; can clip.
+- SUBTITLE_STYLING: background opacity, edge style, bottom position. GESTURE_SENSITIVITY: 50-200% scale for swipe brightness/volume/seek.
+- Phase 5 items not built are listed in PROGRESS.md with reasons.

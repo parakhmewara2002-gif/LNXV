@@ -42,7 +42,8 @@ Build status: authoring environment had no Android SDK/Maven access; every chang
 - Skip silence (flag SKIP_SILENCE, off by default). Equalizer presets via android.media.audiofx (flag EQUALIZER, off by default).
 - Screenshots are blocked for vault videos.
 - Already existed before Phase 5: resume modes, touch lock, sleep timer, screenshot.
-- Phase 5 not done: loudness normalization, audio-only mode, chapters (no reliable chapter API in Media3 1.4.1), video adjustments, orientation modes, subtitle styling/online search, gesture customization.
+- Phase 5 increment 2: rotate/flip video (VIDEO_TRANSFORMS, off), volume boost via LoudnessEnhancer (under EQUALIZER flag), subtitle styling (SUBTITLE_STYLING), gesture sensitivity (GESTURE_SENSITIVITY).
+- Phase 5 NOT done, with reasons: true loudness normalization (needs analysis pass; only a fixed boost exists), audio-only/screen-off mode (background playback exists, dedicated mode not built), chapter markers (no reliable chapter API in Media3 1.4.1), brightness/contrast/saturation (needs GL effects pipeline; Media3 Effects are Transformer-oriented), online subtitle search (needs network + user API key UI), per-axis gesture customization.
 
 ## Done (Phase 4, increment 2)
 - HomeScreen split: list/card composables moved to HomeComponents.kt. PlayerScreen NOT split. DI (Hilt) intentionally skipped: manual container in LNXVApplication is enough and Hilt adds KSP/build risk with no local build.
