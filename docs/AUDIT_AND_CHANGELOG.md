@@ -87,3 +87,11 @@ Known limits: per-video resume for transient opens is not stored; network-specif
 | 2.5 Audio delay | `AudioDelayProcessor` (16-bit PCM only, inactive otherwise) inserts silence; changing delay while playing inserts/drops samples; re-applied after seek. Range 0..+2000 ms. **Negative delay is not supported** (advancing audio would require delaying the video). | `playback/engine/AudioDelayProcessor.kt`, `Media3PlayerManager.kt` |
 | 2.5 Subtitle delay | Existing delay works for external SRT/VTT (cue-shifted copy). **Embedded and ASS/SSA tracks cannot be shifted with Media3 1.4.1** (no public API to offset text-track timing): documented limit. | — |
 | 2.6 | Skipped (optional): no floating mini player (SYSTEM_ALERT_WINDOW removed) and no Cast. | — |
+
+## 7. Phase 3 — Graphics, transitions, theming (CI-compiled, NOT DEVICE-TESTED)
+- Dynamic color + effects mode (Auto/Full/Reduced); `LocalReduceEffects` disables blur, shared elements, nav transitions and scrub preview.
+- Haze 1.0.2 blur on Home top bar (clip first; no shape param in this version).
+- `SharedTransitionLayout` + `sharedBounds` between video card and player. Risk: SurfaceView may glitch during the transition.
+- Player: play/pause morph (AnimatedContent), thumb spring scale, Coil VideoFrameDecoder preview while scrubbing (local only).
+- Compose BOM 2024.09.03. No new runtime dependency besides Haze (backdrop blur; hand-rolled blur is not feasible below API 31).
+- Remaining: vault unlock animation, spring HUD.

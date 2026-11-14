@@ -26,8 +26,15 @@ Build status: authoring environment had no Android SDK/Maven access; every chang
 - detekt/ktlint/OWASP dependency-check in CI; pin Actions to SHAs
 - REQUEST_INSTALL_PACKAGES only in sideload flavor (with Phase 4 flavors)
 
+## Done (Phase 3, CI green, NOT DEVICE-TESTED)
+- Theming: dynamic color (Android 12+), Appearance & performance settings (effects mode Auto/Full/Reduced), `LocalReduceEffects` gates blur, shared elements and transitions.
+- Haze 1.0.2 backdrop blur on the Home top bar; Compose BOM bumped to 2024.09.03.
+- Shared-element container transform card -> player (skipped when reduce effects).
+- Player polish: animated play/pause morph, spring thumb scale while scrubbing, frame preview while scrubbing (local content/file only, never vault/network).
+- Not done in 3: vault unlock success animation, spring HUD for brightness/volume/seek.
+
 ## Next
-Phase 3 (graphics/transitions/theming). Phase 2.6 (floating mini player, Cast) intentionally skipped: it is optional and SYSTEM_ALERT_WINDOW was removed in Phase 1.4.
+Phase 4 (architecture/quality). Phase 2.6 (floating mini player, Cast) intentionally skipped: it is optional and SYSTEM_ALERT_WINDOW was removed in Phase 1.4.
 
 ## Not started
 Phases 3, 4, 5, 6 and the LOW RAM / LOW STORAGE rules (A–D).
