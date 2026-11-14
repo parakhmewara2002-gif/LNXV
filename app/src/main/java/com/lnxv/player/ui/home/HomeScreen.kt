@@ -191,10 +191,9 @@ fun HomeScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .then(
-                        if (reduceEffects) Modifier else Modifier.hazeChild(
-                            state = hazeState,
-                            shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)
-                        )
+                        if (reduceEffects) Modifier else Modifier
+                            .clip(RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp))
+                            .hazeChild(state = hazeState)
                     )
                     .liquidGlassSurface(
                         shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp),
