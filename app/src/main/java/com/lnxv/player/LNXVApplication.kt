@@ -1,5 +1,6 @@
 package com.lnxv.player
 
+import org.koin.android.ext.koin.androidContext
 import android.app.Application
 import coil.ImageLoader
 import kotlinx.coroutines.launch
@@ -42,7 +43,7 @@ class LNXVApplication : Application(), ImageLoaderFactory {
         super.onCreate()
         instance = this
         org.koin.core.context.startKoin {
-            org.koin.android.ext.koin.androidContext(this@LNXVApplication)
+            androidContext(this@LNXVApplication)
             modules(appModule)
         }
         if (applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE != 0) enableStrictMode()
