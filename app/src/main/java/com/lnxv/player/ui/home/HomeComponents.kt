@@ -15,6 +15,8 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -100,17 +102,20 @@ fun VideoItemRow(
     onFavoriteToggle: () -> Unit,
     onVaultMove: () -> Unit,
     onAddToPlaylist: () -> Unit = {},
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    selected: Boolean = false,
+    onLongClick: (() -> Unit)? = null
 ) {
     var isMenuOpen by remember { mutableStateOf(false) }
 
     GlassPanel(
         modifier = Modifier
             .fillMaxWidth()
-            .bouncyClickable { onClick() },
+            .bouncyClickable(onLongClick = onLongClick) { onClick() }
+            .semantics { this.selected = selected },
         shape = RoundedCornerShape(16.dp),
-        backgroundColor = appColors.glassFill,
-        borderColor = appColors.glassBorder
+        backgroundColor = if (selected) appColors.accent.copy(alpha = 0.22f) else appColors.glassFill,
+        borderColor = if (selected) appColors.accent else appColors.glassBorder
     ) {
         Row(
             modifier = Modifier
@@ -468,15 +473,19 @@ fun VideoGridCard(
     onFavoriteToggle: () -> Unit,
     onVaultMove: () -> Unit,
     onAddToPlaylist: () -> Unit = {},
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    selected: Boolean = false,
+    onLongClick: (() -> Unit)? = null
 ) {
     var isMenuOpen by remember { mutableStateOf(false) }
 
     GlassPanel(
-        modifier = modifier.bouncyClickable { onClick() },
+        modifier = modifier
+            .bouncyClickable(onLongClick = onLongClick) { onClick() }
+            .semantics { this.selected = selected },
         shape = RoundedCornerShape(16.dp),
-        backgroundColor = appColors.glassFill,
-        borderColor = appColors.glassBorder
+        backgroundColor = if (selected) appColors.accent.copy(alpha = 0.22f) else appColors.glassFill,
+        borderColor = if (selected) appColors.accent else appColors.glassBorder
     ) {
         Column {
             Box(

@@ -103,6 +103,11 @@ fun HomeScreen(
     onSettingsClick: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val selection by viewModel.selection.collectAsState()
+    val selectionPool = remember(uiState) {
+        (uiState.videos + uiState.folderVideos + uiState.favorites + uiState.recentlyPlayed).distinctBy { it.id }
+    }
+    var confirmRemove by remember { mutableStateOf(false) }
     var isSearchExpanded by remember { mutableStateOf(false) }
     var showStreamDialog by remember { mutableStateOf(false) }
     val playlists by viewModel.playlists.collectAsState()
@@ -182,11 +187,48 @@ fun HomeScreen(
     // One blur layer: the top bar blurs the list scrolling under it (skipped when "Reduce effects" is on).
     val hazeState = remember { dev.chrisbanes.haze.HazeState() }
     val reduceEffects = com.lnxv.player.core.design.LocalReduceEffects.current
-    BackHandler(enabled = uiState.openFolderPath != null) { viewModel.closeFolder() }
+    BackHandler(enabled = selection.isNotEmpty()) { viewModel.clearSelection() }
+    BackHandler(enabled = uiState.openFolderPath != null && selection.isEmpty()) { viewModel.closeFolder() }
+    if (confirmRemove) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { confirmRemove = false },
+            title = { Text("Remove ${selection.size} from library?") },
+            text = { Text("This removes them from LNXV's library list. It does not delete the files from your device.") },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    viewModel.removeSelected(selectionPool)
+                    confirmRemove = false
+                }) { Text("Remove") }
+            },
+            dismissButton = { androidx.compose.material3.TextButton(onClick = { confirmRemove = false }) { Text("Cancel") } }
+        )
+    }
 
     Scaffold(
         modifier = Modifier.fillMaxSize().ambientBackground(),
         containerColor = Color.Transparent,
+        bottomBar = {
+            if (selection.isNotEmpty()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(appColors.barFill)
+                        .padding(horizontal = 8.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("${selection.size} selected", color = appColors.textPrimary, fontSize = 14.sp, modifier = Modifier.padding(start = 8.dp))
+                    Row {
+                        androidx.compose.material3.TextButton(onClick = { viewModel.selectAll(selectionPool.filter { v -> v.id in (if (uiState.openFolderPath != null) uiState.folderVideos else uiState.videos).map { it.id } }) }) { Text("All") }
+                        androidx.compose.material3.TextButton(onClick = { viewModel.favoriteSelected(selectionPool) }) { Text("Fav") }
+                        androidx.compose.material3.TextButton(onClick = { viewModel.requestAddSelectedToPlaylist(selectionPool) }) { Text("Playlist") }
+                        androidx.compose.material3.TextButton(onClick = { viewModel.vaultSelected(selectionPool) }) { Text("Vault") }
+                        androidx.compose.material3.TextButton(onClick = { confirmRemove = true }) { Text("Remove") }
+                        androidx.compose.material3.TextButton(onClick = { viewModel.clearSelection() }) { Text("✕") }
+                    }
+                }
+            }
+        },
         topBar = {
             Column(
                 modifier = Modifier
@@ -454,7 +496,9 @@ fun HomeScreen(
                                     VideoGridCard(
                                         video = video,
                                         modifier = Modifier.weight(1f),
-                                        onClick = { onVideoClick(video) },
+                                        onClick = { if (selection.isNotEmpty()) viewModel.toggleSelect(video.id) else onVideoClick(video) },
+                                selected = video.id in selection,
+                                onLongClick = { viewModel.toggleSelect(video.id) },
                                         onFavoriteToggle = { viewModel.toggleFavorite(video) },
                                         onVaultMove = { viewModel.moveToVault(video) },
                                 onAddToPlaylist = { viewModel.requestAddToPlaylist(video) },
@@ -468,7 +512,9 @@ fun HomeScreen(
                         items(uiState.videos, key = { it.id }) { video ->
                             VideoItemRow(
                                 video = video,
-                                onClick = { onVideoClick(video) },
+                                onClick = { if (selection.isNotEmpty()) viewModel.toggleSelect(video.id) else onVideoClick(video) },
+                                selected = video.id in selection,
+                                onLongClick = { viewModel.toggleSelect(video.id) },
                                 onFavoriteToggle = { viewModel.toggleFavorite(video) },
                                 onVaultMove = { viewModel.moveToVault(video) },
                                 onAddToPlaylist = { viewModel.requestAddToPlaylist(video) },
@@ -509,7 +555,9 @@ fun HomeScreen(
                             items(uiState.folderVideos, key = { it.id }) { video ->
                                 VideoItemRow(
                                     video = video,
-                                    onClick = { onVideoClick(video) },
+                                    onClick = { if (selection.isNotEmpty()) viewModel.toggleSelect(video.id) else onVideoClick(video) },
+                                selected = video.id in selection,
+                                onLongClick = { viewModel.toggleSelect(video.id) },
                                     onFavoriteToggle = { viewModel.toggleFavorite(video) },
                                     onVaultMove = { viewModel.moveToVault(video) },
                                 onAddToPlaylist = { viewModel.requestAddToPlaylist(video) },
@@ -536,7 +584,9 @@ fun HomeScreen(
                         items(uiState.recentlyPlayed, key = { it.id }) { video ->
                             VideoItemRow(
                                 video = video,
-                                onClick = { onVideoClick(video) },
+                                onClick = { if (selection.isNotEmpty()) viewModel.toggleSelect(video.id) else onVideoClick(video) },
+                                selected = video.id in selection,
+                                onLongClick = { viewModel.toggleSelect(video.id) },
                                 onFavoriteToggle = { viewModel.toggleFavorite(video) },
                                 onVaultMove = { viewModel.moveToVault(video) },
                                 onAddToPlaylist = { viewModel.requestAddToPlaylist(video) },
@@ -575,7 +625,9 @@ fun HomeScreen(
                         items(uiState.favorites, key = { it.id }) { video ->
                             VideoItemRow(
                                 video = video,
-                                onClick = { onVideoClick(video) },
+                                onClick = { if (selection.isNotEmpty()) viewModel.toggleSelect(video.id) else onVideoClick(video) },
+                                selected = video.id in selection,
+                                onLongClick = { viewModel.toggleSelect(video.id) },
                                 onFavoriteToggle = { viewModel.toggleFavorite(video) },
                                 onVaultMove = { viewModel.moveToVault(video) },
                                 onAddToPlaylist = { viewModel.requestAddToPlaylist(video) },

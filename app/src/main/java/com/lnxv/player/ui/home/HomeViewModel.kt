@@ -204,6 +204,52 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    // ------------------------------------------------------------------ multi-select (Phase 6)
+
+    private val _selection = MutableStateFlow<Set<Long>>(emptySet())
+    val selection: kotlinx.coroutines.flow.StateFlow<Set<Long>> = _selection
+
+    fun toggleSelect(id: Long) {
+        _selection.value = _selection.value.let { if (id in it) it - id else it + id }
+    }
+
+    fun clearSelection() { _selection.value = emptySet() }
+
+    fun selectAll(videos: List<VideoItem>) { _selection.value = videos.map { it.id }.toSet() }
+
+    private fun selectedVideos(pool: List<VideoItem>): List<VideoItem> =
+        pool.filter { it.id in _selection.value }
+
+    /** Favorites every selected video, or un-favorites them when all are already favorites. */
+    fun favoriteSelected(pool: List<VideoItem>) {
+        val picked = selectedVideos(pool)
+        val makeFavorite = picked.any { !it.isFavorite }
+        viewModelScope.launch {
+            picked.forEach { if (it.isFavorite != makeFavorite) repository.toggleFavorite(it.id, it.isFavorite) }
+        }
+        clearSelection()
+    }
+
+    fun vaultSelected(pool: List<VideoItem>) {
+        selectedVideos(pool).forEach { moveToVault(it) }
+        clearSelection()
+    }
+
+    fun removeSelected(pool: List<VideoItem>) {
+        val picked = selectedVideos(pool)
+        viewModelScope.launch { picked.forEach { repository.deleteVideo(it.id) } }
+        clearSelection()
+    }
+
+    private var bulkPlaylistIds: List<Long>? = null
+
+    fun requestAddSelectedToPlaylist(pool: List<VideoItem>) {
+        val picked = selectedVideos(pool)
+        if (picked.isEmpty()) return
+        bulkPlaylistIds = picked.map { it.id }
+        _playlistTarget.value = picked.first()
+    }
+
     fun toggleFavorite(video: VideoItem) {
         viewModelScope.launch {
             repository.toggleFavorite(video.id, video.isFavorite)
@@ -283,26 +329,34 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     val playlistTarget: kotlinx.coroutines.flow.StateFlow<VideoItem?> = _playlistTarget
 
     fun requestAddToPlaylist(video: VideoItem) { _playlistTarget.value = video }
-    fun dismissAddToPlaylist() { _playlistTarget.value = null }
+    fun dismissAddToPlaylist() { _playlistTarget.value = null; bulkPlaylistIds = null }
 
     fun addToPlaylist(playlistId: Long) {
         val video = _playlistTarget.value ?: return
+        val ids = bulkPlaylistIds ?: listOf(video.id)
         _playlistTarget.value = null
+        bulkPlaylistIds = null
         viewModelScope.launch {
-            val pos = playlistDao.nextPosition(playlistId)
-            playlistDao.insertItem(com.lnxv.player.core.database.PlaylistItemEntity(playlistId, video.id, pos))
+            var pos = playlistDao.nextPosition(playlistId)
+            ids.forEach { id ->
+                playlistDao.insertItem(com.lnxv.player.core.database.PlaylistItemEntity(playlistId, id, pos++))
+            }
         }
+        clearSelection()
     }
 
     fun createPlaylistAndAdd(name: String) {
         val video = _playlistTarget.value
+        val ids = bulkPlaylistIds ?: listOfNotNull(video?.id)
         _playlistTarget.value = null
+        bulkPlaylistIds = null
         val clean = name.trim().take(60)
         if (clean.isEmpty()) return
         viewModelScope.launch {
             val id = playlistDao.insertPlaylist(com.lnxv.player.core.database.PlaylistEntity(name = clean, createdAt = System.currentTimeMillis()))
-            if (video != null) playlistDao.insertItem(com.lnxv.player.core.database.PlaylistItemEntity(id, video.id, 0))
+            ids.forEachIndexed { i, vid -> playlistDao.insertItem(com.lnxv.player.core.database.PlaylistItemEntity(id, vid, i)) }
         }
+        clearSelection()
     }
 
     fun deletePlaylist(playlistId: Long) {
