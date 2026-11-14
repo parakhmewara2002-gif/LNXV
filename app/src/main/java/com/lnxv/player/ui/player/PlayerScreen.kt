@@ -343,60 +343,9 @@ fun PlayerScreen(
             onSeekCommitted = { target -> viewModel.seekTo(target) },
             onOverlayStateChanged = { overlayState = it }
         ) {
-            // Gesture HUD (brightness / volume / seek / zoom)
-            if (overlayState.activeGesture != GestureType.NONE) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Box(
-                        modifier = Modifier
-                            .background(Color(0xB3000000), RoundedCornerShape(16.dp))
-                            .padding(horizontal = 20.dp, vertical = 12.dp)
-                    ) {
-                        Text(
-                            text = when (overlayState.activeGesture) {
-                                GestureType.BRIGHTNESS -> "Brightness ${overlayState.brightnessPercent}%"
-                                GestureType.VOLUME -> "Volume ${overlayState.volumePercent}%"
-                                GestureType.SEEK -> {
-                                    val d = overlayState.seekDeltaMs
-                                    "${if (d >= 0) "+" else "-"}${abs(d) / 1000}s  •  ${VideoItem.formatDuration(overlayState.seekTargetMs)}"
-                                }
-                                GestureType.ZOOM -> "Zoom ${"%.1f".format(overlayState.zoomScale)}x"
-                                else -> ""
-                            },
-                            color = Color.White,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-                }
-            }
+            GestureHud(state = overlayState)
 
-            // Buffering state: glass disc that fades in/out instead of popping
-            AnimatedVisibility(
-                visible = playbackState.isBuffering,
-                enter = fadeIn(tween(180)),
-                exit = fadeOut(tween(180)),
-                modifier = Modifier.fillMaxSize()
-            ) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(72.dp)
-                            .clip(CircleShape)
-                            .background(Color(0x66101622))
-                            .border(1.dp, Color(0x40FFFFFF), CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(
-                            color = NeonCyan,
-                            strokeWidth = 3.dp,
-                            modifier = Modifier.size(36.dp)
-                        )
-                    }
-                }
-            }
+            BufferingIndicator(isBuffering = playbackState.isBuffering)
 
             // Controls Overlay
             AnimatedVisibility(
@@ -899,115 +848,21 @@ fun PlayerScreen(
             onDismiss = { isMoreMenuOpen = false },
             backdrop = glassBackdrop
         ) {
-                                            PlayerMenuItem(
-                                                text = { Text(if (playbackState.sleepTimerRemainingSeconds != null) "Sleep Timer (active)" else "Sleep Timer") },
-                                                onClick = {
-                                                    showSleepDialog = true
-                                                    isMoreMenuOpen = false
-                                                }
-                                            )
-                                            if (queueUi.size > 1) {
-                                                PlayerMenuItem(
-                                                    text = { Text(if (queueUi.shuffle) "Shuffle: on" else "Shuffle: off") },
-                                                    onClick = { viewModel.toggleShuffle() }
-                                                )
-                                                PlayerMenuItem(
-                                                    text = {
-                                                        Text(
-                                                            when (queueUi.repeat) {
-                                                                com.lnxv.player.core.model.RepeatMode.OFF -> "Repeat: off"
-                                                                com.lnxv.player.core.model.RepeatMode.ONE -> "Repeat: one"
-                                                                com.lnxv.player.core.model.RepeatMode.ALL -> "Repeat: all"
-                                                            }
-                                                        )
-                                                    },
-                                                    onClick = { viewModel.cycleRepeat() }
-                                                )
-                                            }
-                                            if (viewModel.userPrefs.collectAsState().value.isEnabled(com.lnxv.player.core.flags.FeatureFlag.EQUALIZER)) {
-                                                val eqPreset by viewModel.eqPreset.collectAsState()
-                                                PlayerMenuItem(
-                                                    text = { Text("Equalizer: ${eqPreset.label} (tap to change)") },
-                                                    onClick = { viewModel.cycleEqPreset() }
-                                                )
-                                                val boost by viewModel.boostMb.collectAsState()
-                                                PlayerMenuItem(
-                                                    text = { Text("Volume boost: ${if (boost == 0) "off" else "+${boost / 100} dB"} (tap to change)") },
-                                                    onClick = { viewModel.cycleBoost() }
-                                                )
-                                            }
-                                            PlayerMenuItem(
-                                                text = { Text("Audio delay +50 ms (now $audioDelayMs ms)") },
-                                                onClick = { viewModel.adjustAudioDelay(50L) }
-                                            )
-                                            PlayerMenuItem(
-                                                text = { Text("Audio delay -50 ms") },
-                                                onClick = { viewModel.adjustAudioDelay(-50L) }
-                                            )
-                                            PlayerMenuItem(
-                                                text = { Text("Previous frame") },
-                                                onClick = {
-                                                    viewModel.stepFrame(false)
-                                                    isMoreMenuOpen = false
-                                                }
-                                            )
-                                            PlayerMenuItem(
-                                                text = { Text("Next frame") },
-                                                onClick = {
-                                                    viewModel.stepFrame(true)
-                                                    isMoreMenuOpen = false
-                                                }
-                                            )
-                                            if (viewModel.userPrefs.collectAsState().value.isEnabled(com.lnxv.player.core.flags.FeatureFlag.VIDEO_TRANSFORMS)) {
-                                                PlayerMenuItem(
-                                                    text = { Text("Rotate video 90° (now $videoRotation°)") },
-                                                    onClick = { videoRotation = (videoRotation + 90) % 360 }
-                                                )
-                                                PlayerMenuItem(
-                                                    text = { Text(if (videoFlip) "Flip horizontal (on)" else "Flip horizontal") },
-                                                    onClick = { videoFlip = !videoFlip }
-                                                )
-                                            }
-                                            PlayerMenuItem(
-                                                text = { Text("Screenshot") },
-                                                onClick = {
-                                                    isMoreMenuOpen = false
-                                                    // Never capture frames of vault videos.
-                                                    if (uiState.currentVideo?.isVault == true) {
-                                                        android.widget.Toast.makeText(context, "Screenshots are disabled for vault videos", android.widget.Toast.LENGTH_SHORT).show()
-                                                    } else {
-                                                        playerViewRef?.let { ScreenshotHelper.capture(context, it) }
-                                                    }
-                                                }
-                                            )
-                                            PlayerMenuItem(
-                                                text = { Text("Set Point A (AB Repeat)") },
-                                                onClick = {
-                                                    viewModel.setPointA()
-                                                    isMoreMenuOpen = false
-                                                }
-                                            )
-                                            PlayerMenuItem(
-                                                text = { Text("Set Point B (AB Repeat)") },
-                                                onClick = {
-                                                    viewModel.setPointB()
-                                                    isMoreMenuOpen = false
-                                                }
-                                            )
-                                            PlayerMenuItem(
-                                                text = { Text("Clear AB Repeat") },
-                                                onClick = {
-                                                    viewModel.clearABRepeat()
-                                                    isMoreMenuOpen = false
-                                                }
-                                            )
-                                            PlayerMenuItem(
-                                                text = { Text("Video Properties") },
-                                                onClick = {
-                                                    viewModel.showPropertiesDialog(true)
-                                                    isMoreMenuOpen = false
-                                                }
-                                            )
+            PlayerMoreMenuItems(
+                viewModel = viewModel,
+                uiState = uiState,
+                playbackState = playbackState,
+                queueUi = queueUi,
+                audioDelayMs = audioDelayMs,
+                context = context,
+                playerView = playerViewRef,
+                videoRotation = videoRotation,
+                videoFlip = videoFlip,
+                closeMenu = { isMoreMenuOpen = false },
+                openSleepTimer = { showSleepDialog = true },
+                onRotateVideo = { videoRotation = (videoRotation + 90) % 360 },
+                onFlipVideo = { videoFlip = !videoFlip }
+            )
         }
 
     }
