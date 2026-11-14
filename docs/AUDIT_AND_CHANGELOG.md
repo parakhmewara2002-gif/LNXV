@@ -99,3 +99,9 @@ Known limits: per-video resume for transient opens is not stored; network-specif
 ## 8. Phase 4 increment 1 — flavors (CI-compiled, NOT DEVICE-TESTED)
 - `sideload`/`store` flavors; `store` strips REQUEST_INSTALL_PACKAGES and hides the Updates section (`updater_enabled` bool resource). Sideload is arm64-v8a only (no native libs are bundled today, so the filter is a safeguard).
 - Not yet done: DI, screen splitting, Baseline Profile, static-analysis CI, Actions SHA pinning.
+
+## 9. Phase 5 increment 1 (CI-compiled, NOT DEVICE-TESTED)
+- Sleep timer extras (SleepFade, SLEEP_TIMER_EXTRAS), per-video speed (PerVideoSpeed, PER_VIDEO_SPEED), skip silence (SKIP_SILENCE), equalizer (EqPreset, AudioEffectsController, EQUALIZER).
+- Fixed: Screenshot menu item previously captured vault frames; now blocked.
+- Unit tests: SleepFade, PerVideoSpeed, EqPreset.
+- Risks: audio effects may be refused by some ROMs (caught, no crash); skip-silence interaction with the AudioDelayProcessor is untested on device.

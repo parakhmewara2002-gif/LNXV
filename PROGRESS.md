@@ -36,6 +36,17 @@ Build status: authoring environment had no Android SDK/Maven access; every chang
 ## Done (Phase 4, increment 1, CI green, NOT DEVICE-TESTED)
 - Product flavors: `sideload` (arm64-only, updater + install permission) and `store` (REQUEST_INSTALL_PACKAGES removed via manifest merge, updater UI hidden). CI builds both; release artifact is the sideload APK.
 
+## Done (Phase 5 increment 1, CI green, NOT DEVICE-TESTED)
+- Sleep timer: "End of video" + 10 s volume fade-out, wall-clock based (flag SLEEP_TIMER_EXTRAS).
+- Per-video playback speed in DataStore, capped at 200 entries, not stored for vault videos (flag PER_VIDEO_SPEED).
+- Skip silence (flag SKIP_SILENCE, off by default). Equalizer presets via android.media.audiofx (flag EQUALIZER, off by default).
+- Screenshots are blocked for vault videos.
+- Already existed before Phase 5: resume modes, touch lock, sleep timer, screenshot.
+- Phase 5 not done: loudness normalization, audio-only mode, chapters (no reliable chapter API in Media3 1.4.1), video adjustments, orientation modes, subtitle styling/online search, gesture customization.
+
+## Done (Phase 4, increment 2)
+- HomeScreen split: list/card composables moved to HomeComponents.kt. PlayerScreen NOT split. DI (Hilt) intentionally skipped: manual container in LNXVApplication is enough and Hilt adds KSP/build risk with no local build.
+
 ## Next
 Phase 4 remainder: split PlayerScreen/HomeScreen, DI + PlayerController interface, Baseline Profile, detekt/ktlint/OWASP CI, Actions SHA pinning. Then Phases 5 and 6. Phase 2.6 (floating mini player, Cast) intentionally skipped: it is optional and SYSTEM_ALERT_WINDOW was removed in Phase 1.4.
 
