@@ -50,6 +50,9 @@ jobs:
         continue-on-error: true
         run: ./gradlew lintSideloadDebug --console=plain
 
+      - name: Compile benchmark module (not run; needs a device)
+        run: ./gradlew :benchmark:assembleBenchmark --stacktrace
+
       - name: Static analysis - detekt + ktlint (non-blocking until findings are triaged)
         continue-on-error: true
         run: |

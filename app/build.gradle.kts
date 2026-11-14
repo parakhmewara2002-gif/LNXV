@@ -60,6 +60,13 @@ android {
                 "proguard-rules.pro"
             )
         }
+        // Used only by :benchmark (macrobenchmark / baseline-profile generation). Never shipped.
+        create("benchmark") {
+            initWith(getByName("release"))
+            signingConfig = signingConfigs.getByName("debug")
+            matchingFallbacks += listOf("release")
+            isDebuggable = false
+        }
         debug {
             applicationIdSuffix = ".debug"
             isDebuggable = true
@@ -100,6 +107,7 @@ dependencies {
     implementation(libs.androidx.core.splashscreen)
     // Real backdrop blur (RenderEffect on Android 12+, translucent fallback below). Used on one bar only.
     implementation(libs.haze)
+    implementation("androidx.profileinstaller:profileinstaller:1.3.1")
     implementation(libs.koin.android)
     implementation(libs.koin.compose)
     implementation(libs.androidx.lifecycle.runtime.ktx)
