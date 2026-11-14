@@ -30,6 +30,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import com.lnxv.player.core.design.videoSharedBounds
+import dev.chrisbanes.haze.haze
+import dev.chrisbanes.haze.hazeChild
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -40,6 +43,7 @@ import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ViewAgenda
 import androidx.compose.material.icons.filled.GridView
+import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
@@ -99,20 +103,144 @@ fun HomeScreen(
     onSettingsClick: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val selection by viewModel.selection.collectAsState()
+    val selectionPool = remember(uiState) {
+        (uiState.videos + uiState.folderVideos + uiState.favorites + uiState.recentlyPlayed).distinctBy { it.id }
+    }
+    var confirmRemove by remember { mutableStateOf(false) }
     var isSearchExpanded by remember { mutableStateOf(false) }
+    var showStreamDialog by remember { mutableStateOf(false) }
+    val playlists by viewModel.playlists.collectAsState()
+    val playlistTarget by viewModel.playlistTarget.collectAsState()
+    playlistTarget?.let { target ->
+        var newName by remember(target.id) { mutableStateOf("") }
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = viewModel::dismissAddToPlaylist,
+            title = { Text("Add to playlist") },
+            text = {
+                Column {
+                    playlists.forEach { pl ->
+                        androidx.compose.material3.TextButton(onClick = { viewModel.addToPlaylist(pl.id) }) {
+                            Text("${pl.name} (${pl.itemCount})", maxLines = 1)
+                        }
+                    }
+                    androidx.compose.material3.OutlinedTextField(
+                        value = newName,
+                        onValueChange = { newName = it },
+                        label = { Text("New playlist name") },
+                        singleLine = true
+                    )
+                }
+            },
+            confirmButton = {
+                androidx.compose.material3.TextButton(
+                    onClick = { viewModel.createPlaylistAndAdd(newName) },
+                    enabled = newName.isNotBlank()
+                ) { Text("Create") }
+            },
+            dismissButton = { androidx.compose.material3.TextButton(onClick = viewModel::dismissAddToPlaylist) { Text("Cancel") } }
+        )
+    }
+    val recentStreams by viewModel.recentStreams.collectAsState()
+    if (showStreamDialog) {
+        var url by remember { mutableStateOf("") }
+        var error by remember { mutableStateOf<String?>(null) }
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showStreamDialog = false },
+            title = { Text("Open network stream") },
+            text = {
+                Column {
+                    androidx.compose.material3.OutlinedTextField(
+                        value = url,
+                        onValueChange = { url = it; error = null },
+                        label = { Text("https://, HLS (.m3u8), DASH (.mpd), rtsp://") },
+                        singleLine = true,
+                        isError = error != null,
+                        supportingText = error?.let { e -> { Text(e) } }
+                    )
+                    if (recentStreams.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("Recent", fontSize = 12.sp)
+                        recentStreams.take(5).forEach { r ->
+                            androidx.compose.material3.TextButton(onClick = { url = r; error = null }) {
+                                Text(r, maxLines = 1, fontSize = 12.sp)
+                            }
+                        }
+                        androidx.compose.material3.TextButton(onClick = { viewModel.clearRecentStreams() }) {
+                            Text("Clear recent", fontSize = 12.sp)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    val err = viewModel.openStream(url)
+                    if (err == null) showStreamDialog = false else error = err
+                }) { Text("Play") }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { showStreamDialog = false }) { Text("Cancel") }
+            }
+        )
+    }
     var isSortMenuExpanded by remember { mutableStateOf(false) }
-    BackHandler(enabled = uiState.openFolderPath != null) { viewModel.closeFolder() }
+    // One blur layer: the top bar blurs the list scrolling under it (skipped when "Reduce effects" is on).
+    val hazeState = remember { dev.chrisbanes.haze.HazeState() }
+    val reduceEffects = com.lnxv.player.core.design.LocalReduceEffects.current
+    BackHandler(enabled = selection.isNotEmpty()) { viewModel.clearSelection() }
+    BackHandler(enabled = uiState.openFolderPath != null && selection.isEmpty()) { viewModel.closeFolder() }
+    if (confirmRemove) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { confirmRemove = false },
+            title = { Text("Remove ${selection.size} from library?") },
+            text = { Text("This removes them from LNXV's library list. It does not delete the files from your device.") },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    viewModel.removeSelected(selectionPool)
+                    confirmRemove = false
+                }) { Text("Remove") }
+            },
+            dismissButton = { androidx.compose.material3.TextButton(onClick = { confirmRemove = false }) { Text("Cancel") } }
+        )
+    }
 
     Scaffold(
         modifier = Modifier.fillMaxSize().ambientBackground(),
         containerColor = Color.Transparent,
+        bottomBar = {
+            if (selection.isNotEmpty()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(appColors.barFill)
+                        .padding(horizontal = 8.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("${selection.size} selected", color = appColors.textPrimary, fontSize = 14.sp, modifier = Modifier.padding(start = 8.dp))
+                    Row {
+                        androidx.compose.material3.TextButton(onClick = { viewModel.selectAll(selectionPool.filter { v -> v.id in (if (uiState.openFolderPath != null) uiState.folderVideos else uiState.videos).map { it.id } }) }) { Text("All") }
+                        androidx.compose.material3.TextButton(onClick = { viewModel.favoriteSelected(selectionPool) }) { Text("Fav") }
+                        androidx.compose.material3.TextButton(onClick = { viewModel.requestAddSelectedToPlaylist(selectionPool) }) { Text("Playlist") }
+                        androidx.compose.material3.TextButton(onClick = { viewModel.vaultSelected(selectionPool) }) { Text("Vault") }
+                        androidx.compose.material3.TextButton(onClick = { confirmRemove = true }) { Text("Remove") }
+                        androidx.compose.material3.TextButton(onClick = { viewModel.clearSelection() }) { Text("✕") }
+                    }
+                }
+            }
+        },
         topBar = {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .then(
+                        if (reduceEffects) Modifier else Modifier
+                            .clip(RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp))
+                            .hazeChild(state = hazeState)
+                    )
                     .liquidGlassSurface(
                         shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp),
-                        backgroundColor = appColors.barFill,
+                        backgroundColor = if (reduceEffects) appColors.barFill else appColors.barFill.copy(alpha = 0.45f),
                         borderColor = appColors.glassBorder,
                         borderWidth = 1.dp
                     )
@@ -160,6 +288,13 @@ fun HomeScreen(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         GlassIconButton(
+                            icon = Icons.Default.Link,
+                            contentDescription = "Open network stream",
+                            onClick = { showStreamDialog = true },
+                            size = 38.dp
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        GlassIconButton(
                             icon = Icons.Default.Lock,
                             contentDescription = "Private Vault",
                             onClick = onVaultClick,
@@ -180,7 +315,7 @@ fun HomeScreen(
                     TextField(
                         value = uiState.searchQuery,
                         onValueChange = { viewModel.updateSearchQuery(it) },
-                        placeholder = { Text("Search videos or folders…", color = appColors.textTertiary) },
+                        placeholder = { Text("Search… (ext:mkv res:1080 size>500mb)", color = appColors.textTertiary) },
                         modifier = Modifier
                             .fillMaxWidth()
                             .liquidGlassSurface(shape = RoundedCornerShape(14.dp)),
@@ -253,8 +388,14 @@ fun HomeScreen(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues),
-            contentPadding = PaddingValues(16.dp),
+                .then(if (reduceEffects) Modifier else Modifier.haze(state = hazeState)),
+            // The list scrolls under the top bar (so there is something to blur); padding keeps first item clear of it.
+            contentPadding = PaddingValues(
+                start = 16.dp,
+                end = 16.dp,
+                top = paddingValues.calculateTopPadding() + 16.dp,
+                bottom = paddingValues.calculateBottomPadding() + 16.dp
+            ),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // Continue Watching Carousel (shown on Videos tab when available)
@@ -329,6 +470,20 @@ fun HomeScreen(
                             }
                         }
                     }
+                    item {
+                        androidx.compose.foundation.lazy.LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            items(com.lnxv.player.core.model.SmartCollection.values().toList()) { c ->
+                                androidx.compose.material3.FilterChip(
+                                    selected = uiState.collection == c,
+                                    onClick = { viewModel.selectCollection(c) },
+                                    label = { Text(c.label) }
+                                )
+                            }
+                        }
+                    }
                     if (uiState.videos.isEmpty()) {
                         item { EmptyStateView(message = "No videos discovered on device") }
                     } else if (uiState.isGridView) {
@@ -341,9 +496,12 @@ fun HomeScreen(
                                     VideoGridCard(
                                         video = video,
                                         modifier = Modifier.weight(1f),
-                                        onClick = { onVideoClick(video) },
+                                        onClick = { if (selection.isNotEmpty()) viewModel.toggleSelect(video.id) else onVideoClick(video) },
+                                selected = video.id in selection,
+                                onLongClick = { viewModel.toggleSelect(video.id) },
                                         onFavoriteToggle = { viewModel.toggleFavorite(video) },
                                         onVaultMove = { viewModel.moveToVault(video) },
+                                onAddToPlaylist = { viewModel.requestAddToPlaylist(video) },
                                         onDelete = { viewModel.deleteVideo(video) }
                                     )
                                 }
@@ -354,9 +512,12 @@ fun HomeScreen(
                         items(uiState.videos, key = { it.id }) { video ->
                             VideoItemRow(
                                 video = video,
-                                onClick = { onVideoClick(video) },
+                                onClick = { if (selection.isNotEmpty()) viewModel.toggleSelect(video.id) else onVideoClick(video) },
+                                selected = video.id in selection,
+                                onLongClick = { viewModel.toggleSelect(video.id) },
                                 onFavoriteToggle = { viewModel.toggleFavorite(video) },
                                 onVaultMove = { viewModel.moveToVault(video) },
+                                onAddToPlaylist = { viewModel.requestAddToPlaylist(video) },
                                 onDelete = { viewModel.deleteVideo(video) }
                             )
                         }
@@ -394,9 +555,12 @@ fun HomeScreen(
                             items(uiState.folderVideos, key = { it.id }) { video ->
                                 VideoItemRow(
                                     video = video,
-                                    onClick = { onVideoClick(video) },
+                                    onClick = { if (selection.isNotEmpty()) viewModel.toggleSelect(video.id) else onVideoClick(video) },
+                                selected = video.id in selection,
+                                onLongClick = { viewModel.toggleSelect(video.id) },
                                     onFavoriteToggle = { viewModel.toggleFavorite(video) },
                                     onVaultMove = { viewModel.moveToVault(video) },
+                                onAddToPlaylist = { viewModel.requestAddToPlaylist(video) },
                                     onDelete = { viewModel.deleteVideo(video) }
                                 )
                             }
@@ -420,11 +584,37 @@ fun HomeScreen(
                         items(uiState.recentlyPlayed, key = { it.id }) { video ->
                             VideoItemRow(
                                 video = video,
-                                onClick = { onVideoClick(video) },
+                                onClick = { if (selection.isNotEmpty()) viewModel.toggleSelect(video.id) else onVideoClick(video) },
+                                selected = video.id in selection,
+                                onLongClick = { viewModel.toggleSelect(video.id) },
                                 onFavoriteToggle = { viewModel.toggleFavorite(video) },
                                 onVaultMove = { viewModel.moveToVault(video) },
+                                onAddToPlaylist = { viewModel.requestAddToPlaylist(video) },
                                 onDelete = { viewModel.deleteVideo(video) }
                             )
+                        }
+                    }
+                }
+                HomeTab.PLAYLISTS -> {
+                    if (playlists.isEmpty()) {
+                        item { EmptyStateView(message = "No playlists yet. Use \"Add to playlist\" on a video.") }
+                    } else {
+                        items(playlists, key = { it.id }) { pl ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { viewModel.playPlaylist(pl.id) }
+                                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(pl.name, color = appColors.textPrimary, fontSize = 15.sp, maxLines = 1)
+                                    Text("${pl.itemCount} video(s)", color = appColors.textTertiary, fontSize = 12.sp)
+                                }
+                                androidx.compose.material3.TextButton(onClick = { viewModel.deletePlaylist(pl.id) }) {
+                                    Text("Delete", color = Color.Red)
+                                }
+                            }
                         }
                     }
                 }
@@ -435,464 +625,15 @@ fun HomeScreen(
                         items(uiState.favorites, key = { it.id }) { video ->
                             VideoItemRow(
                                 video = video,
-                                onClick = { onVideoClick(video) },
+                                onClick = { if (selection.isNotEmpty()) viewModel.toggleSelect(video.id) else onVideoClick(video) },
+                                selected = video.id in selection,
+                                onLongClick = { viewModel.toggleSelect(video.id) },
                                 onFavoriteToggle = { viewModel.toggleFavorite(video) },
                                 onVaultMove = { viewModel.moveToVault(video) },
+                                onAddToPlaylist = { viewModel.requestAddToPlaylist(video) },
                                 onDelete = { viewModel.deleteVideo(video) }
                             )
                         }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun VideoItemRow(
-    video: VideoItem,
-    onClick: () -> Unit,
-    onFavoriteToggle: () -> Unit,
-    onVaultMove: () -> Unit,
-    onDelete: () -> Unit
-) {
-    var isMenuOpen by remember { mutableStateOf(false) }
-
-    GlassPanel(
-        modifier = Modifier
-            .fillMaxWidth()
-            .bouncyClickable { onClick() },
-        shape = RoundedCornerShape(16.dp),
-        backgroundColor = appColors.glassFill,
-        borderColor = appColors.glassBorder
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Thumbnail with Duration & Resolution Badges
-            Box(
-                modifier = Modifier
-                    .size(width = 110.dp, height = 70.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(appColors.placeholder)
-            ) {
-                AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current)
-                        .data(video.uri)
-                        .videoFrameMillis(1000)
-                        .size(coil.size.Size(360, 240))
-                        .crossfade(150)
-                        .build(),
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
-                )
-
-                // Resolution Badge
-                GlassBadge(
-                    text = video.resolutionLabel,
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .padding(4.dp)
-                )
-
-                // Duration Badge
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(4.dp)
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(Color(0xCC000000))
-                        .padding(horizontal = 4.dp, vertical = 2.dp)
-                ) {
-                    Text(
-                        text = video.durationFormatted,
-                        color = Color.White,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            // Video Details
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
-                Text(
-                    text = video.title,
-                    color = appColors.textPrimary,
-                    style = Typography.titleSmall,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = "${video.sizeFormatted} • ${video.folderName}",
-                        color = appColors.textSecondary,
-                        fontSize = 11.sp
-                    )
-                }
-            }
-
-            // Options Menu
-            Box {
-                IconButton(onClick = { isMenuOpen = true }) {
-                    Icon(
-                        imageVector = Icons.Default.MoreVert,
-                        contentDescription = "Options",
-                        tint = appColors.textTertiary
-                    )
-                }
-                DropdownMenu(
-                    expanded = isMenuOpen,
-                    onDismissRequest = { isMenuOpen = false }
-                ) {
-                    DropdownMenuItem(
-                        text = { Text(if (video.isFavorite) "Remove from Favorites" else "Add to Favorites") },
-                        onClick = {
-                            onFavoriteToggle()
-                            isMenuOpen = false
-                        }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Move to Private Vault") },
-                        onClick = {
-                            onVaultMove()
-                            isMenuOpen = false
-                        }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Delete", color = Color.Red) },
-                        onClick = {
-                            onDelete()
-                            isMenuOpen = false
-                        }
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun FolderItemRow(
-    folder: FolderItem,
-    onClick: () -> Unit,
-    onToggleHidden: () -> Unit
-) {
-    var menuOpen by remember { mutableStateOf(false) }
-    GlassPanel(
-        modifier = Modifier
-            .fillMaxWidth()
-            .bouncyClickable { onClick() },
-        shape = RoundedCornerShape(16.dp),
-        backgroundColor = appColors.glassFill
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .liquidGlassSurface(
-                        shape = RoundedCornerShape(12.dp),
-                        backgroundColor = appColors.accent.copy(alpha = 0.15f),
-                        borderColor = appColors.accent.copy(alpha = 0.4f)
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Folder,
-                    contentDescription = null,
-                    tint = appColors.accent,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
-            Spacer(modifier = Modifier.width(14.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = folder.name,
-                    color = appColors.textPrimary,
-                    style = Typography.titleMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = "${folder.videoCount} videos • ${folder.sizeFormatted}" +
-                        if (folder.isHidden) " • Hidden" else "",
-                    color = if (folder.isHidden) appColors.accent.copy(alpha = 0.7f) else appColors.textTertiary,
-                    fontSize = 12.sp
-                )
-            }
-            Box {
-                IconButton(onClick = { menuOpen = true }) {
-                    Icon(
-                        imageVector = Icons.Default.MoreVert,
-                        contentDescription = "Folder options",
-                        tint = appColors.textTertiary
-                    )
-                }
-                DropdownMenu(
-                    expanded = menuOpen,
-                    onDismissRequest = { menuOpen = false }
-                ) {
-                    DropdownMenuItem(
-                        text = { Text(if (folder.isHidden) "Show in library" else "Hide from library") },
-                        onClick = {
-                            onToggleHidden()
-                            menuOpen = false
-                        }
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun ContinueWatchingCard(
-    video: VideoItem,
-    onClick: () -> Unit
-) {
-    Box(
-        modifier = Modifier
-            .width(200.dp)
-            .liquidGlassSurface(
-                shape = RoundedCornerShape(16.dp),
-                backgroundColor = appColors.glassFill
-            )
-            .clickable { onClick() }
-    ) {
-        Column {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(115.dp)
-                    .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
-            ) {
-                AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current)
-                        .data(video.uri)
-                        .videoFrameMillis(video.lastPositionMs.coerceAtLeast(1000L))
-                        .size(coil.size.Size(360, 240))
-                        .crossfade(150)
-                        .build(),
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
-                )
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            Brush.verticalGradient(
-                                listOf(Color.Transparent, Color(0xCC000000))
-                            )
-                        )
-                )
-                // Resume play floating button
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .align(Alignment.Center)
-                        .clip(CircleShape)
-                        .background(appColors.accent.copy(alpha = 0.85f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.PlayArrow,
-                        contentDescription = "Resume",
-                        tint = Color.Black
-                    )
-                }
-            }
-            Column(modifier = Modifier.padding(10.dp)) {
-                Text(
-                    text = video.title,
-                    color = appColors.textPrimary,
-                    style = Typography.titleSmall,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(modifier = Modifier.height(6.dp))
-                val progress = if (video.durationMs > 0) {
-                    (video.lastPositionMs.toFloat() / video.durationMs.toFloat()).coerceIn(0f, 1f)
-                } else 0f
-                LinearProgressIndicator(
-                    progress = { progress },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(3.dp)
-                        .clip(CircleShape),
-                    color = appColors.accent,
-                    trackColor = appColors.glassBorder
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun EmptyStateView(message: String) {
-    var shown by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { shown = true }
-    val appear by animateFloatAsState(
-        targetValue = if (shown) 1f else 0f,
-        animationSpec = tween(400),
-        label = "empty_appear"
-    )
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(40.dp)
-            .graphicsLayer {
-                alpha = appear
-                translationY = (1f - appear) * 24f
-            },
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Box(
-            modifier = Modifier
-                .size(72.dp)
-                .clip(CircleShape)
-                .background(appColors.glassSubtle)
-                .border(1.dp, appColors.glassBorder, CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Default.VideoLibrary,
-                contentDescription = null,
-                tint = appColors.accent.copy(alpha = 0.8f),
-                modifier = Modifier.size(32.dp)
-            )
-        }
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = message,
-            color = appColors.textSecondary,
-            style = Typography.bodyMedium,
-            textAlign = TextAlign.Center
-        )
-    }
-}
-
-
-@Composable
-fun VideoGridCard(
-    video: VideoItem,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit,
-    onFavoriteToggle: () -> Unit,
-    onVaultMove: () -> Unit,
-    onDelete: () -> Unit
-) {
-    var isMenuOpen by remember { mutableStateOf(false) }
-
-    GlassPanel(
-        modifier = modifier.bouncyClickable { onClick() },
-        shape = RoundedCornerShape(16.dp),
-        backgroundColor = appColors.glassFill,
-        borderColor = appColors.glassBorder
-    ) {
-        Column {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(100.dp)
-                    .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
-                    .background(appColors.placeholder)
-            ) {
-                AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current)
-                        .data(video.uri)
-                        .videoFrameMillis(1000)
-                        .size(coil.size.Size(360, 240))
-                        .crossfade(150)
-                        .build(),
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
-                )
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(6.dp)
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(Color(0xCC000000))
-                        .padding(horizontal = 4.dp, vertical = 2.dp)
-                ) {
-                    Text(
-                        text = video.durationFormatted,
-                        color = Color.White,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
-            }
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 10.dp, top = 6.dp, bottom = 6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = video.title,
-                        color = appColors.textPrimary,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        text = video.sizeFormatted,
-                        color = appColors.textSecondary,
-                        fontSize = 11.sp
-                    )
-                }
-                Box {
-                    IconButton(onClick = { isMenuOpen = true }) {
-                        Icon(
-                            imageVector = Icons.Default.MoreVert,
-                            contentDescription = "Options",
-                            tint = appColors.textTertiary
-                        )
-                    }
-                    DropdownMenu(
-                        expanded = isMenuOpen,
-                        onDismissRequest = { isMenuOpen = false }
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text(if (video.isFavorite) "Remove from Favorites" else "Add to Favorites") },
-                            onClick = {
-                                onFavoriteToggle()
-                                isMenuOpen = false
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Move to Private Vault") },
-                            onClick = {
-                                onVaultMove()
-                                isMenuOpen = false
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Delete", color = Color.Red) },
-                            onClick = {
-                                onDelete()
-                                isMenuOpen = false
-                            }
-                        )
                     }
                 }
             }

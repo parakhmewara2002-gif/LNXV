@@ -31,6 +31,8 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.AspectRatio
 import androidx.compose.material.icons.filled.Audiotrack
 import androidx.compose.material.icons.filled.FastForward
+import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.FastRewind
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.Info
@@ -53,6 +55,10 @@ import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.animation.togetherWith
+import coil.request.videoFrameMillis
+import androidx.compose.foundation.interaction.collectIsDraggedAsState
+import com.lnxv.player.core.design.videoSharedBounds
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -135,11 +141,17 @@ fun PlayerScreen(
     val uiState by viewModel.uiState.collectAsState()
     val audioTracks by viewModel.audioTracks.collectAsState()
     val subtitleTracks by viewModel.subtitleTracks.collectAsState()
+    val queueUi by viewModel.queueUi.collectAsState()
+    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+    val reduceEffects = com.lnxv.player.core.design.LocalReduceEffects.current
+    val audioDelayMs by viewModel.audioDelayMs.collectAsState()
 
     var overlayState by remember { mutableStateOf(GestureOverlayState()) }
     var isMoreMenuOpen by remember { mutableStateOf(false) }
     var showSleepDialog by remember { mutableStateOf(false) }
     var orientationMode by remember { mutableIntStateOf(0) }
+    var videoRotation by remember { mutableIntStateOf(0) }
+    var videoFlip by remember { mutableStateOf(false) }
     var playerViewRef by remember { mutableStateOf<PlayerView?>(null) }
     val prefs by viewModel.userPrefs.collectAsState()
     val reportScope = rememberCoroutineScope()
@@ -231,12 +243,17 @@ fun PlayerScreen(
     }
     val surfaceModifier = (if (aspectValue != null) Modifier.aspectRatio(aspectValue) else Modifier.fillMaxSize())
         .graphicsLayer {
-            scaleX = overlayState.zoomScale
-            scaleY = overlayState.zoomScale
+            // Rotation/flip (Phase 5, flag VIDEO_TRANSFORMS). At 90/270 degrees shrink so the frame still fits.
+            val quarter = videoRotation % 180 != 0
+            val fit = if (quarter && size.width > 0f && size.height > 0f) minOf(size.width / size.height, size.height / size.width) else 1f
+            rotationZ = videoRotation.toFloat()
+            scaleX = overlayState.zoomScale * fit * (if (videoFlip) -1f else 1f)
+            scaleY = overlayState.zoomScale * fit
         }
 
     Box(
         modifier = Modifier
+            .videoSharedBounds(videoId)
             .fillMaxSize()
             .background(Color.Black)
     ) {
@@ -276,12 +293,20 @@ fun PlayerScreen(
                     } catch (e: Exception) {
                         android.graphics.Color.WHITE
                     }
+                    val styling = prefs.isEnabled(com.lnxv.player.core.flags.FeatureFlag.SUBTITLE_STYLING)
+                    val bgAlpha = if (styling) (prefs.subtitleBgOpacityPct.coerceIn(0, 100) * 255 / 100) else 0x80
+                    val edgeType = if (!styling) CaptionStyleCompat.EDGE_TYPE_OUTLINE else when (prefs.subtitleEdge) {
+                        "SHADOW" -> CaptionStyleCompat.EDGE_TYPE_DROP_SHADOW
+                        "NONE" -> CaptionStyleCompat.EDGE_TYPE_NONE
+                        else -> CaptionStyleCompat.EDGE_TYPE_OUTLINE
+                    }
+                    sv.setBottomPaddingFraction(if (styling) prefs.subtitleBottomPct.coerceIn(0, 40) / 100f else 0.08f)
                     sv.setStyle(
                         CaptionStyleCompat(
                             fg,
-                            0x80000000.toInt(),
+                            (bgAlpha shl 24),
                             android.graphics.Color.TRANSPARENT,
-                            CaptionStyleCompat.EDGE_TYPE_OUTLINE,
+                            edgeType,
                             android.graphics.Color.BLACK,
                             null
                         )
@@ -290,6 +315,22 @@ fun PlayerScreen(
             },
             modifier = surfaceModifier
         )
+        }
+
+        val audioOnlyActive by viewModel.audioOnly.collectAsState()
+        if (audioOnlyActive) {
+            Box(
+                modifier = Modifier.fillMaxSize().background(Color.Black),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = (uiState.currentVideo?.title ?: "") + "\n(audio only)",
+                    color = Color(0xFFB0B8C8),
+                    fontSize = 16.sp,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    modifier = Modifier.padding(32.dp)
+                )
+            }
         }
 
         // Gesture detector wrapper
@@ -303,68 +344,24 @@ fun PlayerScreen(
             seekEnabled = prefs.isSeekGestureEnabled,
             longPressEnabled = prefs.isLongPressSpeedEnabled,
             doubleTapSeekMs = prefs.doubleTapSeekSeconds * 1000L,
+            sensitivity = if (prefs.isEnabled(com.lnxv.player.core.flags.FeatureFlag.GESTURE_SENSITIVITY)) prefs.gestureSensitivityPct / 100f else 1f,
             onSingleTap = { viewModel.toggleControlsVisibility() },
-            onDoubleTapSeek = { delta -> viewModel.seekRelative(delta) },
+            onDoubleTapSeek = { delta ->
+                haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+                viewModel.seekRelative(delta)
+            },
             onDoubleTapCenter = { viewModel.togglePlayPause() },
-            onLongPressStart = { viewModel.startSpeedPreview() },
+            onLongPressStart = {
+                haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                viewModel.startSpeedPreview()
+            },
             onLongPressEnd = { viewModel.stopSpeedPreview() },
             onSeekCommitted = { target -> viewModel.seekTo(target) },
             onOverlayStateChanged = { overlayState = it }
         ) {
-            // Gesture HUD (brightness / volume / seek / zoom)
-            if (overlayState.activeGesture != GestureType.NONE) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Box(
-                        modifier = Modifier
-                            .background(Color(0xB3000000), RoundedCornerShape(16.dp))
-                            .padding(horizontal = 20.dp, vertical = 12.dp)
-                    ) {
-                        Text(
-                            text = when (overlayState.activeGesture) {
-                                GestureType.BRIGHTNESS -> "Brightness ${overlayState.brightnessPercent}%"
-                                GestureType.VOLUME -> "Volume ${overlayState.volumePercent}%"
-                                GestureType.SEEK -> {
-                                    val d = overlayState.seekDeltaMs
-                                    "${if (d >= 0) "+" else "-"}${abs(d) / 1000}s  •  ${VideoItem.formatDuration(overlayState.seekTargetMs)}"
-                                }
-                                GestureType.ZOOM -> "Zoom ${"%.1f".format(overlayState.zoomScale)}x"
-                                else -> ""
-                            },
-                            color = Color.White,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-                }
-            }
+            GestureHud(state = overlayState)
 
-            // Buffering state: glass disc that fades in/out instead of popping
-            AnimatedVisibility(
-                visible = playbackState.isBuffering,
-                enter = fadeIn(tween(180)),
-                exit = fadeOut(tween(180)),
-                modifier = Modifier.fillMaxSize()
-            ) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(72.dp)
-                            .clip(CircleShape)
-                            .background(Color(0x66101622))
-                            .border(1.dp, Color(0x40FFFFFF), CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(
-                            color = NeonCyan,
-                            strokeWidth = 3.dp,
-                            modifier = Modifier.size(36.dp)
-                        )
-                    }
-                }
-            }
+            BufferingIndicator(isBuffering = playbackState.isBuffering)
 
             // Controls Overlay
             AnimatedVisibility(
@@ -497,8 +494,16 @@ fun PlayerScreen(
                                 )
                                 .padding(horizontal = 16.dp, vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(20.dp)
+                            horizontalArrangement = Arrangement.spacedBy(if (queueUi.size > 1) 10.dp else 20.dp)
                         ) {
+                            if (queueUi.size > 1) {
+                                GlassIconButton(
+                                    icon = Icons.Default.SkipPrevious,
+                                    contentDescription = "Previous video",
+                                    onClick = { viewModel.playPrevious() },
+                                    size = 40.dp
+                                )
+                            }
                             GlassIconButton(
                                 icon = Icons.Default.FastRewind,
                                 contentDescription = "Seek -10s",
@@ -515,12 +520,27 @@ fun PlayerScreen(
                                     .clickable { viewModel.togglePlayPause() },
                                 contentAlignment = Alignment.Center
                             ) {
-                                Icon(
-                                    imageVector = if (playbackState.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                    contentDescription = "Play/Pause",
-                                    tint = Color.Black,
-                                    modifier = Modifier.size(36.dp)
-                                )
+                                androidx.compose.animation.AnimatedContent(
+                                    targetState = playbackState.isPlaying,
+                                    transitionSpec = {
+                                        if (reduceEffects) {
+                                            androidx.compose.animation.EnterTransition.None togetherWith androidx.compose.animation.ExitTransition.None
+                                        } else {
+                                            (androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(140)) +
+                                                androidx.compose.animation.scaleIn(androidx.compose.animation.core.tween(160), initialScale = 0.5f)) togetherWith
+                                                (androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(90)) +
+                                                    androidx.compose.animation.scaleOut(androidx.compose.animation.core.tween(120), targetScale = 0.5f))
+                                        }
+                                    },
+                                    label = "play_pause_morph"
+                                ) { playing ->
+                                    Icon(
+                                        imageVector = if (playing) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                        contentDescription = "Play/Pause",
+                                        tint = Color.Black,
+                                        modifier = Modifier.size(36.dp)
+                                    )
+                                }
                             }
 
                             GlassIconButton(
@@ -529,6 +549,14 @@ fun PlayerScreen(
                                 onClick = { viewModel.seekRelative(10000L) },
                                 size = 44.dp
                             )
+                            if (queueUi.size > 1) {
+                                GlassIconButton(
+                                    icon = Icons.Default.SkipNext,
+                                    contentDescription = "Next video",
+                                    onClick = { viewModel.playNext() },
+                                    size = 40.dp
+                                )
+                            }
                         }
 
                         // Bottom Gradient & Timeline HUD
@@ -547,6 +575,39 @@ fun PlayerScreen(
                                 // Timeline Scrubber
                                 val positionMs by viewModel.positionMs.collectAsState()
                                 var dragFraction by remember { mutableStateOf<Float?>(null) }
+                                // Thumbnail preview while scrubbing (local content:// / file:// videos only; never vault/network).
+                                val previewVideo = uiState.currentVideo
+                                val previewFraction = dragFraction
+                                if (previewFraction != null && !reduceEffects && previewVideo != null && !previewVideo.isVault &&
+                                    (previewVideo.uri.scheme == "content" || previewVideo.uri.scheme == "file")
+                                ) {
+                                    val previewMs = (SeekMath.fractionToPosition(previewFraction, playbackState.durationMs) / 1000L) * 1000L
+                                    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                                        coil.compose.AsyncImage(
+                                            model = coil.request.ImageRequest.Builder(LocalContext.current)
+                                                .data(previewVideo.uri)
+                                                .videoFrameMillis(previewMs)
+                                                .size(coil.size.Size(320, 180))
+                                                .build(),
+                                            contentDescription = null,
+                                            contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                                            modifier = Modifier
+                                                .size(width = 160.dp, height = 90.dp)
+                                                .clip(RoundedCornerShape(10.dp))
+                                                .background(Color(0x66000000))
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                }
+                                val sliderInteraction = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+                                val isScrubbing by sliderInteraction.collectIsDraggedAsState()
+                                val thumbScale by androidx.compose.animation.core.animateFloatAsState(
+                                    targetValue = if (isScrubbing && !reduceEffects) 1.5f else 1f,
+                                    animationSpec = androidx.compose.animation.core.spring(
+                                        dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy
+                                    ),
+                                    label = "thumb_scale"
+                                )
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     verticalAlignment = Alignment.CenterVertically,
@@ -564,6 +625,18 @@ fun PlayerScreen(
                                         value = dragFraction ?: SeekMath.positionToFraction(positionMs, playbackState.durationMs),
                                         enabled = playbackState.durationMs > 0 && playbackState.isSeekable,
                                         onValueChange = { dragFraction = it },
+                                        interactionSource = sliderInteraction,
+                                        thumb = {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(20.dp)
+                                                    .graphicsLayer {
+                                                        scaleX = thumbScale
+                                                        scaleY = thumbScale
+                                                    }
+                                                    .background(NeonCyan, CircleShape)
+                                            )
+                                        },
                                         onValueChangeFinished = {
                                             dragFraction?.let { f ->
                                                 viewModel.seekTo(SeekMath.fractionToPosition(f, playbackState.durationMs))
@@ -659,6 +732,7 @@ fun PlayerScreen(
         if (showSleepDialog) {
             SleepTimerDialog(
                 activeSeconds = playbackState.sleepTimerRemainingSeconds,
+                showEndOfVideo = viewModel.userPrefs.collectAsState().value.isEnabled(com.lnxv.player.core.flags.FeatureFlag.SLEEP_TIMER_EXTRAS),
                 onSelect = { viewModel.startSleepTimer(it) },
                 onCancelTimer = { viewModel.cancelSleepTimer() },
                 onDismiss = { showSleepDialog = false }
@@ -679,110 +753,19 @@ fun PlayerScreen(
             }
         }
 
-        // Side panels: drawn inside the player (no extra window) so fullscreen is never interrupted
-        PlayerSidePanel(
-            visible = uiState.showSpeedDialog,
-            title = "Playback Speed",
-            icon = Icons.Default.Speed,
-            onDismiss = { viewModel.showSpeedDialog(false) },
-            backdrop = glassBackdrop
-        ) {
-            SpeedBottomSheet(
-                currentSpeed = playbackState.playbackSpeed,
-                onSpeedSelected = { speed ->
-                    viewModel.setPlaybackSpeed(speed)
-                    viewModel.showSpeedDialog(false)
-                }
-            )
-        }
-
-        PlayerSidePanel(
-            visible = uiState.showAspectRatioDialog,
-            title = "Aspect Ratio",
-            icon = Icons.Default.AspectRatio,
-            onDismiss = { viewModel.showAspectRatioDialog(false) },
-            backdrop = glassBackdrop
-        ) {
-            AspectRatioBottomSheet(
-                currentMode = playbackState.aspectRatio,
-                onModeSelected = { mode ->
-                    viewModel.setAspectRatio(mode)
-                    viewModel.showAspectRatioDialog(false)
-                }
-            )
-        }
-
-        PlayerSidePanel(
-            visible = uiState.showAudioDialog,
-            title = "Audio Tracks (${audioTracks.size})",
-            icon = Icons.Default.Audiotrack,
-            onDismiss = { viewModel.showAudioDialog(false) },
-            backdrop = glassBackdrop
-        ) {
-            AudioTrackBottomSheet(
-                tracks = audioTracks,
-                onTrackSelected = { track ->
-                    viewModel.selectAudioTrack(track)
-                    viewModel.showAudioDialog(false)
-                }
-            )
-        }
-
-        PlayerSidePanel(
-            visible = uiState.showSubtitleDialog,
-            title = "Subtitles",
-            icon = Icons.Default.Subtitles,
-            onDismiss = { viewModel.showSubtitleDialog(false) },
-            backdrop = glassBackdrop
-        ) {
-            SubtitleBottomSheet(
-                tracks = subtitleTracks,
-                onTrackSelected = { track ->
-                    viewModel.selectSubtitleTrack(track)
-                    viewModel.showSubtitleDialog(false)
-                },
-                onLoadFile = { subtitleFileLauncher.launch(arrayOf("*/*")) },
-                delayMs = subtitleDelayMs,
-                canDelay = hasExternalSubtitle,
-                onDelayChange = { viewModel.adjustSubtitleDelay(it) }
-            )
-        }
-
-        PlayerSidePanel(
-            visible = uiState.showPropertiesDialog,
-            title = "Video Properties",
-            icon = Icons.Default.Info,
-            onDismiss = { viewModel.showPropertiesDialog(false) },
-            backdrop = glassBackdrop
-        ) {
-            uiState.currentVideo?.let { video ->
-                PropertiesBottomSheet(
-                    video = video,
-                    streamInfo = viewModel.describeStream(),
-                    onCopyReport = {
-                        reportScope.launch {
-                            val report = viewModel.buildDiagnosticsReport()
-                            val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                            cm.setPrimaryClip(ClipData.newPlainText("LNXV diagnostic report", report))
-                            Toast.makeText(context, "Report copied. Paste it in the chat.", Toast.LENGTH_LONG).show()
-                        }
-                    },
-                    onShareReport = {
-                        reportScope.launch {
-                            val report = viewModel.buildDiagnosticsReport()
-                            val send = Intent(Intent.ACTION_SEND).apply {
-                                type = "text/plain"
-                                putExtra(Intent.EXTRA_SUBJECT, "LNXV diagnostic report")
-                                putExtra(Intent.EXTRA_TEXT, report)
-                            }
-                            context.startActivity(
-                                Intent.createChooser(send, "Share report").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                            )
-                        }
-                    }
-                )
-            }
-        }
+        PlayerSidePanels(
+            viewModel = viewModel,
+            uiState = uiState,
+            playbackState = playbackState,
+            audioTracks = audioTracks,
+            subtitleTracks = subtitleTracks,
+            subtitleDelayMs = subtitleDelayMs,
+            hasExternalSubtitle = hasExternalSubtitle,
+            glassBackdrop = glassBackdrop,
+            reportScope = reportScope,
+            context = context,
+            onLoadSubtitleFile = { subtitleFileLauncher.launch(arrayOf("*/*")) }
+        )
 
         // Overflow menu (drawn inside the player, scrollable)
         PlayerOverflowMenu(
@@ -790,62 +773,21 @@ fun PlayerScreen(
             onDismiss = { isMoreMenuOpen = false },
             backdrop = glassBackdrop
         ) {
-                                            PlayerMenuItem(
-                                                text = { Text(if (playbackState.sleepTimerRemainingSeconds != null) "Sleep Timer (active)" else "Sleep Timer") },
-                                                onClick = {
-                                                    showSleepDialog = true
-                                                    isMoreMenuOpen = false
-                                                }
-                                            )
-                                            PlayerMenuItem(
-                                                text = { Text("Previous frame") },
-                                                onClick = {
-                                                    viewModel.stepFrame(false)
-                                                    isMoreMenuOpen = false
-                                                }
-                                            )
-                                            PlayerMenuItem(
-                                                text = { Text("Next frame") },
-                                                onClick = {
-                                                    viewModel.stepFrame(true)
-                                                    isMoreMenuOpen = false
-                                                }
-                                            )
-                                            PlayerMenuItem(
-                                                text = { Text("Screenshot") },
-                                                onClick = {
-                                                    isMoreMenuOpen = false
-                                                    playerViewRef?.let { ScreenshotHelper.capture(context, it) }
-                                                }
-                                            )
-                                            PlayerMenuItem(
-                                                text = { Text("Set Point A (AB Repeat)") },
-                                                onClick = {
-                                                    viewModel.setPointA()
-                                                    isMoreMenuOpen = false
-                                                }
-                                            )
-                                            PlayerMenuItem(
-                                                text = { Text("Set Point B (AB Repeat)") },
-                                                onClick = {
-                                                    viewModel.setPointB()
-                                                    isMoreMenuOpen = false
-                                                }
-                                            )
-                                            PlayerMenuItem(
-                                                text = { Text("Clear AB Repeat") },
-                                                onClick = {
-                                                    viewModel.clearABRepeat()
-                                                    isMoreMenuOpen = false
-                                                }
-                                            )
-                                            PlayerMenuItem(
-                                                text = { Text("Video Properties") },
-                                                onClick = {
-                                                    viewModel.showPropertiesDialog(true)
-                                                    isMoreMenuOpen = false
-                                                }
-                                            )
+            PlayerMoreMenuItems(
+                viewModel = viewModel,
+                uiState = uiState,
+                playbackState = playbackState,
+                queueUi = queueUi,
+                audioDelayMs = audioDelayMs,
+                context = context,
+                playerView = playerViewRef,
+                videoRotation = videoRotation,
+                videoFlip = videoFlip,
+                closeMenu = { isMoreMenuOpen = false },
+                openSleepTimer = { showSleepDialog = true },
+                onRotateVideo = { videoRotation = (videoRotation + 90) % 360 },
+                onFlipVideo = { videoFlip = !videoFlip }
+            )
         }
 
     }

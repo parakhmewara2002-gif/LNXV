@@ -43,9 +43,24 @@ LNXV is an advanced, production-ready Android video player built with **Jetpack 
 * Sorting (Date, Title, Size, Duration) and real-time search.
 
 ### Private Vault & Security Model
-* 4-digit PIN authentication verified against a salted SHA-256 hash.
-* Private videos are isolated in an app-internal sandbox directory (`context.filesDir/lnxv_vault`) and shielded with a `.nomedia` file to exclude them from device gallery indexing.
-* *Security Note*: Vault security relies on Android's Linux UID sandboxing and app-level PIN gating. File content is not AES/file-level encrypted on disk.
+* **Encryption:** videos moved to the vault are copied into `filesDir/lnxv_vault/<uuid>.lnxv` as chunked AES-256-GCM (64 KB chunks, per-chunk nonce and AAD, truncation/reordering detected). The original is deleted from MediaStore after a full decrypt-and-hash verification. Playback decrypts in memory through a custom Media3 `DataSource`; plaintext is never written to disk or cache.
+* **Keys:** a random 32-byte master key is wrapped by an Android Keystore AES-GCM key (StrongBox when available). The key is only in memory while the vault is unlocked and is zeroed on lock.
+* **PIN:** 4-8 digits (6 recommended), PBKDF2WithHmacSHA256 (210 000 iterations) with a random per-install salt, constant-time comparison, persisted lockout after 5 wrong attempts (30 s, 1 m, 5 m, 15 m, 1 h).
+* **Session:** auto-lock on background (immediately / 30 s / 1 m / 5 m) and screen-off; FLAG_SECURE on vault screens and vault playback; optional "Block screenshots everywhere".
+* **Forgot PIN** permanently deletes all vault videos (the PIN gates access, the key is not recoverable).
+* **Threat model / limits:** protects against casual access, file-manager browsing, backups and offline copying of app storage. It does **not** protect against a rooted device or malware running as root while the vault is unlocked (the key is in process memory), a compromised OS, or someone who knows the PIN. The lockout uses wall-clock time, so changing the system clock can shorten a delay. Legacy (pre-encryption) vault items are only hidden until you tap "Encrypt now".
+* NOT DEVICE-TESTED yet.
+
+### Build flavors
+* `sideload` (default for CI/GitHub releases): arm64-v8a only, in-app updater with SHA-256 + signer verification, declares REQUEST_INSTALL_PACKAGES.
+* `store`: no install permission, no updater UI. Build with `./gradlew assembleStoreRelease`.
+* Both: `./gradlew testSideloadDebugUnitTest lintSideloadDebug assembleSideloadRelease`.
+
+### Low-end mode
+Settings > Appearance & performance: effects mode Auto/Full/Reduced. Reduced (auto-selected on low-RAM devices or when system animations are off) disables backdrop blur, shared-element and navigation transitions and scrub previews. Image caches are capped (memory 12%, disk 50 MB); Settings > Storage shows sizes and clears caches.
+
+### Privacy
+No analytics, no tracking, no ads. Only network use: the update check (sideload) and streams you open.
 
 ---
 

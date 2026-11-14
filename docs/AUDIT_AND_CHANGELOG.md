@@ -48,3 +48,80 @@ Run: `./gradlew testDebugUnitTest`. CI prints the result as a `Unit tests` annot
 
 ## 5. Build
 `./gradlew testDebugUnitTest assembleRelease` (signed with the project keystore via CI secrets).
+
+## 4. Hardening roadmap — Phase 1 (Security), increment 1
+Status key here: **IMPLEMENTED (CI-compile pending)** = written, not yet built locally (the authoring environment has no Android SDK or Maven access); **NOT DEVICE-TESTED** = never run on a device. Nothing below has been run on a device.
+
+| Item | What changed | Root cause | Files | Status |
+|---|---|---|---|---|
+| 1.1 Encrypted vault | Move = free-space check → chunked AES-256-GCM copy to `filesDir/lnxv_vault/<uuid>.lnxv.part` → full decrypt-and-SHA-256 verify → atomic rename → Room update → delete original (`createDeleteRequest` on API 30+, `RecoverableSecurityException` on 29, direct on ≤28). Restore decrypts into `Movies/LNXV` via MediaStore (`IS_PENDING`). Encrypted WebP thumbnail in `vault_thumbs`. Room v1→v2 migration; legacy `isVault` rows keep working and can be encrypted via "Encrypt now". Orphan `.part`/unreferenced files cleaned when the vault opens. | `moveToVault()` only flipped `isVault`; file stayed public in MediaStore | `core/security/ChunkedAead.kt`, `VaultKeyManager.kt`, `data/repository/VaultRepository.kt`, `VaultTransferManager.kt`, `core/database/*` | IMPLEMENTED (CI-compile pending), NOT DEVICE-TESTED |
+| 1.1 Playback | `EncryptedDataSource` + `VaultRoutingDataSource` (`lnxvvault://v/<file>`): random-access decrypt in memory, nothing written to disk/cache. | — | `playback/engine/*DataSource.kt`, `Media3PlayerManager.kt` | IMPLEMENTED (CI-compile pending), NOT DEVICE-TESTED |
+| 1.2 PIN | Random 16-byte per-install salt + PBKDF2WithHmacSHA256 (210 000 iterations), `MessageDigest.isEqual`, 4–8 digits (6 recommended), persisted lockout (5 free tries, then 30 s / 1 m / 5 m / 15 m / 1 h) with countdown UI, change/forgot flow (forgot = irreversible wipe with warning). Legacy SHA-256 hash is verified once and migrated. Master key wrapped by an Android Keystore AES-GCM key (StrongBox if available, TEE fallback). | Static salt `LNXV_SALT_$pin` + SHA-256 (4 digits ⇒ trivially reversible) | `core/security/PinHasher.kt`, `LockoutPolicy.kt`, `VaultKeyManager.kt`, `UserPreferencesDataStore.kt` | IMPLEMENTED (CI-compile pending) |
+| 1.3 Session | Auto-lock on background (immediately/30 s/1 m/5 m) and on screen-off; lock cancels transfers, zeroes the key, stops vault playback and pops Vault/Player routes; Player refuses vault items while locked; `FLAG_SECURE` on Vault and on vault playback; "Block screenshots everywhere" setting. | — | `MainActivity.kt`, `LNXVApplication.kt`, `LNXVNavigationHost.kt`, `PlayerViewModel.kt` | IMPLEMENTED (CI-compile pending) |
+| 1.4 Manifest | Cleartext removed (+ `network_security_config`, debug-only cleartext override), `allowBackup=false`, backup/extraction rules exclude everything, `SYSTEM_ALERT_WINDOW` removed, FileProvider limited to `cache/updates/`, VIEW intent validator. | — | `AndroidManifest.xml`, `res/xml/*`, `core/util/IncomingIntentValidator.kt` | IMPLEMENTED (CI-compile pending) |
+| 1.5 Updater | CI publishes `LNXV.apk.sha256`; updater downloads it first, follows only HTTPS github.com / objects.githubusercontent.com (each redirect hop validated), verifies SHA-256 and the signing certificate against the installed app, deletes on mismatch; release notes, "Skip this version", Wi-Fi-only option. | — | `core/update/*`, `build-apk.yml`, Settings | IMPLEMENTED (CI-compile pending) |
+| 1.6 Build | Blanket `-keep class androidx.media3.** {*;}` and `androidx.room.**` rules removed; only the `MatroskaExtractor.cuesContentPosition` rule and entity rules kept. Lint step added (non-blocking until baseline is clean). | — | `proguard-rules.pro`, `build-apk.yml` | IMPLEMENTED; **R8 release behaviour NOT TESTED** |
+| G2 flags | `FeatureFlag` enum, DataStore-backed, Settings > Security / Advanced > Experimental. | — | `core/flags/FeatureFlag.kt` | IMPLEMENTED |
+| G3 startup | `runBlocking` removed from `MainActivity`; SplashScreen API holds the splash until DataStore emits; unscoped `CoroutineScope(Dispatchers.IO).launch` replaced by `appScope` (SupervisorJob); StrictMode (debug only). | `runBlocking` on main thread | `MainActivity.kt`, `LNXVApplication.kt` | IMPLEMENTED |
+| G6 / G8 | `SeekFixReflectionGuardTest` fails if the private Media3 field disappears (runtime already falls back gracefully). LeakCanary added (debug only). | — | `SeekFixReflectionGuardTest.kt`, `app/build.gradle.kts` | IMPLEMENTED |
+
+Tests added: `PinHasherTest`, `LockoutPolicyTest`, `ChunkedAeadTest` (round-trip, random-access seek, tamper, truncation, wrong key), `VaultKeyManagerTest`, `UpdateVerifierTest`, `IncomingIntentValidatorTest`, `FeatureFlagTest`, `SeekFixReflectionGuardTest`.
+
+### Known gaps in this increment (see PROGRESS.md)
+Biometric unlock, Change-PIN screen (repository supports re-keying only via forgot/wipe), REQUEST_INSTALL_PACKAGES split into a sideload flavor (Phase 4), true byte-level resume of an interrupted encryption (a cancelled/crashed copy is discarded and restarted; no orphan files remain), "hide vault from PiP/notification metadata" (no media notification exists yet — Phase 2.2), pinning GitHub Actions to commit SHAs (SHAs could not be verified offline), detekt/ktlint/OWASP in CI. MKV late-Cues seek fix does not apply to encrypted MKV files (the inspector reads `content://`/`file://` only); seeking still works through Matroska's normal Cues handling.
+
+## 5. Increment 2 (CI-compiled, NOT DEVICE-TESTED)
+| Item | Change | Files |
+|---|---|---|
+| Change PIN | Verifies old PIN (lockout applies), stores new PBKDF2 credential; key is Keystore-wrapped so no re-encryption | `VaultRepository.changePin`, `VaultScreen.kt` |
+| 2.1 Open with | `MainActivity` handles VIEW in onCreate/onNewIntent (`singleTask`), validates scheme/mime, reuses a library video when the URI is a MediaStore id, else plays a transient `VideoItem` (id -1, not in Room); persistable permission taken when offered | `MainActivity.kt`, `LNXVNavigationHost.kt`, `PlayerViewModel.kt`, manifest |
+| 2.2 Background play | `BackgroundPlaybackConnector` binds `LNXVPlaybackService` only when the setting is on; ExoPlayer now has audio focus + `handleAudioBecomingNoisy`; media metadata title set (vault = "Private video"); service never releases the shared player | `playback/service/*`, `Media3PlayerManager.kt` |
+| 2.3 Network streams | `StreamUrl` validator (HTTP(S)/RTSP, HTTP only in debug), recent URLs (max 10, credentials stripped), Home "Open network stream" dialog, friendly playback errors. New deps: media3-exoplayer-hls/dash/rtsp (same pinned 1.4.1; required for HLS/DASH/RTSP). R8 reflection loading of these factories relies on Media3 consumer rules: NOT TESTED on a release build. | `core/util/StreamUrl.kt`, `HomeScreen.kt`, `Media3PlayerManager.kt` |
+Known limits: per-video resume for transient opens is not stored; network-specific larger buffers (rule C) not yet applied.
+
+## 6. Increment 3 (CI-compiled, NOT DEVICE-TESTED)
+| Item | Change | Files |
+|---|---|---|
+| 2.4 Queue | Per-folder queue (title order), auto-play next on end, previous (restarts if >3 s in), shuffle (current first), repeat off/one/all (one = ExoPlayer REPEAT_MODE_ONE). Prev/Next buttons appear when the queue has >1 item; shuffle/repeat in the overflow menu. Vault and transient videos get no queue. | `core/model/QueueLogic.kt`, `PlayerViewModel.kt`, `PlayerScreen.kt` |
+| 2.4 Playlists | Room v3 (`playlists`, `playlist_items`), migration 2→3. Home: "Add to playlist" in video menus, Playlists tab (tap = play whole playlist as queue, Delete). Vault rows are excluded by the queries. Not done: rename, remove single item, reorder. | `core/database/PlaylistEntities.kt`, `LNXVDatabase.kt`, `HomeViewModel.kt`, `HomeScreen.kt` |
+| 2.5 Audio delay | `AudioDelayProcessor` (16-bit PCM only, inactive otherwise) inserts silence; changing delay while playing inserts/drops samples; re-applied after seek. Range 0..+2000 ms. **Negative delay is not supported** (advancing audio would require delaying the video). | `playback/engine/AudioDelayProcessor.kt`, `Media3PlayerManager.kt` |
+| 2.5 Subtitle delay | Existing delay works for external SRT/VTT (cue-shifted copy). **Embedded and ASS/SSA tracks cannot be shifted with Media3 1.4.1** (no public API to offset text-track timing): documented limit. | — |
+| 2.6 | Skipped (optional): no floating mini player (SYSTEM_ALERT_WINDOW removed) and no Cast. | — |
+
+## 7. Phase 3 — Graphics, transitions, theming (CI-compiled, NOT DEVICE-TESTED)
+- Dynamic color + effects mode (Auto/Full/Reduced); `LocalReduceEffects` disables blur, shared elements, nav transitions and scrub preview.
+- Haze 1.0.2 blur on Home top bar (clip first; no shape param in this version).
+- `SharedTransitionLayout` + `sharedBounds` between video card and player. Risk: SurfaceView may glitch during the transition.
+- Player: play/pause morph (AnimatedContent), thumb spring scale, Coil VideoFrameDecoder preview while scrubbing (local only).
+- Compose BOM 2024.09.03. No new runtime dependency besides Haze (backdrop blur; hand-rolled blur is not feasible below API 31).
+- Remaining: vault unlock animation, spring HUD.
+
+## 8. Phase 4 increment 1 — flavors (CI-compiled, NOT DEVICE-TESTED)
+- `sideload`/`store` flavors; `store` strips REQUEST_INSTALL_PACKAGES and hides the Updates section (`updater_enabled` bool resource). Sideload is arm64-v8a only (no native libs are bundled today, so the filter is a safeguard).
+- Not yet done: DI, screen splitting, Baseline Profile, static-analysis CI, Actions SHA pinning.
+
+## 9. Phase 5 increment 1 (CI-compiled, NOT DEVICE-TESTED)
+- Sleep timer extras (SleepFade, SLEEP_TIMER_EXTRAS), per-video speed (PerVideoSpeed, PER_VIDEO_SPEED), skip silence (SKIP_SILENCE), equalizer (EqPreset, AudioEffectsController, EQUALIZER).
+- Fixed: Screenshot menu item previously captured vault frames; now blocked.
+- Unit tests: SleepFade, PerVideoSpeed, EqPreset.
+- Risks: audio effects may be refused by some ROMs (caught, no crash); skip-silence interaction with the AudioDelayProcessor is untested on device.
+
+## 10. Phase 5 increment 2 (CI-compiled, NOT DEVICE-TESTED)
+- VIDEO_TRANSFORMS: rotate/flip via graphicsLayer on the video view. Risk: SurfaceView may ignore or mis-render transforms on some devices; default OFF.
+- Volume boost (LoudnessEnhancer, 3/6/9 dB) is a fixed gain, NOT loudness normalization; can clip.
+- SUBTITLE_STYLING: background opacity, edge style, bottom position. GESTURE_SENSITIVITY: 50-200% scale for swipe brightness/volume/seek.
+- Phase 5 items not built are listed in PROGRESS.md with reasons.
+
+## 11. Phase 6 increment 1 (CI-compiled, NOT DEVICE-TESTED)
+- SmartCollection chips (Recently added 7 d, Unfinished, Large >= 1 GiB), NEW badge (3 d, never played), progress bar. Unit tests use primitive overloads because android.net.Uri is unavailable in JVM tests (first CI run failed on that; fixed).
+- Settings > Storage + Privacy; Coil memory 12% / disk 50 MB; onboarding dialog before the media permission prompt.
+
+## 12. Phase 4 completion
+- Splits: PlayerMenu.kt (overflow items), PlayerOverlays.kt (gesture HUD, buffering), PlayerSidePanels.kt; HomeComponents.kt.
+- DI: Koin 3.5.6 (no codegen, no reflection, so R8-safe; chosen over Hilt to avoid KSP/kapt risk without a local build). `AppModule.kt` exposes LNXVApplication's lazy singletons; `PlayerController` abstracts the engine.
+- Baseline profile rules are wildcard-based (all app code), a deliberate coarse default; regenerate with the :benchmark generator on a device and compare StartupBenchmark None vs Partial.
+- Static analysis is non-blocking until the first triage; findings (e.g. SettingsScreen complexity 43, SettingsViewModel 26 functions) are in the CI artifact.
+
+## 13. Phase 5 closure
+- Audio-only mode via TrackSelector (video track type disabled), reset when the next video is prepared.
+- Closed as infeasible on the current stack (not skipped by choice): chapters (no Media3 1.4.1 API for MP4/MKV chapter lists), brightness/contrast/saturation (needs a GL effect pipeline on the ExoPlayer surface; Media3 effects target Transformer / ExoPlayer.setVideoEffects with a texture surface, incompatible with the current SurfaceView path), true loudness normalization (Media3 loudness controller needs API 35 / newer Media3), online subtitle search (needs a third-party API key and a UI to hold it).

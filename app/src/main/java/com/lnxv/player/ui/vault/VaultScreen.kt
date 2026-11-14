@@ -23,7 +23,30 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Backspace
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Restore
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import android.app.Activity
+import android.graphics.BitmapFactory
+import android.view.WindowManager
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
@@ -56,6 +79,80 @@ fun VaultScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val vaultVideos by viewModel.vaultVideos.collectAsState()
+    val legacyCount by viewModel.legacyCount.collectAsState()
+    val job by viewModel.jobState.collectAsState()
+
+    // FLAG_SECURE on the vault screen: no screenshots / recents thumbnail of vault content.
+    val activity = LocalContext.current as? Activity
+    DisposableEffect(activity) {
+        activity?.window?.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        onDispose {
+            activity?.window?.let { w ->
+                if (!com.lnxv.player.LNXVApplication.instance.screenshotsBlockedGlobally) {
+                    w.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                }
+            }
+        }
+    }
+
+    if (uiState.showChangePin) {
+        var oldPin by remember { mutableStateOf("") }
+        var newPin by remember { mutableStateOf("") }
+        AlertDialog(
+            onDismissRequest = viewModel::closeChangePin,
+            title = { Text("Change PIN") },
+            text = {
+                Column {
+                    androidx.compose.material3.OutlinedTextField(
+                        value = oldPin,
+                        onValueChange = { oldPin = it.filter(Char::isDigit).take(8) },
+                        label = { Text("Current PIN") },
+                        singleLine = true,
+                        visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                            keyboardType = androidx.compose.ui.text.input.KeyboardType.NumberPassword
+                        )
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    androidx.compose.material3.OutlinedTextField(
+                        value = newPin,
+                        onValueChange = { newPin = it.filter(Char::isDigit).take(8) },
+                        label = { Text("New PIN (4-8 digits)") },
+                        singleLine = true,
+                        visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                            keyboardType = androidx.compose.ui.text.input.KeyboardType.NumberPassword
+                        )
+                    )
+                    uiState.changePinMessage?.let {
+                        Spacer(Modifier.height(8.dp))
+                        Text(it, color = CrimsonAlert, fontSize = 13.sp)
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { viewModel.changePin(oldPin, newPin) }, enabled = oldPin.length >= 4 && newPin.length >= 4) {
+                    Text("Change")
+                }
+            },
+            dismissButton = { TextButton(onClick = viewModel::closeChangePin) { Text("Cancel") } }
+        )
+    }
+
+    if (uiState.showForgotConfirm) {
+        AlertDialog(
+            onDismissRequest = viewModel::dismissForgotPin,
+            title = { Text("Forgot PIN?") },
+            text = {
+                Text("The vault is encrypted with a key protected by your PIN. Resetting the PIN permanently deletes " +
+                    "ALL videos stored in the vault. This cannot be undone.")
+            },
+            confirmButton = {
+                TextButton(onClick = viewModel::confirmWipe) { Text("Delete vault & reset", color = CrimsonAlert) }
+            },
+            dismissButton = { TextButton(onClick = viewModel::dismissForgotPin) { Text("Cancel") } }
+        )
+    }
 
     Scaffold(
         modifier = Modifier.fillMaxSize().ambientBackground(),
@@ -77,8 +174,16 @@ fun VaultScreen(
                     text = "Private Vault",
                     color = appColors.textPrimary,
                     style = Typography.titleLarge,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f)
                 )
+                if (uiState.authState == VaultAuthState.AUTHENTICATED) {
+                    TextButton(onClick = viewModel::openChangePin) { Text("Change PIN", color = appColors.textTertiary) }
+                    TextButton(onClick = {
+                        viewModel.lock()
+                        onBackClick()
+                    }) { Text("Lock", color = appColors.accent) }
+                }
             }
         }
     ) { paddingValues ->
@@ -89,6 +194,31 @@ fun VaultScreen(
         ) {
             if (uiState.authState == VaultAuthState.AUTHENTICATED) {
                 // Display Vault Videos List
+                Column(modifier = Modifier.fillMaxSize()) {
+                if (job.isRunning) {
+                    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+                        Text(
+                            text = (if (job.restoring) "Restoring " else "Encrypting ") + job.title +
+                                if (job.queued > 0) " (+${job.queued} queued)" else "",
+                            color = appColors.textPrimary, fontSize = 13.sp, maxLines = 1
+                        )
+                        Spacer(Modifier.height(6.dp))
+                        LinearProgressIndicator(progress = { job.progress }, modifier = Modifier.fillMaxWidth())
+                        TextButton(onClick = viewModel::cancelTransfers) { Text("Cancel") }
+                    }
+                }
+                if (legacyCount > 0 && !job.isRunning) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "$legacyCount video(s) are hidden but not encrypted.",
+                            color = appColors.textTertiary, fontSize = 13.sp, modifier = Modifier.weight(1f)
+                        )
+                        TextButton(onClick = viewModel::encryptLegacyItems) { Text("Encrypt now", color = appColors.accent) }
+                    }
+                }
                 if (vaultVideos.isEmpty()) {
                     Box(
                         modifier = Modifier.fillMaxSize(),
@@ -119,7 +249,8 @@ fun VaultScreen(
                 } else {
                     LazyColumn(
                         modifier = Modifier
-                            .fillMaxSize()
+                            .weight(1f)
+                            .fillMaxWidth()
                             .padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
@@ -138,6 +269,22 @@ fun VaultScreen(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
+                                    val thumb by produceState<ImageBitmap?>(null, video.id, video.vaultFile) {
+                                        value = withContext(Dispatchers.IO) {
+                                            viewModel.loadThumbnail(video.id)?.let { b ->
+                                                BitmapFactory.decodeByteArray(b, 0, b.size)?.asImageBitmap()
+                                            }
+                                        }
+                                    }
+                                    thumb?.let {
+                                        Image(
+                                            bitmap = it,
+                                            contentDescription = null,
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier.size(width = 80.dp, height = 48.dp).clip(RoundedCornerShape(8.dp))
+                                        )
+                                        Spacer(Modifier.width(12.dp))
+                                    }
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text(
                                             text = video.title,
@@ -162,6 +309,7 @@ fun VaultScreen(
                             }
                         }
                     }
+                }
                 }
             } else {
                 // PIN Verification & Setup Keypad
@@ -193,8 +341,8 @@ fun VaultScreen(
                     Spacer(modifier = Modifier.height(24.dp))
 
                     val promptText = when (uiState.authState) {
-                        VaultAuthState.SETUP_PIN -> "Create a 4-Digit Vault PIN"
-                        VaultAuthState.CONFIRM_PIN -> "Confirm your 4-Digit PIN"
+                        VaultAuthState.SETUP_PIN -> "Create a Vault PIN (4-8 digits, 6 recommended)"
+                        VaultAuthState.CONFIRM_PIN -> "Confirm your PIN"
                         VaultAuthState.ENTER_PIN -> "Enter your Vault PIN"
                         VaultAuthState.AUTHENTICATED -> ""
                     }
@@ -208,12 +356,21 @@ fun VaultScreen(
 
                     Spacer(modifier = Modifier.height(28.dp))
 
-                    // 4 Pin Dots Indicator
+                    // PIN dots (shake on a wrong PIN; translation is animated in a graphicsLayer lambda)
+                    val shake = remember { Animatable(0f) }
+                    LaunchedEffect(uiState.shakeCount) {
+                        if (uiState.shakeCount > 0) {
+                            for (t in listOf(-24f, 24f, -16f, 16f, -8f, 0f)) shake.animateTo(t, tween(45))
+                        }
+                    }
+                    val dotCount = if (uiState.authState == VaultAuthState.ENTER_PIN) uiState.pinLength
+                    else maxOf(6, uiState.enteredPin.length)
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(20.dp),
+                        modifier = Modifier.graphicsLayer { translationX = shake.value },
+                        horizontalArrangement = Arrangement.spacedBy(14.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        repeat(4) { index ->
+                        repeat(dotCount) { index ->
                             val isFilled = index < uiState.enteredPin.length
                             Box(
                                 modifier = Modifier
@@ -228,12 +385,24 @@ fun VaultScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    AnimatedVisibility(visible = uiState.errorMessage != null) {
+                    AnimatedVisibility(visible = uiState.errorMessage != null || uiState.lockoutRemainingSec > 0) {
                         Text(
-                            text = uiState.errorMessage ?: "",
+                            text = if (uiState.lockoutRemainingSec > 0)
+                                "Locked. Try again in ${uiState.lockoutRemainingSec / 60}:${"%02d".format(uiState.lockoutRemainingSec % 60)}"
+                            else uiState.errorMessage ?: "",
                             color = CrimsonAlert,
                             fontSize = 13.sp
                         )
+                    }
+                    if (uiState.needsConfirmButton) {
+                        TextButton(onClick = viewModel::submit, enabled = uiState.enteredPin.length >= 4) {
+                            Text("OK", color = appColors.accent)
+                        }
+                    }
+                    if (uiState.authState == VaultAuthState.ENTER_PIN) {
+                        TextButton(onClick = viewModel::requestForgotPin) {
+                            Text("Forgot PIN?", color = appColors.textTertiary, fontSize = 12.sp)
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(36.dp))

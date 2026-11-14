@@ -120,6 +120,7 @@ fun ResumeDialog(
 @Composable
 fun SleepTimerDialog(
     activeSeconds: Long?,
+    showEndOfVideo: Boolean = false,
     onSelect: (Int) -> Unit,
     onCancelTimer: () -> Unit,
     onDismiss: () -> Unit
@@ -149,6 +150,21 @@ fun SleepTimerDialog(
                             .fillMaxWidth()
                             .clickable {
                                 onSelect(minutes)
+                                onDismiss()
+                            }
+                            .padding(vertical = 10.dp)
+                    )
+                }
+                if (showEndOfVideo) {
+                    Text(
+                        text = "End of video",
+                        color = Color.White,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                onSelect(com.lnxv.player.core.model.SleepFade.END_OF_VIDEO)
                                 onDismiss()
                             }
                             .padding(vertical = 10.dp)

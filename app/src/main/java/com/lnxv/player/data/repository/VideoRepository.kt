@@ -45,7 +45,8 @@ class VideoRepository(
                     lastPositionMs = old.lastPositionMs,
                     lastPlayedTimestamp = old.lastPlayedTimestamp,
                     isFavorite = old.isFavorite,
-                    isVault = old.isVault
+                    isVault = old.isVault,
+                    vaultFile = old.vaultFile
                 )
                 if (merged == old) null else merged
             }
@@ -63,6 +64,10 @@ class VideoRepository(
         return videoDao.getVideosInFolder(folderPath).map { entities ->
             entities.map { it.toModel() }
         }
+    }
+
+    suspend fun getFolderVideoIds(folderPath: String): List<Long> = withContext(Dispatchers.IO) {
+        videoDao.getFolderVideoIds(folderPath)
     }
 
     suspend fun getVideoById(id: Long): VideoItem? = withContext(Dispatchers.IO) {
@@ -95,7 +100,7 @@ class VideoRepository(
         return VideoItem(
             id = id,
             title = title,
-            uri = Uri.parse(uriString),
+            uri = if (vaultFile != null) com.lnxv.player.playback.engine.VaultRoutingDataSource.uriFor(vaultFile) else Uri.parse(uriString),
             path = path,
             durationMs = durationMs,
             sizeBytes = sizeBytes,
@@ -108,7 +113,8 @@ class VideoRepository(
             lastPositionMs = lastPositionMs,
             lastPlayedTimestamp = lastPlayedTimestamp,
             isFavorite = isFavorite,
-            isVault = isVault
+            isVault = isVault,
+            vaultFile = vaultFile
         )
     }
 }

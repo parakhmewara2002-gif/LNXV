@@ -1,0 +1,15 @@
+# Overrides on top of detekt's defaults. Compose functions are PascalCase and long by nature.
+style:
+  MagicNumber:
+    active: false
+  MaxLineLength:
+    maxLineLength: 160
+complexity:
+  LongMethod:
+    active: false
+  LongParameterList:
+    ignoreDefaultParameters: true
+    functionThreshold: 12
+naming:
+  FunctionNaming:
+    functionPattern: '[a-zA-Z][a-zA-Z0-9]*'

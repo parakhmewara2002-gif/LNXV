@@ -20,7 +20,16 @@ data class VideoEntity(
     val lastPositionMs: Long = 0L,
     val lastPlayedTimestamp: Long = 0L,
     val isFavorite: Boolean = false,
-    val isVault: Boolean = false
+    val isVault: Boolean = false,
+    /** File name inside filesDir/lnxv_vault for encrypted vault items; null for legacy/plain items. */
+    val vaultFile: String? = null
+)
+
+/** Small encrypted thumbnail (ChunkedAead container) so the vault grid works without decrypting videos. */
+@Entity(tableName = "vault_thumbs")
+class VaultThumbEntity(
+    @PrimaryKey val videoId: Long,
+    val data: ByteArray
 )
 
 @Entity(tableName = "playback_history")

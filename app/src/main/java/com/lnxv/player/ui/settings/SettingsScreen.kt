@@ -35,6 +35,8 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -59,7 +61,8 @@ fun SettingsScreen(
     val prefs by viewModel.userPreferences.collectAsState()
     val updateState by viewModel.updateState.collectAsState()
 
-    LaunchedEffect(Unit) { viewModel.checkForUpdate() }
+    val updaterEnabled = androidx.compose.ui.res.booleanResource(com.lnxv.player.R.bool.updater_enabled)
+    LaunchedEffect(Unit) { if (updaterEnabled) viewModel.checkForUpdate() }
 
     Scaffold(
         modifier = Modifier.fillMaxSize().ambientBackground(),
@@ -240,6 +243,19 @@ fun SettingsScreen(
                                 modifier = Modifier.clickable { viewModel.setSubtitleSize(prefs.subtitleTextSize + 2f) }
                             )
                         }
+                        if (prefs.isEnabled(com.lnxv.player.core.flags.FeatureFlag.GESTURE_SENSITIVITY)) {
+                            Spacer(modifier = Modifier.height(14.dp))
+                            StepRow("Gesture sensitivity", "${prefs.gestureSensitivityPct}%", { viewModel.setGestureSensitivity(prefs.gestureSensitivityPct - 10) }, { viewModel.setGestureSensitivity(prefs.gestureSensitivityPct + 10) })
+                        }
+                        if (prefs.isEnabled(com.lnxv.player.core.flags.FeatureFlag.SUBTITLE_STYLING)) {
+                            Spacer(modifier = Modifier.height(14.dp))
+                            StepRow("Subtitle background", "${prefs.subtitleBgOpacityPct}%", { viewModel.setSubtitleBg(prefs.subtitleBgOpacityPct - 10) }, { viewModel.setSubtitleBg(prefs.subtitleBgOpacityPct + 10) })
+                            Spacer(modifier = Modifier.height(14.dp))
+                            StepRow("Subtitle position (from bottom)", "${prefs.subtitleBottomPct}%", { viewModel.setSubtitleBottom(prefs.subtitleBottomPct - 2) }, { viewModel.setSubtitleBottom(prefs.subtitleBottomPct + 2) })
+                            Spacer(modifier = Modifier.height(14.dp))
+                            val edges = listOf("OUTLINE", "SHADOW", "NONE")
+                            StepRow("Subtitle edge", prefs.subtitleEdge.lowercase(), { viewModel.setSubtitleEdge(edges[(edges.indexOf(prefs.subtitleEdge).coerceAtLeast(0) + edges.size - 1) % edges.size]) }, { viewModel.setSubtitleEdge(edges[(edges.indexOf(prefs.subtitleEdge).coerceAtLeast(0) + 1) % edges.size]) })
+                        }
                         Spacer(modifier = Modifier.height(14.dp))
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -272,7 +288,7 @@ fun SettingsScreen(
                 }
             }
 
-            item {
+            if (updaterEnabled) item {
                 SectionHeader("Updates")
                 GlassPanel(
                     modifier = Modifier.fillMaxWidth(),
@@ -318,6 +334,27 @@ fun SettingsScreen(
                                 color = appColors.accent
                             )
                         }
+                        if (st is UpdateState.Available && st.info.notes.isNotBlank()) {
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Text(
+                                text = st.info.notes.trim().take(600),
+                                color = appColors.textTertiary,
+                                fontSize = 12.sp,
+                                maxLines = 8
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(10.dp))
+                        SettingSwitchRow(
+                            title = "Download updates on Wi-Fi only",
+                            subtitle = "Avoid using mobile data for updates",
+                            isChecked = prefs.updateWifiOnly,
+                            onCheckedChange = { viewModel.setUpdateWifiOnly(it) }
+                        )
+                        if (st is UpdateState.Available) {
+                            androidx.compose.material3.TextButton(onClick = { viewModel.skipThisVersion(st.info) }) {
+                                Text("Skip this version", color = appColors.textTertiary)
+                            }
+                        }
                         if (st !is UpdateState.Checking && st !is UpdateState.Downloading) {
                             Spacer(modifier = Modifier.height(12.dp))
                             Box(
@@ -338,6 +375,181 @@ fun SettingsScreen(
                                 )
                             }
                         }
+                    }
+                }
+            }
+
+            item {
+                SectionHeader("Appearance & performance")
+                GlassPanel(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    backgroundColor = appColors.glassFill
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                            SettingSwitchRow(
+                                title = "Material You colors",
+                                subtitle = "Use your wallpaper colors (Android 12+)",
+                                isChecked = prefs.dynamicColor,
+                                onCheckedChange = { viewModel.setDynamicColor(it) }
+                            )
+                            Spacer(modifier = Modifier.height(14.dp))
+                        }
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { viewModel.cycleEffectsMode(prefs.effectsMode) },
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Reduce effects", color = appColors.textPrimary, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                                Text(
+                                    "Turns off backdrop blur and heavy animations. Auto enables it on low-RAM / 60 Hz devices.",
+                                    color = appColors.textTertiary, fontSize = 12.sp
+                                )
+                            }
+                            Text(
+                                text = when (prefs.effectsMode) { "ON" -> "On"; "OFF" -> "Off"; else -> "Auto" },
+                                color = appColors.accent, fontSize = 13.sp
+                            )
+                        }
+                    }
+                }
+            }
+
+            item {
+                SectionHeader("Security")
+                GlassPanel(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    backgroundColor = appColors.glassFill
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        SettingSwitchRow(
+                            title = "Block screenshots everywhere",
+                            subtitle = "Vault screens always block screenshots; this extends it to the whole app",
+                            isChecked = prefs.blockScreenshotsEverywhere,
+                            onCheckedChange = { viewModel.setBlockScreenshots(it) }
+                        )
+                        Spacer(modifier = Modifier.height(14.dp))
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { viewModel.cycleAutoLock(prefs.vaultAutoLockMs) },
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Vault auto-lock", color = appColors.textPrimary, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                                Text("Tap to change. Always locks when the screen turns off.", color = appColors.textTertiary, fontSize = 12.sp)
+                            }
+                            Text(
+                                text = when (prefs.vaultAutoLockMs) {
+                                    0L -> "Immediately"
+                                    30_000L -> "30 seconds"
+                                    60_000L -> "1 minute"
+                                    else -> "5 minutes"
+                                },
+                                color = appColors.accent, fontSize = 13.sp
+                            )
+                        }
+                    }
+                }
+            }
+
+            item {
+                SectionHeader("Advanced > Experimental")
+                GlassPanel(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    backgroundColor = appColors.glassFill
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        com.lnxv.player.core.flags.FeatureFlag.values().forEachIndexed { index, flag ->
+                            if (index > 0) Spacer(modifier = Modifier.height(14.dp))
+                            SettingSwitchRow(
+                                title = flag.title,
+                                subtitle = flag.description,
+                                isChecked = prefs.isEnabled(flag),
+                                onCheckedChange = { viewModel.setFlag(flag, it) }
+                            )
+                        }
+                    }
+                }
+            }
+
+            item {
+                SectionHeader("Storage")
+                GlassPanel(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    backgroundColor = appColors.glassFill
+                ) {
+                    val ctx = androidx.compose.ui.platform.LocalContext.current
+                    val scope = androidx.compose.runtime.rememberCoroutineScope()
+                    var cacheBytes by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(-1L) }
+                    var dataBytes by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(-1L) }
+                    val refresh: () -> Unit = {
+                        scope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                            val c = com.lnxv.player.core.util.StorageUtil.sizeOf(ctx.cacheDir)
+                            val d = com.lnxv.player.core.util.StorageUtil.sizeOf(ctx.filesDir)
+                            cacheBytes = c
+                            dataBytes = d
+                        }
+                    }
+                    LaunchedEffect(Unit) { refresh() }
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("Cache: ${if (cacheBytes < 0) "…" else com.lnxv.player.core.util.StorageUtil.format(cacheBytes)}", color = appColors.textPrimary, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                        Text("App data (vault, database): ${if (dataBytes < 0) "…" else com.lnxv.player.core.util.StorageUtil.format(dataBytes)}", color = appColors.textSecondary, fontSize = 12.sp)
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(
+                            "Clear thumbnails",
+                            color = appColors.accent,
+                            fontSize = 15.sp,
+                            modifier = Modifier.fillMaxWidth().clickable {
+                                scope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                                    val loader = coil.Coil.imageLoader(ctx)
+                                    loader.memoryCache?.clear()
+                                    loader.diskCache?.clear()
+                                    refresh()
+                                }
+                            }.padding(vertical = 10.dp)
+                        )
+                        Text(
+                            "Clear cache (thumbnails, downloaded updates, temp subtitles)",
+                            color = appColors.accent,
+                            fontSize = 15.sp,
+                            modifier = Modifier.fillMaxWidth().clickable {
+                                scope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                                    coil.Coil.imageLoader(ctx).memoryCache?.clear()
+                                    com.lnxv.player.core.util.StorageUtil.clearContents(ctx.cacheDir)
+                                    refresh()
+                                }
+                            }.padding(vertical = 10.dp)
+                        )
+                        Text("Your videos and the encrypted vault are never touched by these actions.", color = appColors.textTertiary, fontSize = 11.sp)
+                    }
+                }
+            }
+
+            item {
+                SectionHeader("Privacy")
+                GlassPanel(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    backgroundColor = appColors.glassFill
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("No analytics. No tracking. No ads.", color = appColors.textPrimary, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            "Stored only on this device: watch history and resume positions, favorites, playlists, settings, recent network URLs, and the encrypted vault. " +
+                                "The only network requests are the update check to GitHub (sideload build) and streams you open yourself.",
+                            color = appColors.textSecondary,
+                            fontSize = 12.sp
+                        )
                     }
                 }
             }
@@ -379,6 +591,22 @@ fun SettingsScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun StepRow(title: String, value: String, onMinus: () -> Unit, onPlus: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = title, color = appColors.textPrimary, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+            Text(text = value, color = appColors.textSecondary, fontSize = 12.sp)
+        }
+        Text(text = "  −  ", color = appColors.accent, fontSize = 22.sp, modifier = Modifier.clickable(onClick = onMinus))
+        Text(text = "  +  ", color = appColors.accent, fontSize = 22.sp, modifier = Modifier.clickable(onClick = onPlus))
     }
 }
 
