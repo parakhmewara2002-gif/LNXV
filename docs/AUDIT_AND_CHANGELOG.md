@@ -95,3 +95,7 @@ Known limits: per-video resume for transient opens is not stored; network-specif
 - Player: play/pause morph (AnimatedContent), thumb spring scale, Coil VideoFrameDecoder preview while scrubbing (local only).
 - Compose BOM 2024.09.03. No new runtime dependency besides Haze (backdrop blur; hand-rolled blur is not feasible below API 31).
 - Remaining: vault unlock animation, spring HUD.
+
+## 8. Phase 4 increment 1 — flavors (CI-compiled, NOT DEVICE-TESTED)
+- `sideload`/`store` flavors; `store` strips REQUEST_INSTALL_PACKAGES and hides the Updates section (`updater_enabled` bool resource). Sideload is arm64-v8a only (no native libs are bundled today, so the filter is a safeguard).
+- Not yet done: DI, screen splitting, Baseline Profile, static-analysis CI, Actions SHA pinning.

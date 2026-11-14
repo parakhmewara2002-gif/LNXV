@@ -33,8 +33,11 @@ Build status: authoring environment had no Android SDK/Maven access; every chang
 - Player polish: animated play/pause morph, spring thumb scale while scrubbing, frame preview while scrubbing (local content/file only, never vault/network).
 - Not done in 3: vault unlock success animation, spring HUD for brightness/volume/seek.
 
+## Done (Phase 4, increment 1, CI green, NOT DEVICE-TESTED)
+- Product flavors: `sideload` (arm64-only, updater + install permission) and `store` (REQUEST_INSTALL_PACKAGES removed via manifest merge, updater UI hidden). CI builds both; release artifact is the sideload APK.
+
 ## Next
-Phase 4 (architecture/quality). Phase 2.6 (floating mini player, Cast) intentionally skipped: it is optional and SYSTEM_ALERT_WINDOW was removed in Phase 1.4.
+Phase 4 remainder: split PlayerScreen/HomeScreen, DI + PlayerController interface, Baseline Profile, detekt/ktlint/OWASP CI, Actions SHA pinning. Then Phases 5 and 6. Phase 2.6 (floating mini player, Cast) intentionally skipped: it is optional and SYSTEM_ALERT_WINDOW was removed in Phase 1.4.
 
 ## Not started
 Phases 3, 4, 5, 6 and the LOW RAM / LOW STORAGE rules (A–D).
