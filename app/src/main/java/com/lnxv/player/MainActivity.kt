@@ -252,7 +252,28 @@ class MainActivity : ComponentActivity() {
         }
 
         if (needed.isNotEmpty()) {
-            permissionLauncher.launch(needed.toTypedArray())
+            // Explain why before the system dialog, once (first run only).
+            lifecycleScope.launch {
+                val done = (application as LNXVApplication).dataStore.userPreferencesFlow.first().onboardingDone
+                if (done) {
+                    permissionLauncher.launch(needed.toTypedArray())
+                } else {
+                    android.app.AlertDialog.Builder(this@MainActivity)
+                        .setTitle("Welcome to LNXV")
+                        .setMessage(
+                            "LNXV needs permission to read the videos on your device so it can list and play them. " +
+                                "Nothing is uploaded: there is no analytics or tracking, and your history, favorites and the encrypted vault stay on this device."
+                        )
+                        .setCancelable(false)
+                        .setPositiveButton("Continue") { _, _ ->
+                            lifecycleScope.launch {
+                                (application as LNXVApplication).dataStore.setOnboardingDone()
+                                permissionLauncher.launch(needed.toTypedArray())
+                            }
+                        }
+                        .show()
+                }
+            }
         }
     }
 

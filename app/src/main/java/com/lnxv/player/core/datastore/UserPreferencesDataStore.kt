@@ -64,6 +64,7 @@ data class UserPreferences(
     /** Newline-separated recent stream URLs (credentials stripped). */
     val recentStreams: String = "",
     val perVideoSpeeds: String = "",
+    val onboardingDone: Boolean = false,
     val skippedUpdateBuild: Int = 0,
     val featureFlags: Map<FeatureFlag, Boolean> = FeatureFlag.defaults()
 ) {
@@ -111,6 +112,7 @@ class UserPreferencesDataStore(private val context: Context) {
         val BLOCK_SCREENSHOTS = booleanPreferencesKey("block_screenshots")
         val RECENT_STREAMS = stringPreferencesKey("recent_streams")
         val PER_VIDEO_SPEEDS = stringPreferencesKey("per_video_speeds")
+        val ONBOARDING_DONE = booleanPreferencesKey("onboarding_done")
         val DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
         val EFFECTS_MODE = stringPreferencesKey("effects_mode")
         val UPDATE_WIFI_ONLY = booleanPreferencesKey("update_wifi_only")
@@ -159,6 +161,7 @@ class UserPreferencesDataStore(private val context: Context) {
             effectsMode = prefs[PreferencesKeys.EFFECTS_MODE] ?: "AUTO",
             recentStreams = prefs[PreferencesKeys.RECENT_STREAMS] ?: "",
             perVideoSpeeds = prefs[PreferencesKeys.PER_VIDEO_SPEEDS] ?: "",
+            onboardingDone = prefs[PreferencesKeys.ONBOARDING_DONE] ?: false,
             skippedUpdateBuild = prefs[PreferencesKeys.UPDATE_SKIPPED] ?: 0,
             featureFlags = FeatureFlag.values().associateWith { f ->
                 prefs[PreferencesKeys.flagKey(f)] ?: f.defaultEnabled
@@ -280,6 +283,8 @@ class UserPreferencesDataStore(private val context: Context) {
     suspend fun updateVaultAutoLock(ms: Long) {
         context.dataStore.edit { it[PreferencesKeys.VAULT_AUTOLOCK] = ms }
     }
+
+    suspend fun setOnboardingDone() { context.dataStore.edit { it[PreferencesKeys.ONBOARDING_DONE] = true } }
 
     suspend fun setVideoSpeed(videoId: Long, speed: Float) {
         context.dataStore.edit {
