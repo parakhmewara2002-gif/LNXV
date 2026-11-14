@@ -111,3 +111,7 @@ Known limits: per-video resume for transient opens is not stored; network-specif
 - Volume boost (LoudnessEnhancer, 3/6/9 dB) is a fixed gain, NOT loudness normalization; can clip.
 - SUBTITLE_STYLING: background opacity, edge style, bottom position. GESTURE_SENSITIVITY: 50-200% scale for swipe brightness/volume/seek.
 - Phase 5 items not built are listed in PROGRESS.md with reasons.
+
+## 11. Phase 6 increment 1 (CI-compiled, NOT DEVICE-TESTED)
+- SmartCollection chips (Recently added 7 d, Unfinished, Large >= 1 GiB), NEW badge (3 d, never played), progress bar. Unit tests use primitive overloads because android.net.Uri is unavailable in JVM tests (first CI run failed on that; fixed).
+- Settings > Storage + Privacy; Coil memory 12% / disk 50 MB; onboarding dialog before the media permission prompt.

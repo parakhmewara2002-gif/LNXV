@@ -48,6 +48,10 @@ Build status: authoring environment had no Android SDK/Maven access; every chang
 ## Done (Phase 4, increment 2)
 - HomeScreen split: list/card composables moved to HomeComponents.kt. PlayerScreen NOT split. DI (Hilt) intentionally skipped: manual container in LNXVApplication is enough and Hilt adds KSP/build risk with no local build.
 
+## Done (Phase 6 increment 1, CI green, NOT DEVICE-TESTED)
+- Smart collections, NEW badge, watched progress bar, Settings > Storage (cache clear), Privacy statement, first-run permission explanation, Coil caps.
+- Deliverables written: docs/FINAL_REPORT.md, docs/DEVICE_CHECKLIST.md. Full not-done list is in FINAL_REPORT.md.
+
 ## Next
 Phase 4 remainder: split PlayerScreen/HomeScreen, DI + PlayerController interface, Baseline Profile, detekt/ktlint/OWASP CI, Actions SHA pinning. Then Phases 5 and 6. Phase 2.6 (floating mini player, Cast) intentionally skipped: it is optional and SYSTEM_ALERT_WINDOW was removed in Phase 1.4.
 
