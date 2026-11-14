@@ -737,110 +737,19 @@ fun PlayerScreen(
             }
         }
 
-        // Side panels: drawn inside the player (no extra window) so fullscreen is never interrupted
-        PlayerSidePanel(
-            visible = uiState.showSpeedDialog,
-            title = "Playback Speed",
-            icon = Icons.Default.Speed,
-            onDismiss = { viewModel.showSpeedDialog(false) },
-            backdrop = glassBackdrop
-        ) {
-            SpeedBottomSheet(
-                currentSpeed = playbackState.playbackSpeed,
-                onSpeedSelected = { speed ->
-                    viewModel.setPlaybackSpeed(speed)
-                    viewModel.showSpeedDialog(false)
-                }
-            )
-        }
-
-        PlayerSidePanel(
-            visible = uiState.showAspectRatioDialog,
-            title = "Aspect Ratio",
-            icon = Icons.Default.AspectRatio,
-            onDismiss = { viewModel.showAspectRatioDialog(false) },
-            backdrop = glassBackdrop
-        ) {
-            AspectRatioBottomSheet(
-                currentMode = playbackState.aspectRatio,
-                onModeSelected = { mode ->
-                    viewModel.setAspectRatio(mode)
-                    viewModel.showAspectRatioDialog(false)
-                }
-            )
-        }
-
-        PlayerSidePanel(
-            visible = uiState.showAudioDialog,
-            title = "Audio Tracks (${audioTracks.size})",
-            icon = Icons.Default.Audiotrack,
-            onDismiss = { viewModel.showAudioDialog(false) },
-            backdrop = glassBackdrop
-        ) {
-            AudioTrackBottomSheet(
-                tracks = audioTracks,
-                onTrackSelected = { track ->
-                    viewModel.selectAudioTrack(track)
-                    viewModel.showAudioDialog(false)
-                }
-            )
-        }
-
-        PlayerSidePanel(
-            visible = uiState.showSubtitleDialog,
-            title = "Subtitles",
-            icon = Icons.Default.Subtitles,
-            onDismiss = { viewModel.showSubtitleDialog(false) },
-            backdrop = glassBackdrop
-        ) {
-            SubtitleBottomSheet(
-                tracks = subtitleTracks,
-                onTrackSelected = { track ->
-                    viewModel.selectSubtitleTrack(track)
-                    viewModel.showSubtitleDialog(false)
-                },
-                onLoadFile = { subtitleFileLauncher.launch(arrayOf("*/*")) },
-                delayMs = subtitleDelayMs,
-                canDelay = hasExternalSubtitle,
-                onDelayChange = { viewModel.adjustSubtitleDelay(it) }
-            )
-        }
-
-        PlayerSidePanel(
-            visible = uiState.showPropertiesDialog,
-            title = "Video Properties",
-            icon = Icons.Default.Info,
-            onDismiss = { viewModel.showPropertiesDialog(false) },
-            backdrop = glassBackdrop
-        ) {
-            uiState.currentVideo?.let { video ->
-                PropertiesBottomSheet(
-                    video = video,
-                    streamInfo = viewModel.describeStream(),
-                    onCopyReport = {
-                        reportScope.launch {
-                            val report = viewModel.buildDiagnosticsReport()
-                            val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                            cm.setPrimaryClip(ClipData.newPlainText("LNXV diagnostic report", report))
-                            Toast.makeText(context, "Report copied. Paste it in the chat.", Toast.LENGTH_LONG).show()
-                        }
-                    },
-                    onShareReport = {
-                        reportScope.launch {
-                            val report = viewModel.buildDiagnosticsReport()
-                            val send = Intent(Intent.ACTION_SEND).apply {
-                                type = "text/plain"
-                                putExtra(Intent.EXTRA_SUBJECT, "LNXV diagnostic report")
-                                putExtra(Intent.EXTRA_TEXT, report)
-                            }
-                            context.startActivity(
-                                Intent.createChooser(send, "Share report").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                            )
-                        }
-                    }
-                )
-            }
-        }
+        PlayerSidePanels(
+            viewModel = viewModel,
+            uiState = uiState,
+            playbackState = playbackState,
+            audioTracks = audioTracks,
+            subtitleTracks = subtitleTracks,
+            subtitleDelayMs = subtitleDelayMs,
+            hasExternalSubtitle = hasExternalSubtitle,
+            glassBackdrop = glassBackdrop,
+            reportScope = reportScope,
+            context = context,
+            onLoadSubtitleFile = { subtitleFileLauncher.launch(arrayOf("*/*")) }
+        )
 
         // Overflow menu (drawn inside the player, scrollable)
         PlayerOverflowMenu(

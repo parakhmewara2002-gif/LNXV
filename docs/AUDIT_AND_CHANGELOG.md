@@ -115,3 +115,9 @@ Known limits: per-video resume for transient opens is not stored; network-specif
 ## 11. Phase 6 increment 1 (CI-compiled, NOT DEVICE-TESTED)
 - SmartCollection chips (Recently added 7 d, Unfinished, Large >= 1 GiB), NEW badge (3 d, never played), progress bar. Unit tests use primitive overloads because android.net.Uri is unavailable in JVM tests (first CI run failed on that; fixed).
 - Settings > Storage + Privacy; Coil memory 12% / disk 50 MB; onboarding dialog before the media permission prompt.
+
+## 12. Phase 4 completion
+- Splits: PlayerMenu.kt (overflow items), PlayerOverlays.kt (gesture HUD, buffering), PlayerSidePanels.kt; HomeComponents.kt.
+- DI: Koin 3.5.6 (no codegen, no reflection, so R8-safe; chosen over Hilt to avoid KSP/kapt risk without a local build). `AppModule.kt` exposes LNXVApplication's lazy singletons; `PlayerController` abstracts the engine.
+- Baseline profile rules are wildcard-based (all app code), a deliberate coarse default; regenerate with the :benchmark generator on a device and compare StartupBenchmark None vs Partial.
+- Static analysis is non-blocking until the first triage; findings (e.g. SettingsScreen complexity 43, SettingsViewModel 26 functions) are in the CI artifact.
