@@ -149,6 +149,17 @@ class Media3PlayerManager(private val context: Context) : PlayerController, Play
         _eqPreset.value = p
     }
 
+    private val _audioOnly = MutableStateFlow(false)
+    override val audioOnly: StateFlow<Boolean> = _audioOnly
+
+    /** Disables the video renderer (no decoding, saves battery); audio keeps playing. */
+    override fun setAudioOnly(enabled: Boolean) {
+        trackSelector.setParameters(
+            trackSelector.buildUponParameters().setTrackTypeDisabled(androidx.media3.common.C.TRACK_TYPE_VIDEO, enabled)
+        )
+        _audioOnly.value = enabled
+    }
+
     private val _boostMb = MutableStateFlow(0)
     override val boostMb: StateFlow<Int> = _boostMb
 
@@ -253,6 +264,7 @@ class Media3PlayerManager(private val context: Context) : PlayerController, Play
     ) {
         externalSubtitleSource = null
         _playbackError.value = null
+        if (_audioOnly.value) setAudioOnly(false) // audio-only applies per video
         _subtitleDelayMs.value = 0L
         _hasExternalSubtitle.value = false
         val mediaItemBuilder = MediaItem.Builder().setUri(uri)

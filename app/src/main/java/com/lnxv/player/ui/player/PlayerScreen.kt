@@ -317,6 +317,22 @@ fun PlayerScreen(
         )
         }
 
+        val audioOnlyActive by viewModel.audioOnly.collectAsState()
+        if (audioOnlyActive) {
+            Box(
+                modifier = Modifier.fillMaxSize().background(Color.Black),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = (uiState.currentVideo?.title ?: "") + "\n(audio only)",
+                    color = Color(0xFFB0B8C8),
+                    fontSize = 16.sp,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    modifier = Modifier.padding(32.dp)
+                )
+            }
+        }
+
         // Gesture detector wrapper
         PlayerGestureDetector(
             modifier = Modifier.fillMaxSize(),

@@ -75,6 +75,8 @@ class PlayerViewModel(
 
     fun adjustAudioDelay(deltaMs: Long) = playerManager.setAudioDelayMs(playerManager.audioDelayMs.value + deltaMs)
     val eqPreset: StateFlow<com.lnxv.player.core.model.EqPreset> = playerManager.eqPreset
+    val audioOnly: StateFlow<Boolean> = playerManager.audioOnly
+    fun toggleAudioOnly() = playerManager.setAudioOnly(!playerManager.audioOnly.value)
     val boostMb: StateFlow<Int> = playerManager.boostMb
     fun cycleBoost() = playerManager.setBoostMb(
         when (playerManager.boostMb.value) { 0 -> 300; 300 -> 600; 600 -> 900; else -> 0 }

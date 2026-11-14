@@ -53,7 +53,17 @@ fun PlayerMoreMenuItems(
                 onClick = { viewModel.cycleRepeat() }
             )
         }
-        if (viewModel.userPrefs.collectAsState().value.isEnabled(com.lnxv.player.core.flags.FeatureFlag.EQUALIZER)) {
+        if (viewModel.userPrefs.collectAsState().value.isEnabled(com.lnxv.player.core.flags.FeatureFlag.AUDIO_ONLY_MODE)) {
+        val audioOnly by viewModel.audioOnly.collectAsState()
+        PlayerMenuItem(
+            text = { Text(if (audioOnly) "Audio only: on (tap for video)" else "Audio only") },
+            onClick = {
+                viewModel.toggleAudioOnly()
+                closeMenu()
+            }
+        )
+    }
+    if (viewModel.userPrefs.collectAsState().value.isEnabled(com.lnxv.player.core.flags.FeatureFlag.EQUALIZER)) {
             val eqPreset by viewModel.eqPreset.collectAsState()
             PlayerMenuItem(
                 text = { Text("Equalizer: ${eqPreset.label} (tap to change)") },

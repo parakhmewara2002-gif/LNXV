@@ -41,6 +41,11 @@ enum class FeatureFlag(val title: String, val description: String, val defaultEn
         "Subtitle background opacity, edge style and vertical position in Settings. When off, the default style is used.",
         true
     ),
+    AUDIO_ONLY_MODE(
+        "Audio-only mode",
+        "Adds 'Audio only' to the player menu: video decoding is switched off (saves battery) while audio keeps playing. Applies to the current video only.",
+        true
+    ),
     VIDEO_TRANSFORMS(
         "Rotate / flip video",
         "Adds Rotate and Flip to the player menu. Applied to the video surface; may look wrong on some devices (SurfaceView).",

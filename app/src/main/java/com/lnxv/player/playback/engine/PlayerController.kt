@@ -24,6 +24,7 @@ interface PlayerController {
     val hasExternalSubtitle: StateFlow<Boolean>
     val eqPreset: StateFlow<EqPreset>
     val boostMb: StateFlow<Int>
+    val audioOnly: StateFlow<Boolean>
 
     var owner: Any?
     var isVideoScreenActive: Boolean
@@ -53,6 +54,7 @@ interface PlayerController {
     fun setAudioDelayMs(ms: Long)
     fun setEqPreset(p: EqPreset)
     fun setBoostMb(mb: Int)
+    fun setAudioOnly(enabled: Boolean)
     suspend fun loadExternalSubtitle(uri: Uri): Boolean
     suspend fun adjustSubtitleDelay(deltaMs: Long)
     fun describeStream(): List<Pair<String, String>>
