@@ -23,7 +23,7 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
-    <!-- In-app updates (to be limited to the sideload flavor in Phase 4) -->
+    <!-- In-app updates: declared here for the sideload flavor; removed in src/store/AndroidManifest.xml -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <application

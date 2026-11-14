@@ -59,7 +59,8 @@ fun SettingsScreen(
     val prefs by viewModel.userPreferences.collectAsState()
     val updateState by viewModel.updateState.collectAsState()
 
-    LaunchedEffect(Unit) { viewModel.checkForUpdate() }
+    val updaterEnabled = androidx.compose.ui.res.booleanResource(com.lnxv.player.R.bool.updater_enabled)
+    LaunchedEffect(Unit) { if (updaterEnabled) viewModel.checkForUpdate() }
 
     Scaffold(
         modifier = Modifier.fillMaxSize().ambientBackground(),
@@ -272,7 +273,7 @@ fun SettingsScreen(
                 }
             }
 
-            item {
+            if (updaterEnabled) item {
                 SectionHeader("Updates")
                 GlassPanel(
                     modifier = Modifier.fillMaxWidth(),

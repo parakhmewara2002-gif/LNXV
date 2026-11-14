@@ -23,6 +23,20 @@ android {
         }
     }
 
+    // sideload: self-updating APK (arm64 only to keep it small). store: no installer permission, no updater.
+    flavorDimensions += "dist"
+    productFlavors {
+        create("sideload") {
+            dimension = "dist"
+            ndk { abiFilters += "arm64-v8a" }
+            resValue("bool", "updater_enabled", "true")
+        }
+        create("store") {
+            dimension = "dist"
+            resValue("bool", "updater_enabled", "false")
+        }
+    }
+
     signingConfigs {
         create("lnxvRelease") {
             val ksPath = System.getenv("KEYSTORE_PATH")
