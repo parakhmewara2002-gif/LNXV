@@ -13,7 +13,7 @@ jobs:
   scan:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Run OWASP dependency-check CLI
         continue-on-error: true
         env:
@@ -24,7 +24,7 @@ jobs:
           unzip -q "$RUNNER_TEMP/odc/odc.zip" -d "$RUNNER_TEMP/odc"
           "$RUNNER_TEMP/odc/dependency-check/bin/dependency-check.sh" --scan gradle/libs.versions.toml app/build.gradle.kts \
             --format HTML --out reports ${NVD_API_KEY:+--nvdApiKey "$NVD_API_KEY"}
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
           name: dependency-check

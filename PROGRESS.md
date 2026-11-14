@@ -51,7 +51,7 @@ Build status: authoring environment had no Android SDK/Maven access; every chang
 - PlayerController interface + Koin DI (PlayerViewModel migrated; Home/Settings/Vault VMs still read LNXVApplication directly).
 - Baseline profile (hand-written wildcard rules + profileinstaller) and :benchmark module (startup benchmark + profile generator), compiled in CI but NEVER RUN (needs a device). No startup numbers exist.
 - CI: non-blocking detekt + ktlint reports (artifact `static-analysis`), weekly OWASP dependency-check workflow (limited: it scans declared files, optional NVD_API_KEY secret).
-- NOT done: Actions SHA pinning (SHAs cannot be verified from this environment; pinning unverified SHAs would break CI), unit test of PlayerViewModel with a fake controller (needs Robolectric/Application).
+- Actions pinned to commit SHAs (resolved with git ls-remote from the action repos; tag shown in a comment). NOT done: unit test of PlayerViewModel with a fake controller (needs Robolectric/Application).
 
 ## Done (Phase 4, increment 2)
 - HomeScreen split: list/card composables moved to HomeComponents.kt. PlayerScreen NOT split. DI (Hilt) intentionally skipped: manual container in LNXVApplication is enough and Hilt adds KSP/build risk with no local build.
