@@ -5,7 +5,8 @@ enum class SmartCollection(val label: String) {
     ALL("All"),
     RECENT("Recently added"),
     UNFINISHED("Unfinished"),
-    LARGE("Large files");
+    LARGE("Large files"),
+    DUPLICATES("Possible duplicates");
 
     fun matches(v: VideoItem, nowSec: Long): Boolean =
         matches(v.dateAddedSec, v.sizeBytes, v.durationMs, v.lastPositionMs, nowSec)
@@ -15,6 +16,7 @@ enum class SmartCollection(val label: String) {
         RECENT -> dateAddedSec > 0 && nowSec - dateAddedSec <= RECENT_WINDOW_SEC
         UNFINISHED -> isUnfinished(durationMs, lastPositionMs)
         LARGE -> sizeBytes >= LARGE_BYTES
+        DUPLICATES -> true // computed across the whole list by HomeViewModel via DuplicateFinder
     }
 
     companion object {

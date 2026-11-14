@@ -117,8 +117,11 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         val visible = if (hidden.isEmpty()) allVids else allVids.filter { it.folderPath !in hidden }
 
         val nowSec = System.currentTimeMillis() / 1000L
-        val inCollection = if (controls.collection == com.lnxv.player.core.model.SmartCollection.ALL) visible
-            else visible.filter { controls.collection.matches(it, nowSec) }
+        val inCollection = when (controls.collection) {
+            com.lnxv.player.core.model.SmartCollection.ALL -> visible
+            com.lnxv.player.core.model.SmartCollection.DUPLICATES -> com.lnxv.player.core.model.DuplicateFinder.flatten(visible)
+            else -> visible.filter { controls.collection.matches(it, nowSec) }
+        }
         val filteredVideos = if (query.isBlank()) {
             inCollection
         } else {
@@ -141,7 +144,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             selectedTab = controls.tab,
             searchQuery = query,
             sortOption = sort,
-            videos = sortVideos(filteredVideos, sort),
+            videos = if (controls.collection == com.lnxv.player.core.model.SmartCollection.DUPLICATES) filteredVideos else sortVideos(filteredVideos, sort),
             folders = folders,
             recentlyPlayed = if (hidden.isEmpty()) recents else recents.filter { it.folderPath !in hidden },
             favorites = if (hidden.isEmpty()) favs else favs.filter { it.folderPath !in hidden },
