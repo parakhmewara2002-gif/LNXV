@@ -31,6 +31,11 @@ enum class FeatureFlag(val title: String, val description: String, val defaultEn
         "Remember the playback speed separately for each video (not stored for vault videos).",
         true
     ),
+    VIDEO_TRANSFORMS(
+        "Rotate / flip video",
+        "Adds Rotate and Flip to the player menu. Applied to the video surface; may look wrong on some devices (SurfaceView).",
+        false
+    ),
     EQUALIZER(
         "Equalizer presets",
         "Adds an Equalizer preset switcher (Flat, Bass, Vocal, Treble, Loud) to the player menu. Uses the system audio effect; may be unsupported on some devices.",

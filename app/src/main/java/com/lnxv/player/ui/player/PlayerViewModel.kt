@@ -74,6 +74,10 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
 
     fun adjustAudioDelay(deltaMs: Long) = playerManager.setAudioDelayMs(playerManager.audioDelayMs.value + deltaMs)
     val eqPreset: StateFlow<com.lnxv.player.core.model.EqPreset> = playerManager.eqPreset
+    val boostMb: StateFlow<Int> = playerManager.boostMb
+    fun cycleBoost() = playerManager.setBoostMb(
+        when (playerManager.boostMb.value) { 0 -> 300; 300 -> 600; 600 -> 900; else -> 0 }
+    )
     fun cycleEqPreset() = playerManager.setEqPreset(playerManager.eqPreset.value.next())
 
     fun resetAudioDelay() = playerManager.setAudioDelayMs(0L)

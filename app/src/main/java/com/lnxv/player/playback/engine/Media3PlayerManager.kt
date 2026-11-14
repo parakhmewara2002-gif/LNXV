@@ -149,6 +149,15 @@ class Media3PlayerManager(private val context: Context) : Player.Listener {
         _eqPreset.value = p
     }
 
+    private val _boostMb = MutableStateFlow(0)
+    val boostMb: StateFlow<Int> = _boostMb
+
+    fun setBoostMb(mb: Int) {
+        audioEffects.attach(exoPlayer.audioSessionId)
+        audioEffects.setBoost(mb)
+        _boostMb.value = audioEffects.boostMb
+    }
+
     override fun onAudioSessionIdChanged(audioSessionId: Int) {
         audioEffects.attach(audioSessionId)
     }

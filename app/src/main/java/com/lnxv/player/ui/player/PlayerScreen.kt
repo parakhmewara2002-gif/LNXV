@@ -150,6 +150,8 @@ fun PlayerScreen(
     var isMoreMenuOpen by remember { mutableStateOf(false) }
     var showSleepDialog by remember { mutableStateOf(false) }
     var orientationMode by remember { mutableIntStateOf(0) }
+    var videoRotation by remember { mutableIntStateOf(0) }
+    var videoFlip by remember { mutableStateOf(false) }
     var playerViewRef by remember { mutableStateOf<PlayerView?>(null) }
     val prefs by viewModel.userPrefs.collectAsState()
     val reportScope = rememberCoroutineScope()
@@ -241,8 +243,12 @@ fun PlayerScreen(
     }
     val surfaceModifier = (if (aspectValue != null) Modifier.aspectRatio(aspectValue) else Modifier.fillMaxSize())
         .graphicsLayer {
-            scaleX = overlayState.zoomScale
-            scaleY = overlayState.zoomScale
+            // Rotation/flip (Phase 5, flag VIDEO_TRANSFORMS). At 90/270 degrees shrink so the frame still fits.
+            val quarter = videoRotation % 180 != 0
+            val fit = if (quarter && size.width > 0f && size.height > 0f) minOf(size.width / size.height, size.height / size.width) else 1f
+            rotationZ = videoRotation.toFloat()
+            scaleX = overlayState.zoomScale * fit * (if (videoFlip) -1f else 1f)
+            scaleY = overlayState.zoomScale * fit
         }
 
     Box(
@@ -915,6 +921,11 @@ fun PlayerScreen(
                                                     text = { Text("Equalizer: ${eqPreset.label} (tap to change)") },
                                                     onClick = { viewModel.cycleEqPreset() }
                                                 )
+                                                val boost by viewModel.boostMb.collectAsState()
+                                                PlayerMenuItem(
+                                                    text = { Text("Volume boost: ${if (boost == 0) "off" else "+${boost / 100} dB"} (tap to change)") },
+                                                    onClick = { viewModel.cycleBoost() }
+                                                )
                                             }
                                             PlayerMenuItem(
                                                 text = { Text("Audio delay +50 ms (now $audioDelayMs ms)") },
@@ -938,6 +949,16 @@ fun PlayerScreen(
                                                     isMoreMenuOpen = false
                                                 }
                                             )
+                                            if (viewModel.userPrefs.collectAsState().value.isEnabled(com.lnxv.player.core.flags.FeatureFlag.VIDEO_TRANSFORMS)) {
+                                                PlayerMenuItem(
+                                                    text = { Text("Rotate video 90° (now $videoRotation°)") },
+                                                    onClick = { videoRotation = (videoRotation + 90) % 360 }
+                                                )
+                                                PlayerMenuItem(
+                                                    text = { Text(if (videoFlip) "Flip horizontal (on)" else "Flip horizontal") },
+                                                    onClick = { videoFlip = !videoFlip }
+                                                )
+                                            }
                                             PlayerMenuItem(
                                                 text = { Text("Screenshot") },
                                                 onClick = {
