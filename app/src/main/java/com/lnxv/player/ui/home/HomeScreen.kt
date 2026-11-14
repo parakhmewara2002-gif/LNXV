@@ -30,6 +30,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import com.lnxv.player.core.design.videoSharedBounds
 import dev.chrisbanes.haze.haze
 import dev.chrisbanes.haze.hazeChild
 import androidx.compose.foundation.lazy.LazyRow
@@ -602,6 +603,7 @@ fun VideoItemRow(
             // Thumbnail with Duration & Resolution Badges
             Box(
                 modifier = Modifier
+                    .videoSharedBounds(video.id)
                     .size(width = 110.dp, height = 70.dp)
                     .clip(RoundedCornerShape(12.dp))
                     .background(appColors.placeholder)
@@ -943,6 +945,7 @@ fun VideoGridCard(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .videoSharedBounds(video.id)
                     .height(100.dp)
                     .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
                     .background(appColors.placeholder)

@@ -1,5 +1,7 @@
 package com.lnxv.player.ui.navigation
 
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -23,6 +25,7 @@ import com.lnxv.player.ui.settings.SettingsViewModel
 import com.lnxv.player.ui.vault.VaultScreen
 import com.lnxv.player.ui.vault.VaultViewModel
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun LNXVNavigationHost(navController: NavHostController) {
     // On vault lock, remove vault screens / vault playback from the back stack.
@@ -45,6 +48,10 @@ fun LNXVNavigationHost(navController: NavHostController) {
         }
     }
     val reduce = com.lnxv.player.core.design.LocalReduceEffects.current
+    SharedTransitionLayout {
+    androidx.compose.runtime.CompositionLocalProvider(
+        com.lnxv.player.core.design.LocalSharedTransitionScope provides this
+    ) {
     NavHost(
         navController = navController,
         startDestination = Screen.Home.route,
@@ -54,6 +61,9 @@ fun LNXVNavigationHost(navController: NavHostController) {
         popExitTransition = { if (reduce) androidx.compose.animation.ExitTransition.None else fadeOut(tween(160)) + slideOutHorizontally(tween(260)) { it / 8 } }
     ) {
         composable(Screen.Home.route) {
+          androidx.compose.runtime.CompositionLocalProvider(
+            com.lnxv.player.core.design.LocalNavAnimatedScope provides this
+          ) {
             val homeViewModel: HomeViewModel = viewModel()
             HomeScreen(
                 viewModel = homeViewModel,
@@ -70,12 +80,16 @@ fun LNXVNavigationHost(navController: NavHostController) {
                     navController.navigate(Screen.Settings.route)
                 }
             )
+          }
         }
 
         composable(
             route = Screen.Player.route,
             arguments = listOf(navArgument("videoId") { type = NavType.LongType })
         ) { backStackEntry ->
+          androidx.compose.runtime.CompositionLocalProvider(
+            com.lnxv.player.core.design.LocalNavAnimatedScope provides this
+          ) {
             val videoId = backStackEntry.arguments?.getLong("videoId") ?: 0L
             val playerViewModel: PlayerViewModel = viewModel()
             val playerUi by playerViewModel.uiState.collectAsState()
@@ -109,6 +123,7 @@ fun LNXVNavigationHost(navController: NavHostController) {
                     onBackClick = { navController.popBackStack() }
                 )
             }
+          }
         }
 
         composable(Screen.Vault.route) {
@@ -129,5 +144,7 @@ fun LNXVNavigationHost(navController: NavHostController) {
                 onBackClick = { navController.popBackStack() }
             )
         }
+    }
+    }
     }
 }

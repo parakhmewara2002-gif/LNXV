@@ -55,6 +55,7 @@ import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import com.lnxv.player.core.design.videoSharedBounds
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -242,6 +243,7 @@ fun PlayerScreen(
 
     Box(
         modifier = Modifier
+            .videoSharedBounds(videoId)
             .fillMaxSize()
             .background(Color.Black)
     ) {
