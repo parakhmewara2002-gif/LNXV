@@ -48,6 +48,16 @@ class MainActivity : ComponentActivity() {
     @Volatile private var autoLockEnabled = true
     private var globalSecure = false
     private var lockJob: Job? = null
+    private val lowEndDevice: Boolean by lazy {
+        @Suppress("DEPRECATION")
+        val hz = runCatching { windowManager.defaultDisplay.supportedModes.maxOf { it.refreshRate } }.getOrDefault(60f)
+        com.lnxv.player.core.design.DeviceTier.detect(this, hz)
+    }
+
+    /** System "Remove animations" (animator duration scale 0) is treated as "reduce effects". */
+    private fun systemAnimationsDisabled(): Boolean = runCatching {
+        android.provider.Settings.Global.getFloat(contentResolver, android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f
+    }.getOrDefault(false)
     private val backgroundConnector by lazy { com.lnxv.player.playback.service.BackgroundPlaybackConnector(this) }
     private var askedNotificationPermission = false
 
@@ -121,7 +131,10 @@ class MainActivity : ComponentActivity() {
                     "SYSTEM" -> systemDark
                     else -> true
                 }
-                LNXVTheme(darkTheme = darkTheme, amoled = p.isAmoled) {
+                val reduce = com.lnxv.player.core.design.DeviceTier.resolveReduceEffects(
+                    com.lnxv.player.core.design.EffectsMode.parse(p.effectsMode), lowEndDevice
+                ) || systemAnimationsDisabled()
+                LNXVTheme(darkTheme = darkTheme, amoled = p.isAmoled, dynamicColor = p.dynamicColor, reduceEffects = reduce) {
                     val navController = rememberNavController()
                     LNXVNavigationHost(navController = navController)
                 }

@@ -161,4 +161,13 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             _updateState.value = UpdateState.UpToDate
         }
     }
+
+    fun setDynamicColor(enabled: Boolean) {
+        viewModelScope.launch { dataStore.updateDynamicColor(enabled) }
+    }
+
+    fun cycleEffectsMode(current: String) {
+        val next = com.lnxv.player.core.design.EffectsMode.parse(current).next().name
+        viewModelScope.launch { dataStore.updateEffectsMode(next) }
+    }
 }

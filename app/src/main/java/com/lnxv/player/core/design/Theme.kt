@@ -1,6 +1,10 @@
 package com.lnxv.player.core.design
 
 import android.app.Activity
+import android.os.Build
+import androidx.compose.material3.dynamicDarkColorScheme
+import androidx.compose.material3.dynamicLightColorScheme
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
@@ -47,20 +51,29 @@ private val LightColorScheme = lightColorScheme(
 fun LNXVTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     amoled: Boolean = true,
+    dynamicColor: Boolean = false,
+    reduceEffects: Boolean = false,
     content: @Composable () -> Unit
 ) {
+    val context = LocalContext.current
+    val useDynamic = dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
     val colorScheme = when {
+        useDynamic -> {
+            val dyn = if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+            if (darkTheme && amoled) dyn.copy(background = AmoledBlack) else dyn
+        }
         darkTheme -> {
             if (amoled) DarkColorScheme.copy(background = AmoledBlack)
             else DarkColorScheme.copy(background = Color(0xFF16191F), surface = Color(0xFF1F232B))
         }
         else -> LightColorScheme.copy(primary = LightPalette.accent, background = LightPalette.background)
     }
-    val palette = when {
+    val basePalette = when {
         !darkTheme -> LightPalette
         amoled -> AmoledPalette
         else -> DarkPalette
     }
+    val palette = if (useDynamic) basePalette.copy(accent = colorScheme.primary) else basePalette
 
     val view = LocalView.current
     if (!view.isInEditMode) {
@@ -73,7 +86,7 @@ fun LNXVTheme(
         }
     }
 
-    CompositionLocalProvider(LocalLNXVColors provides palette) {
+    CompositionLocalProvider(LocalLNXVColors provides palette, LocalReduceEffects provides reduceEffects) {
         MaterialTheme(
             colorScheme = colorScheme,
             typography = Typography,

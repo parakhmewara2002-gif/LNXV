@@ -54,6 +54,9 @@ data class UserPreferences(
     val vaultAutoLockMs: Long = 0L,
     val blockScreenshotsEverywhere: Boolean = false,
     val updateWifiOnly: Boolean = false,
+    val dynamicColor: Boolean = false,
+    /** AUTO / ON / OFF: reduce effects (blur, shared elements, heavy animations). AUTO follows device-tier detection. */
+    val effectsMode: String = "AUTO",
     /** Newline-separated recent stream URLs (credentials stripped). */
     val recentStreams: String = "",
     val skippedUpdateBuild: Int = 0,
@@ -98,6 +101,8 @@ class UserPreferencesDataStore(private val context: Context) {
         val VAULT_AUTOLOCK = longPreferencesKey("vault_autolock_ms")
         val BLOCK_SCREENSHOTS = booleanPreferencesKey("block_screenshots")
         val RECENT_STREAMS = stringPreferencesKey("recent_streams")
+        val DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
+        val EFFECTS_MODE = stringPreferencesKey("effects_mode")
         val UPDATE_WIFI_ONLY = booleanPreferencesKey("update_wifi_only")
         val UPDATE_SKIPPED = intPreferencesKey("update_skipped_build")
         fun flagKey(flag: FeatureFlag) = booleanPreferencesKey("ff_" + flag.name.lowercase())
@@ -136,6 +141,8 @@ class UserPreferencesDataStore(private val context: Context) {
             vaultAutoLockMs = prefs[PreferencesKeys.VAULT_AUTOLOCK] ?: 0L,
             blockScreenshotsEverywhere = prefs[PreferencesKeys.BLOCK_SCREENSHOTS] ?: false,
             updateWifiOnly = prefs[PreferencesKeys.UPDATE_WIFI_ONLY] ?: false,
+            dynamicColor = prefs[PreferencesKeys.DYNAMIC_COLOR] ?: false,
+            effectsMode = prefs[PreferencesKeys.EFFECTS_MODE] ?: "AUTO",
             recentStreams = prefs[PreferencesKeys.RECENT_STREAMS] ?: "",
             skippedUpdateBuild = prefs[PreferencesKeys.UPDATE_SKIPPED] ?: 0,
             featureFlags = FeatureFlag.values().associateWith { f ->
@@ -256,6 +263,14 @@ class UserPreferencesDataStore(private val context: Context) {
 
     suspend fun saveRecentStreams(encoded: String) {
         context.dataStore.edit { it[PreferencesKeys.RECENT_STREAMS] = encoded }
+    }
+
+    suspend fun updateDynamicColor(enabled: Boolean) {
+        context.dataStore.edit { it[PreferencesKeys.DYNAMIC_COLOR] = enabled }
+    }
+
+    suspend fun updateEffectsMode(mode: String) {
+        context.dataStore.edit { it[PreferencesKeys.EFFECTS_MODE] = mode }
     }
 
     suspend fun updateUpdateWifiOnly(enabled: Boolean) {

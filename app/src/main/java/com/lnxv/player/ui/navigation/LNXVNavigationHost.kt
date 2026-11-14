@@ -44,13 +44,14 @@ fun LNXVNavigationHost(navController: NavHostController) {
             }
         }
     }
+    val reduce = com.lnxv.player.core.design.LocalReduceEffects.current
     NavHost(
         navController = navController,
         startDestination = Screen.Home.route,
-        enterTransition = { fadeIn(tween(220)) + slideInHorizontally(tween(260)) { it / 8 } },
-        exitTransition = { fadeOut(tween(160)) + slideOutHorizontally(tween(260)) { -it / 12 } },
-        popEnterTransition = { fadeIn(tween(220)) + slideInHorizontally(tween(260)) { -it / 12 } },
-        popExitTransition = { fadeOut(tween(160)) + slideOutHorizontally(tween(260)) { it / 8 } }
+        enterTransition = { if (reduce) androidx.compose.animation.EnterTransition.None else fadeIn(tween(220)) + slideInHorizontally(tween(260)) { it / 8 } },
+        exitTransition = { if (reduce) androidx.compose.animation.ExitTransition.None else fadeOut(tween(160)) + slideOutHorizontally(tween(260)) { -it / 12 } },
+        popEnterTransition = { if (reduce) androidx.compose.animation.EnterTransition.None else fadeIn(tween(220)) + slideInHorizontally(tween(260)) { -it / 12 } },
+        popExitTransition = { if (reduce) androidx.compose.animation.ExitTransition.None else fadeOut(tween(160)) + slideOutHorizontally(tween(260)) { it / 8 } }
     ) {
         composable(Screen.Home.route) {
             val homeViewModel: HomeViewModel = viewModel()

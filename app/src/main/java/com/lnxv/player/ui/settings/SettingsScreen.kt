@@ -364,6 +364,46 @@ fun SettingsScreen(
             }
 
             item {
+                SectionHeader("Appearance & performance")
+                GlassPanel(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    backgroundColor = appColors.glassFill
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                            SettingSwitchRow(
+                                title = "Material You colors",
+                                subtitle = "Use your wallpaper colors (Android 12+)",
+                                isChecked = prefs.dynamicColor,
+                                onCheckedChange = { viewModel.setDynamicColor(it) }
+                            )
+                            Spacer(modifier = Modifier.height(14.dp))
+                        }
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { viewModel.cycleEffectsMode(prefs.effectsMode) },
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Reduce effects", color = appColors.textPrimary, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                                Text(
+                                    "Turns off backdrop blur and heavy animations. Auto enables it on low-RAM / 60 Hz devices.",
+                                    color = appColors.textTertiary, fontSize = 12.sp
+                                )
+                            }
+                            Text(
+                                text = when (prefs.effectsMode) { "ON" -> "On"; "OFF" -> "Off"; else -> "Auto" },
+                                color = appColors.accent, fontSize = 13.sp
+                            )
+                        }
+                    }
+                }
+            }
+
+            item {
                 SectionHeader("Security")
                 GlassPanel(
                     modifier = Modifier.fillMaxWidth(),

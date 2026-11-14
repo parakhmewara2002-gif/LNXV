@@ -138,6 +138,7 @@ fun PlayerScreen(
     val audioTracks by viewModel.audioTracks.collectAsState()
     val subtitleTracks by viewModel.subtitleTracks.collectAsState()
     val queueUi by viewModel.queueUi.collectAsState()
+    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
     val audioDelayMs by viewModel.audioDelayMs.collectAsState()
 
     var overlayState by remember { mutableStateOf(GestureOverlayState()) }
@@ -308,9 +309,15 @@ fun PlayerScreen(
             longPressEnabled = prefs.isLongPressSpeedEnabled,
             doubleTapSeekMs = prefs.doubleTapSeekSeconds * 1000L,
             onSingleTap = { viewModel.toggleControlsVisibility() },
-            onDoubleTapSeek = { delta -> viewModel.seekRelative(delta) },
+            onDoubleTapSeek = { delta ->
+                haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+                viewModel.seekRelative(delta)
+            },
             onDoubleTapCenter = { viewModel.togglePlayPause() },
-            onLongPressStart = { viewModel.startSpeedPreview() },
+            onLongPressStart = {
+                haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                viewModel.startSpeedPreview()
+            },
             onLongPressEnd = { viewModel.stopSpeedPreview() },
             onSeekCommitted = { target -> viewModel.seekTo(target) },
             onOverlayStateChanged = { overlayState = it }
