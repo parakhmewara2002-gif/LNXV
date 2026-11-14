@@ -56,6 +56,7 @@ import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.animation.togetherWith
 import coil.request.videoFrameMillis
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
@@ -129,7 +130,7 @@ import kotlinx.coroutines.delay
 
 /** Side panels (speed / aspect / audio / subtitles / properties). Extracted from PlayerScreen (Phase 4 split). */
 @Composable
-fun PlayerSidePanels(
+fun BoxScope.PlayerSidePanels(
     viewModel: PlayerViewModel,
     uiState: PlayerUiState,
     playbackState: com.lnxv.player.core.model.PlaybackState,
