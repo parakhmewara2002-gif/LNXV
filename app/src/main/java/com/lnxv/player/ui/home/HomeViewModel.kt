@@ -125,9 +125,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         val filteredVideos = if (query.isBlank()) {
             inCollection
         } else {
-            inCollection.filter {
-                it.title.contains(query, ignoreCase = true) || it.folderName.contains(query, ignoreCase = true)
-            }
+            val parsed = com.lnxv.player.core.model.SearchQuery.parse(query)
+            inCollection.filter { parsed.matches(it) }
         }
 
         val folders = MediaStoreScanner.extractFolders(allVids)

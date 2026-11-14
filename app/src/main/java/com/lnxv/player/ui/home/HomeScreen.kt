@@ -315,7 +315,7 @@ fun HomeScreen(
                     TextField(
                         value = uiState.searchQuery,
                         onValueChange = { viewModel.updateSearchQuery(it) },
-                        placeholder = { Text("Search videos or folders…", color = appColors.textTertiary) },
+                        placeholder = { Text("Search… (ext:mkv res:1080 size>500mb)", color = appColors.textTertiary) },
                         modifier = Modifier
                             .fillMaxWidth()
                             .liquidGlassSurface(shape = RoundedCornerShape(14.dp)),
