@@ -55,6 +55,9 @@ import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.animation.togetherWith
+import coil.request.videoFrameMillis
+import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import com.lnxv.player.core.design.videoSharedBounds
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -140,6 +143,7 @@ fun PlayerScreen(
     val subtitleTracks by viewModel.subtitleTracks.collectAsState()
     val queueUi by viewModel.queueUi.collectAsState()
     val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+    val reduceEffects = com.lnxv.player.core.design.LocalReduceEffects.current
     val audioDelayMs by viewModel.audioDelayMs.collectAsState()
 
     var overlayState by remember { mutableStateOf(GestureOverlayState()) }
@@ -536,12 +540,27 @@ fun PlayerScreen(
                                     .clickable { viewModel.togglePlayPause() },
                                 contentAlignment = Alignment.Center
                             ) {
-                                Icon(
-                                    imageVector = if (playbackState.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                    contentDescription = "Play/Pause",
-                                    tint = Color.Black,
-                                    modifier = Modifier.size(36.dp)
-                                )
+                                androidx.compose.animation.AnimatedContent(
+                                    targetState = playbackState.isPlaying,
+                                    transitionSpec = {
+                                        if (reduceEffects) {
+                                            androidx.compose.animation.EnterTransition.None togetherWith androidx.compose.animation.ExitTransition.None
+                                        } else {
+                                            (androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(140)) +
+                                                androidx.compose.animation.scaleIn(androidx.compose.animation.core.tween(160), initialScale = 0.5f)) togetherWith
+                                                (androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(90)) +
+                                                    androidx.compose.animation.scaleOut(androidx.compose.animation.core.tween(120), targetScale = 0.5f))
+                                        }
+                                    },
+                                    label = "play_pause_morph"
+                                ) { playing ->
+                                    Icon(
+                                        imageVector = if (playing) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                        contentDescription = "Play/Pause",
+                                        tint = Color.Black,
+                                        modifier = Modifier.size(36.dp)
+                                    )
+                                }
                             }
 
                             GlassIconButton(
@@ -576,6 +595,39 @@ fun PlayerScreen(
                                 // Timeline Scrubber
                                 val positionMs by viewModel.positionMs.collectAsState()
                                 var dragFraction by remember { mutableStateOf<Float?>(null) }
+                                // Thumbnail preview while scrubbing (local content:// / file:// videos only; never vault/network).
+                                val previewVideo = uiState.currentVideo
+                                val previewFraction = dragFraction
+                                if (previewFraction != null && !reduceEffects && previewVideo != null && !previewVideo.isVault &&
+                                    (previewVideo.uri.scheme == "content" || previewVideo.uri.scheme == "file")
+                                ) {
+                                    val previewMs = (SeekMath.fractionToPosition(previewFraction, playbackState.durationMs) / 1000L) * 1000L
+                                    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                                        coil.compose.AsyncImage(
+                                            model = coil.request.ImageRequest.Builder(LocalContext.current)
+                                                .data(previewVideo.uri)
+                                                .videoFrameMillis(previewMs)
+                                                .size(coil.size.Size(320, 180))
+                                                .build(),
+                                            contentDescription = null,
+                                            contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                                            modifier = Modifier
+                                                .size(width = 160.dp, height = 90.dp)
+                                                .clip(RoundedCornerShape(10.dp))
+                                                .background(Color(0x66000000))
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                }
+                                val sliderInteraction = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+                                val isScrubbing by sliderInteraction.collectIsDraggedAsState()
+                                val thumbScale by androidx.compose.animation.core.animateFloatAsState(
+                                    targetValue = if (isScrubbing && !reduceEffects) 1.5f else 1f,
+                                    animationSpec = androidx.compose.animation.core.spring(
+                                        dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy
+                                    ),
+                                    label = "thumb_scale"
+                                )
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     verticalAlignment = Alignment.CenterVertically,
@@ -593,6 +645,18 @@ fun PlayerScreen(
                                         value = dragFraction ?: SeekMath.positionToFraction(positionMs, playbackState.durationMs),
                                         enabled = playbackState.durationMs > 0 && playbackState.isSeekable,
                                         onValueChange = { dragFraction = it },
+                                        interactionSource = sliderInteraction,
+                                        thumb = {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(20.dp)
+                                                    .graphicsLayer {
+                                                        scaleX = thumbScale
+                                                        scaleY = thumbScale
+                                                    }
+                                                    .background(NeonCyan, CircleShape)
+                                            )
+                                        },
                                         onValueChangeFinished = {
                                             dragFraction?.let { f ->
                                                 viewModel.seekTo(SeekMath.fractionToPosition(f, playbackState.durationMs))
