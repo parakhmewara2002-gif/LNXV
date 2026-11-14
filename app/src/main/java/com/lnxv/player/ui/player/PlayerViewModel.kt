@@ -73,6 +73,9 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     val audioDelayMs: StateFlow<Long> = playerManager.audioDelayMs
 
     fun adjustAudioDelay(deltaMs: Long) = playerManager.setAudioDelayMs(playerManager.audioDelayMs.value + deltaMs)
+    val eqPreset: StateFlow<com.lnxv.player.core.model.EqPreset> = playerManager.eqPreset
+    fun cycleEqPreset() = playerManager.setEqPreset(playerManager.eqPreset.value.next())
+
     fun resetAudioDelay() = playerManager.setAudioDelayMs(0L)
 
     private val _uiState = MutableStateFlow(PlayerUiState())

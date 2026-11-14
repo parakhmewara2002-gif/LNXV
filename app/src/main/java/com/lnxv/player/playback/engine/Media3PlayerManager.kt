@@ -139,6 +139,20 @@ class Media3PlayerManager(private val context: Context) : Player.Listener {
     val playbackError: StateFlow<String?> = _playbackError.asStateFlow()
     fun clearPlaybackError() { _playbackError.value = null }
 
+    private val audioEffects = AudioEffectsController()
+    private val _eqPreset = MutableStateFlow(com.lnxv.player.core.model.EqPreset.FLAT)
+    val eqPreset: StateFlow<com.lnxv.player.core.model.EqPreset> = _eqPreset
+
+    fun setEqPreset(p: com.lnxv.player.core.model.EqPreset) {
+        audioEffects.attach(exoPlayer.audioSessionId)
+        audioEffects.setPreset(p)
+        _eqPreset.value = p
+    }
+
+    override fun onAudioSessionIdChanged(audioSessionId: Int) {
+        audioEffects.attach(audioSessionId)
+    }
+
     override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
         _playbackError.value = when (error.errorCode) {
             androidx.media3.common.PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
@@ -629,6 +643,7 @@ class Media3PlayerManager(private val context: Context) : Player.Listener {
         progressTrackingJob?.cancel()
         sleepTimerJob?.cancel()
         exoPlayer.removeListener(this)
+        audioEffects.releaseEffects()
         exoPlayer.release()
     }
 }

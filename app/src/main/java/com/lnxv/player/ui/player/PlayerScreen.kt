@@ -909,6 +909,13 @@ fun PlayerScreen(
                                                     onClick = { viewModel.cycleRepeat() }
                                                 )
                                             }
+                                            if (viewModel.userPrefs.collectAsState().value.isEnabled(com.lnxv.player.core.flags.FeatureFlag.EQUALIZER)) {
+                                                val eqPreset by viewModel.eqPreset.collectAsState()
+                                                PlayerMenuItem(
+                                                    text = { Text("Equalizer: ${eqPreset.label} (tap to change)") },
+                                                    onClick = { viewModel.cycleEqPreset() }
+                                                )
+                                            }
                                             PlayerMenuItem(
                                                 text = { Text("Audio delay +50 ms (now $audioDelayMs ms)") },
                                                 onClick = { viewModel.adjustAudioDelay(50L) }

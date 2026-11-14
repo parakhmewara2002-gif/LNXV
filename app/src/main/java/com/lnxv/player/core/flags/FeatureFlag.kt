@@ -31,6 +31,11 @@ enum class FeatureFlag(val title: String, val description: String, val defaultEn
         "Remember the playback speed separately for each video (not stored for vault videos).",
         true
     ),
+    EQUALIZER(
+        "Equalizer presets",
+        "Adds an Equalizer preset switcher (Flat, Bass, Vocal, Treble, Loud) to the player menu. Uses the system audio effect; may be unsupported on some devices.",
+        false
+    ),
     SKIP_SILENCE(
         "Skip silence",
         "Skip silent parts of the audio during playback (takes effect on the next video you open). Experimental: can make audio sound clipped.",
