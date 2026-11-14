@@ -112,13 +112,13 @@ class LNXVApplication : Application(), ImageLoaderFactory {
             }
             .memoryCache {
                 MemoryCache.Builder(this)
-                    .maxSizePercent(0.25)
+                    .maxSizePercent(0.12)
                     .build()
             }
             .diskCache {
                 DiskCache.Builder()
                     .directory(cacheDir.resolve("lnxv_thumbnail_cache"))
-                    .maxSizePercent(0.05)
+                    .maxSizeBytes(50L * 1024 * 1024)
                     .build()
             }
             .respectCacheHeaders(false)

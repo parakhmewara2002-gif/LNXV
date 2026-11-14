@@ -35,6 +35,7 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -474,6 +475,80 @@ fun SettingsScreen(
                                 onCheckedChange = { viewModel.setFlag(flag, it) }
                             )
                         }
+                    }
+                }
+            }
+
+            item {
+                SectionHeader("Storage")
+                GlassPanel(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    backgroundColor = appColors.glassFill
+                ) {
+                    val ctx = androidx.compose.ui.platform.LocalContext.current
+                    val scope = androidx.compose.runtime.rememberCoroutineScope()
+                    var cacheBytes by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(-1L) }
+                    var dataBytes by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(-1L) }
+                    val refresh: () -> Unit = {
+                        scope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                            val c = com.lnxv.player.core.util.StorageUtil.sizeOf(ctx.cacheDir)
+                            val d = com.lnxv.player.core.util.StorageUtil.sizeOf(ctx.filesDir)
+                            cacheBytes = c
+                            dataBytes = d
+                        }
+                    }
+                    LaunchedEffect(Unit) { refresh() }
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("Cache: ${if (cacheBytes < 0) "…" else com.lnxv.player.core.util.StorageUtil.format(cacheBytes)}", color = appColors.textPrimary, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                        Text("App data (vault, database): ${if (dataBytes < 0) "…" else com.lnxv.player.core.util.StorageUtil.format(dataBytes)}", color = appColors.textSecondary, fontSize = 12.sp)
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(
+                            "Clear thumbnails",
+                            color = appColors.accent,
+                            fontSize = 15.sp,
+                            modifier = Modifier.fillMaxWidth().clickable {
+                                scope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                                    val loader = coil.Coil.imageLoader(ctx)
+                                    loader.memoryCache?.clear()
+                                    loader.diskCache?.clear()
+                                    refresh()
+                                }
+                            }.padding(vertical = 10.dp)
+                        )
+                        Text(
+                            "Clear cache (thumbnails, downloaded updates, temp subtitles)",
+                            color = appColors.accent,
+                            fontSize = 15.sp,
+                            modifier = Modifier.fillMaxWidth().clickable {
+                                scope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                                    coil.Coil.imageLoader(ctx).memoryCache?.clear()
+                                    com.lnxv.player.core.util.StorageUtil.clearContents(ctx.cacheDir)
+                                    refresh()
+                                }
+                            }.padding(vertical = 10.dp)
+                        )
+                        Text("Your videos and the encrypted vault are never touched by these actions.", color = appColors.textTertiary, fontSize = 11.sp)
+                    }
+                }
+            }
+
+            item {
+                SectionHeader("Privacy")
+                GlassPanel(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    backgroundColor = appColors.glassFill
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("No analytics. No tracking. No ads.", color = appColors.textPrimary, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            "Stored only on this device: watch history and resume positions, favorites, playlists, settings, recent network URLs, and the encrypted vault. " +
+                                "The only network requests are the update check to GitHub (sideload build) and streams you open yourself.",
+                            color = appColors.textSecondary,
+                            fontSize = 12.sp
+                        )
                     }
                 }
             }
