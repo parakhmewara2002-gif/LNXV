@@ -50,6 +50,27 @@ jobs:
         continue-on-error: true
         run: ./gradlew lintSideloadDebug --console=plain
 
+      - name: Static analysis - detekt + ktlint (non-blocking until findings are triaged)
+        continue-on-error: true
+        run: |
+          mkdir -p "$RUNNER_TEMP/sa" analysis
+          curl -fsSL -o "$RUNNER_TEMP/sa/detekt.jar" https://github.com/detekt/detekt/releases/download/v1.23.7/detekt-cli-1.23.7-all.jar
+          java -jar "$RUNNER_TEMP/sa/detekt.jar" --input app/src/main/java --config .github/detekt.yml --build-upon-default-config \
+            --report txt:analysis/detekt.txt --report html:analysis/detekt.html || true
+          curl -fsSL -o "$RUNNER_TEMP/sa/ktlint" https://github.com/pinterest/ktlint/releases/download/1.3.1/ktlint
+          chmod +x "$RUNNER_TEMP/sa/ktlint"
+          "$RUNNER_TEMP/sa/ktlint" "app/src/main/java/**/*.kt" --reporter=plain > analysis/ktlint.txt || true
+          echo "detekt findings: $(grep -c . analysis/detekt.txt 2>/dev/null || echo 0)"
+          echo "ktlint findings: $(grep -c . analysis/ktlint.txt 2>/dev/null || echo 0)"
+
+      - name: Upload static analysis reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: static-analysis
+          path: analysis/
+          if-no-files-found: ignore
+
       - name: Decode signing keystore
         run: echo "${{ secrets.KEYSTORE_B64 }}" | base64 -d > $RUNNER_TEMP/lnxv.jks
 
