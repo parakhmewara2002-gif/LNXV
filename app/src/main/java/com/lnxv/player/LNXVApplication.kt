@@ -41,6 +41,10 @@ class LNXVApplication : Application(), ImageLoaderFactory {
     override fun onCreate() {
         super.onCreate()
         instance = this
+        org.koin.core.context.startKoin {
+            org.koin.android.ext.koin.androidContext(this@LNXVApplication)
+            modules(appModule)
+        }
         if (applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE != 0) enableStrictMode()
         registerScreenOffLock()
         // Warm up DataStore off the main thread

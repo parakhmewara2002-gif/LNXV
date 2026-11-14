@@ -50,11 +50,12 @@ data class PlayerUiState(
     val accessDenied: Boolean = false
 )
 
-class PlayerViewModel(application: Application) : AndroidViewModel(application) {
-
-    private val playerManager = (application as LNXVApplication).playerManager
-    private val videoRepository = (application as LNXVApplication).videoRepository
-    private val dataStore = (application as LNXVApplication).dataStore
+class PlayerViewModel(
+    application: Application,
+    private val playerManager: com.lnxv.player.playback.engine.PlayerController,
+    private val videoRepository: com.lnxv.player.data.repository.VideoRepository,
+    private val dataStore: com.lnxv.player.core.datastore.UserPreferencesDataStore
+) : AndroidViewModel(application) {
     private var pendingSpeed = 1.0f
     private var closed = false
 
@@ -142,7 +143,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     fun cycleRepeat() {
         val q = queue ?: return
         val mode = q.cycleRepeat()
-        playerManager.exoPlayer.repeatMode =
+        playerManager.repeatMode =
             if (mode == RepeatMode.ONE) androidx.media3.common.Player.REPEAT_MODE_ONE else androidx.media3.common.Player.REPEAT_MODE_OFF
         publishQueue()
     }
@@ -355,7 +356,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         if (playerManager.owner === this) {
             playerManager.owner = null
             playerManager.isVideoScreenActive = false
-            playerManager.exoPlayer.repeatMode = androidx.media3.common.Player.REPEAT_MODE_OFF
+            playerManager.repeatMode = androidx.media3.common.Player.REPEAT_MODE_OFF
             playerManager.stopPlayback()
         }
     }

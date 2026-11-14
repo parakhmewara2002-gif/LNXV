@@ -91,7 +91,7 @@ fun LNXVNavigationHost(navController: NavHostController) {
             com.lnxv.player.core.design.LocalNavAnimatedScope provides this
           ) {
             val videoId = backStackEntry.arguments?.getLong("videoId") ?: 0L
-            val playerViewModel: PlayerViewModel = viewModel()
+            val playerViewModel: PlayerViewModel = org.koin.androidx.compose.koinViewModel()
             val playerUi by playerViewModel.uiState.collectAsState()
             val ctx = androidx.compose.ui.platform.LocalContext.current
             androidx.compose.runtime.LaunchedEffect(Unit) {

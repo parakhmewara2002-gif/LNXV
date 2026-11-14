@@ -42,7 +42,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 @OptIn(UnstableApi::class)
-class Media3PlayerManager(private val context: Context) : Player.Listener {
+class Media3PlayerManager(private val context: Context) : PlayerController, Player.Listener {
 
     private val scope = CoroutineScope(Dispatchers.Main + Job())
 
@@ -70,9 +70,9 @@ class Media3PlayerManager(private val context: Context) : Player.Listener {
 
     private val _audioDelayMs = MutableStateFlow(0L)
     /** Audio delay in ms (0..2000, 50 ms steps). Negative delay is not supported (documented limitation). */
-    val audioDelayMs: StateFlow<Long> = _audioDelayMs.asStateFlow()
+    override val audioDelayMs: StateFlow<Long> = _audioDelayMs.asStateFlow()
 
-    fun setAudioDelayMs(ms: Long) {
+    override fun setAudioDelayMs(ms: Long) {
         val v = ms.coerceIn(AudioDelayProcessor.MIN_DELAY_MS, AudioDelayProcessor.MAX_DELAY_MS)
         audioDelayProcessor.setDelayMs(v)
         _audioDelayMs.value = v
@@ -109,20 +109,20 @@ class Media3PlayerManager(private val context: Context) : Player.Listener {
     /** Event log + decoder info + report builder (used by Video Properties -> diagnostic report). */
     val diagnostics = DiagnosticsCollector(context).also { it.attach(exoPlayer) }
 
-    fun diagnosticsSnapshot(video: com.lnxv.player.core.model.VideoItem?, containerInfo: String): String =
+    override fun diagnosticsSnapshot(video: com.lnxv.player.core.model.VideoItem?, containerInfo: String): String =
         diagnostics.snapshot(exoPlayer, video, containerInfo)
 
     private val _playbackState = MutableStateFlow(PlaybackState())
-    val playbackState: StateFlow<PlaybackState> = _playbackState.asStateFlow()
+    override val playbackState: StateFlow<PlaybackState> = _playbackState.asStateFlow()
 
     private val _positionMs = MutableStateFlow(0L)
-    val positionMs: StateFlow<Long> = _positionMs.asStateFlow()
+    override val positionMs: StateFlow<Long> = _positionMs.asStateFlow()
 
     private val _audioTracks = MutableStateFlow<List<AudioTrackInfo>>(emptyList())
-    val audioTracks: StateFlow<List<AudioTrackInfo>> = _audioTracks.asStateFlow()
+    override val audioTracks: StateFlow<List<AudioTrackInfo>> = _audioTracks.asStateFlow()
 
     private val _subtitleTracks = MutableStateFlow<List<SubtitleTrackInfo>>(emptyList())
-    val subtitleTracks: StateFlow<List<SubtitleTrackInfo>> = _subtitleTracks.asStateFlow()
+    override val subtitleTracks: StateFlow<List<SubtitleTrackInfo>> = _subtitleTracks.asStateFlow()
 
     private var progressTrackingJob: Job? = null
     private var sleepTimerJob: Job? = null
@@ -141,18 +141,18 @@ class Media3PlayerManager(private val context: Context) : Player.Listener {
 
     private val audioEffects = AudioEffectsController()
     private val _eqPreset = MutableStateFlow(com.lnxv.player.core.model.EqPreset.FLAT)
-    val eqPreset: StateFlow<com.lnxv.player.core.model.EqPreset> = _eqPreset
+    override val eqPreset: StateFlow<com.lnxv.player.core.model.EqPreset> = _eqPreset
 
-    fun setEqPreset(p: com.lnxv.player.core.model.EqPreset) {
+    override fun setEqPreset(p: com.lnxv.player.core.model.EqPreset) {
         audioEffects.attach(exoPlayer.audioSessionId)
         audioEffects.setPreset(p)
         _eqPreset.value = p
     }
 
     private val _boostMb = MutableStateFlow(0)
-    val boostMb: StateFlow<Int> = _boostMb
+    override val boostMb: StateFlow<Int> = _boostMb
 
-    fun setBoostMb(mb: Int) {
+    override fun setBoostMb(mb: Int) {
         audioEffects.attach(exoPlayer.audioSessionId)
         audioEffects.setBoost(mb)
         _boostMb.value = audioEffects.boostMb
@@ -181,12 +181,12 @@ class Media3PlayerManager(private val context: Context) : Player.Listener {
     }
 
     private val _subtitleDelayMs = MutableStateFlow(0L)
-    val subtitleDelayMs: StateFlow<Long> = _subtitleDelayMs.asStateFlow()
+    override val subtitleDelayMs: StateFlow<Long> = _subtitleDelayMs.asStateFlow()
     private val _hasExternalSubtitle = MutableStateFlow(false)
-    val hasExternalSubtitle: StateFlow<Boolean> = _hasExternalSubtitle.asStateFlow()
+    override val hasExternalSubtitle: StateFlow<Boolean> = _hasExternalSubtitle.asStateFlow()
 
     /** @return false when the file is not a supported SRT/VTT subtitle. */
-    suspend fun loadExternalSubtitle(uri: Uri): Boolean {
+    override suspend fun loadExternalSubtitle(uri: Uri): Boolean {
         externalSubtitleSource = uri
         _subtitleDelayMs.value = 0L
         val ok = applyExternalSubtitle()
@@ -197,7 +197,7 @@ class Media3PlayerManager(private val context: Context) : Player.Listener {
         return ok
     }
 
-    suspend fun adjustSubtitleDelay(deltaMs: Long) {
+    override suspend fun adjustSubtitleDelay(deltaMs: Long) {
         if (externalSubtitleSource == null) return
         _subtitleDelayMs.value = (_subtitleDelayMs.value + deltaMs).coerceIn(-60_000L, 60_000L)
         applyExternalSubtitle()
@@ -245,11 +245,11 @@ class Media3PlayerManager(private val context: Context) : Player.Listener {
         }
     }
 
-    fun prepareAndPlay(
+    override fun prepareAndPlay(
         uri: Uri,
-        startPositionMs: Long = 0L,
-        externalSubtitleUri: Uri? = null,
-        title: String? = null
+        startPositionMs: Long,
+        externalSubtitleUri: Uri?,
+        title: String?
     ) {
         externalSubtitleSource = null
         _playbackError.value = null
@@ -289,11 +289,11 @@ class Media3PlayerManager(private val context: Context) : Player.Listener {
         exoPlayer.play()
     }
 
-    fun pause() {
+    override fun pause() {
         exoPlayer.pause()
     }
 
-    fun togglePlayPause() {
+    override fun togglePlayPause() {
         if (exoPlayer.isPlaying) pause() else play()
     }
 
@@ -318,7 +318,7 @@ class Media3PlayerManager(private val context: Context) : Player.Listener {
     }
 
     /** Facts about the loaded stream (shown in Video Properties) for diagnosing playback problems. */
-    fun describeStream(): List<Pair<String, String>> {
+    override fun describeStream(): List<Pair<String, String>> {
         val out = mutableListOf<Pair<String, String>>()
         val v = exoPlayer.videoFormat
         val a = exoPlayer.audioFormat
@@ -338,7 +338,7 @@ class Media3PlayerManager(private val context: Context) : Player.Listener {
         return out
     }
 
-    fun seekTo(positionMs: Long) {
+    override fun seekTo(positionMs: Long) {
         diagnostics.note("seekTo requested=${diagnostics.fmt(positionMs)} duration=${diagnostics.fmt(exoPlayer.duration)} seekable=${exoPlayer.isCurrentMediaItemSeekable}")
         if (isSeekBlocked()) {
             diagnostics.note("seek BLOCKED: file is unseekable")
@@ -350,7 +350,7 @@ class Media3PlayerManager(private val context: Context) : Player.Listener {
         _positionMs.value = target // publish immediately so repeated/rapid seeks never use a stale position
     }
 
-    fun seekRelative(deltaMs: Long) {
+    override fun seekRelative(deltaMs: Long) {
         diagnostics.note("seekRelative delta=${deltaMs}ms from=${diagnostics.fmt(exoPlayer.currentPosition)}")
         if (isSeekBlocked()) {
             diagnostics.note("seek BLOCKED: file is unseekable")
@@ -363,7 +363,7 @@ class Media3PlayerManager(private val context: Context) : Player.Listener {
     }
 
     /** Pauses and steps one video frame (frame duration from the stream's frame rate, 30 fps fallback). */
-    fun stepFrame(forward: Boolean) {
+    override fun stepFrame(forward: Boolean) {
         exoPlayer.pause()
         val fps = exoPlayer.videoFormat?.frameRate?.takeIf { it > 0f } ?: 30f
         val frameMs = (1000f / fps).roundToLong().coerceAtLeast(1L)
@@ -371,13 +371,13 @@ class Media3PlayerManager(private val context: Context) : Player.Listener {
     }
 
     /** Which ViewModel currently owns playback (prevents a late-cleared screen from stopping a newer video). */
-    @Volatile var owner: Any? = null
+    @Volatile override var owner: Any? = null
 
     /** True while the video player screen is on screen (used for auto-PiP decisions). */
-    @Volatile var isVideoScreenActive: Boolean = false
+    @Volatile override var isVideoScreenActive: Boolean = false
 
     /** Fully stops playback and releases the loaded media (the ExoPlayer instance itself is kept). */
-    fun stopPlayback() {
+    override fun stopPlayback() {
         exoPlayer.pause()
         exoPlayer.stop()
         exoPlayer.clearMediaItems()
@@ -396,51 +396,51 @@ class Media3PlayerManager(private val context: Context) : Player.Listener {
         }
     }
 
-    fun setSkipSilence(enabled: Boolean) {
+    override fun setSkipSilence(enabled: Boolean) {
         exoPlayer.skipSilenceEnabled = enabled
     }
 
-    fun setPlaybackSpeed(speed: Float) {
+    override fun setPlaybackSpeed(speed: Float) {
         val clamped = speed.coerceIn(0.25f, 4.0f)
         exoPlayer.playbackParameters = PlaybackParameters(clamped)
         _playbackState.update { it.copy(playbackSpeed = clamped) }
     }
 
-    fun startSpeedPreview(previewSpeed: Float = 2.0f) {
+    override fun startSpeedPreview(previewSpeed: Float) {
         if (savedSpeedBeforePreview == null) {
             savedSpeedBeforePreview = exoPlayer.playbackParameters.speed
             exoPlayer.playbackParameters = PlaybackParameters(previewSpeed)
         }
     }
 
-    fun stopSpeedPreview() {
+    override fun stopSpeedPreview() {
         savedSpeedBeforePreview?.let { speed ->
             exoPlayer.playbackParameters = PlaybackParameters(speed)
             savedSpeedBeforePreview = null
         }
     }
 
-    fun setAspectRatio(mode: AspectRatioMode) {
+    override fun setAspectRatio(mode: AspectRatioMode) {
         _playbackState.update { it.copy(aspectRatio = mode) }
     }
 
-    fun setDecoderMode(mode: DecoderMode) {
+    override fun setDecoderMode(mode: DecoderMode) {
         _playbackState.update { it.copy(decoderMode = mode) }
     }
 
-    fun toggleScreenLock() {
+    override fun toggleScreenLock() {
         _playbackState.update { it.copy(isScreenLocked = !it.isScreenLocked) }
     }
 
     // --- AB Repeat Functionality ---
-    fun setPointA() {
+    override fun setPointA() {
         val currentPos = exoPlayer.currentPosition
         _playbackState.update {
             it.copy(abRepeat = it.abRepeat.copy(isEnabled = true, pointA = currentPos))
         }
     }
 
-    fun setPointB() {
+    override fun setPointB() {
         val currentPos = exoPlayer.currentPosition
         val pointA = _playbackState.value.abRepeat.pointA ?: 0L
         if (currentPos > pointA) {
@@ -450,14 +450,14 @@ class Media3PlayerManager(private val context: Context) : Player.Listener {
         }
     }
 
-    fun clearABRepeat() {
+    override fun clearABRepeat() {
         _playbackState.update {
             it.copy(abRepeat = ABRepeatState(isEnabled = false, pointA = null, pointB = null))
         }
     }
 
     // --- Sleep Timer Functionality ---
-    fun startSleepTimer(minutes: Int, fadeOut: Boolean = false) {
+    override fun startSleepTimer(minutes: Int, fadeOut: Boolean) {
         sleepTimerJob?.cancel()
         exoPlayer.volume = 1f
         if (minutes == 0 || minutes < SleepFade.END_OF_VIDEO) {
@@ -494,14 +494,18 @@ class Media3PlayerManager(private val context: Context) : Player.Listener {
         }
     }
 
-    fun cancelSleepTimer() {
+    override var repeatMode: Int
+        get() = exoPlayer.repeatMode
+        set(value) { exoPlayer.repeatMode = value }
+
+    override fun cancelSleepTimer() {
         sleepTimerJob?.cancel()
         exoPlayer.volume = 1f
         _playbackState.update { it.copy(sleepTimerRemainingSeconds = null) }
     }
 
     // --- Track Selection (Audio & Subtitle) ---
-    fun selectAudioTrack(track: AudioTrackInfo) {
+    override fun selectAudioTrack(track: AudioTrackInfo) {
         val currentTracks = exoPlayer.currentTracks
         for (group in currentTracks.groups) {
             if (group.type == C.TRACK_TYPE_AUDIO) {
@@ -520,7 +524,7 @@ class Media3PlayerManager(private val context: Context) : Player.Listener {
         }
     }
 
-    fun selectSubtitleTrack(track: SubtitleTrackInfo?) {
+    override fun selectSubtitleTrack(track: SubtitleTrackInfo?) {
         if (track == null) {
             // Turn off subtitles
             trackSelector.setParameters(

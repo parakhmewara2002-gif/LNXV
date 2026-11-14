@@ -100,6 +100,8 @@ dependencies {
     implementation(libs.androidx.core.splashscreen)
     // Real backdrop blur (RenderEffect on Android 12+, translucent fallback below). Used on one bar only.
     implementation(libs.haze)
+    implementation(libs.koin.android)
+    implementation(libs.koin.compose)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.activity.compose)
