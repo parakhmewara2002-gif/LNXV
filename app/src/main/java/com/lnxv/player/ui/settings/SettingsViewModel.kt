@@ -86,6 +86,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch { dataStore.updateSubtitleSize(size.coerceIn(10f, 32f)) }
     }
 
+    fun setSubtitleBg(pct: Int) { viewModelScope.launch { dataStore.updateSubtitleBg(pct) } }
+    fun setSubtitleEdge(edge: String) { viewModelScope.launch { dataStore.updateSubtitleEdge(edge) } }
+    fun setSubtitleBottom(pct: Int) { viewModelScope.launch { dataStore.updateSubtitleBottom(pct) } }
+
     fun setSubtitleColor(hex: String) {
         viewModelScope.launch { dataStore.updateSubtitleColor(hex) }
     }

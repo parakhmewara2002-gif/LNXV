@@ -241,6 +241,15 @@ fun SettingsScreen(
                                 modifier = Modifier.clickable { viewModel.setSubtitleSize(prefs.subtitleTextSize + 2f) }
                             )
                         }
+                        if (prefs.isEnabled(com.lnxv.player.core.flags.FeatureFlag.SUBTITLE_STYLING)) {
+                            Spacer(modifier = Modifier.height(14.dp))
+                            StepRow("Subtitle background", "${prefs.subtitleBgOpacityPct}%", { viewModel.setSubtitleBg(prefs.subtitleBgOpacityPct - 10) }, { viewModel.setSubtitleBg(prefs.subtitleBgOpacityPct + 10) })
+                            Spacer(modifier = Modifier.height(14.dp))
+                            StepRow("Subtitle position (from bottom)", "${prefs.subtitleBottomPct}%", { viewModel.setSubtitleBottom(prefs.subtitleBottomPct - 2) }, { viewModel.setSubtitleBottom(prefs.subtitleBottomPct + 2) })
+                            Spacer(modifier = Modifier.height(14.dp))
+                            val edges = listOf("OUTLINE", "SHADOW", "NONE")
+                            StepRow("Subtitle edge", prefs.subtitleEdge.lowercase(), { viewModel.setSubtitleEdge(edges[(edges.indexOf(prefs.subtitleEdge).coerceAtLeast(0) + edges.size - 1) % edges.size]) }, { viewModel.setSubtitleEdge(edges[(edges.indexOf(prefs.subtitleEdge).coerceAtLeast(0) + 1) % edges.size]) })
+                        }
                         Spacer(modifier = Modifier.height(14.dp))
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -502,6 +511,22 @@ fun SettingsScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun StepRow(title: String, value: String, onMinus: () -> Unit, onPlus: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = title, color = appColors.textPrimary, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+            Text(text = value, color = appColors.textSecondary, fontSize = 12.sp)
+        }
+        Text(text = "  −  ", color = appColors.accent, fontSize = 22.sp, modifier = Modifier.clickable(onClick = onMinus))
+        Text(text = "  +  ", color = appColors.accent, fontSize = 22.sp, modifier = Modifier.clickable(onClick = onPlus))
     }
 }
 

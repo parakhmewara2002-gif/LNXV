@@ -34,6 +34,9 @@ data class UserPreferences(
     val resumePlaybackMode: String = "ALWAYS",
     val subtitleTextSize: Float = 16f,
     val subtitleTextColorHex: String = "#FFFFFFFF",
+    val subtitleBgOpacityPct: Int = 50,
+    val subtitleEdge: String = "OUTLINE",
+    val subtitleBottomPct: Int = 8,
     val librarySortMode: String = "DATE_DESC",
     val vaultPinHash: String = "",
     val isBackgroundPlayEnabled: Boolean = false,
@@ -84,6 +87,9 @@ class UserPreferencesDataStore(private val context: Context) {
         val RESUME_MODE = stringPreferencesKey("resume_mode")
         val SUBTITLE_SIZE = floatPreferencesKey("subtitle_size")
         val SUBTITLE_COLOR = stringPreferencesKey("subtitle_color")
+        val SUBTITLE_BG = intPreferencesKey("subtitle_bg_pct")
+        val SUBTITLE_EDGE = stringPreferencesKey("subtitle_edge")
+        val SUBTITLE_BOTTOM = intPreferencesKey("subtitle_bottom_pct")
         val LIBRARY_SORT = stringPreferencesKey("library_sort")
         val VAULT_PIN_HASH = stringPreferencesKey("vault_pin_hash")
         val BACKGROUND_PLAY = booleanPreferencesKey("background_play")
@@ -125,6 +131,9 @@ class UserPreferencesDataStore(private val context: Context) {
             resumePlaybackMode = prefs[PreferencesKeys.RESUME_MODE] ?: "ALWAYS",
             subtitleTextSize = prefs[PreferencesKeys.SUBTITLE_SIZE] ?: 16f,
             subtitleTextColorHex = prefs[PreferencesKeys.SUBTITLE_COLOR] ?: "#FFFFFFFF",
+            subtitleBgOpacityPct = prefs[PreferencesKeys.SUBTITLE_BG] ?: 50,
+            subtitleEdge = prefs[PreferencesKeys.SUBTITLE_EDGE] ?: "OUTLINE",
+            subtitleBottomPct = prefs[PreferencesKeys.SUBTITLE_BOTTOM] ?: 8,
             librarySortMode = prefs[PreferencesKeys.LIBRARY_SORT] ?: "DATE_DESC",
             vaultPinHash = prefs[PreferencesKeys.VAULT_PIN_HASH] ?: "",
             isBackgroundPlayEnabled = prefs[PreferencesKeys.BACKGROUND_PLAY] ?: false,
@@ -209,6 +218,10 @@ class UserPreferencesDataStore(private val context: Context) {
     suspend fun updateSubtitleSize(size: Float) {
         context.dataStore.edit { it[PreferencesKeys.SUBTITLE_SIZE] = size }
     }
+
+    suspend fun updateSubtitleBg(pct: Int) { context.dataStore.edit { it[PreferencesKeys.SUBTITLE_BG] = pct.coerceIn(0, 100) } }
+    suspend fun updateSubtitleEdge(edge: String) { context.dataStore.edit { it[PreferencesKeys.SUBTITLE_EDGE] = edge } }
+    suspend fun updateSubtitleBottom(pct: Int) { context.dataStore.edit { it[PreferencesKeys.SUBTITLE_BOTTOM] = pct.coerceIn(0, 40) } }
 
     suspend fun updateSubtitleColor(hex: String) {
         context.dataStore.edit { it[PreferencesKeys.SUBTITLE_COLOR] = hex }

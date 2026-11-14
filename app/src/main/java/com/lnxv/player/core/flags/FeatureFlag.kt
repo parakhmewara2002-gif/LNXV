@@ -31,6 +31,11 @@ enum class FeatureFlag(val title: String, val description: String, val defaultEn
         "Remember the playback speed separately for each video (not stored for vault videos).",
         true
     ),
+    SUBTITLE_STYLING(
+        "Subtitle styling",
+        "Subtitle background opacity, edge style and vertical position in Settings. When off, the default style is used.",
+        true
+    ),
     VIDEO_TRANSFORMS(
         "Rotate / flip video",
         "Adds Rotate and Flip to the player menu. Applied to the video surface; may look wrong on some devices (SurfaceView).",

@@ -293,12 +293,20 @@ fun PlayerScreen(
                     } catch (e: Exception) {
                         android.graphics.Color.WHITE
                     }
+                    val styling = prefs.isEnabled(com.lnxv.player.core.flags.FeatureFlag.SUBTITLE_STYLING)
+                    val bgAlpha = if (styling) (prefs.subtitleBgOpacityPct.coerceIn(0, 100) * 255 / 100) else 0x80
+                    val edgeType = if (!styling) CaptionStyleCompat.EDGE_TYPE_OUTLINE else when (prefs.subtitleEdge) {
+                        "SHADOW" -> CaptionStyleCompat.EDGE_TYPE_DROP_SHADOW
+                        "NONE" -> CaptionStyleCompat.EDGE_TYPE_NONE
+                        else -> CaptionStyleCompat.EDGE_TYPE_OUTLINE
+                    }
+                    sv.setBottomPaddingFraction(if (styling) prefs.subtitleBottomPct.coerceIn(0, 40) / 100f else 0.08f)
                     sv.setStyle(
                         CaptionStyleCompat(
                             fg,
-                            0x80000000.toInt(),
+                            (bgAlpha shl 24),
                             android.graphics.Color.TRANSPARENT,
-                            CaptionStyleCompat.EDGE_TYPE_OUTLINE,
+                            edgeType,
                             android.graphics.Color.BLACK,
                             null
                         )
