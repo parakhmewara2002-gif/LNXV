@@ -752,6 +752,7 @@ fun PlayerScreen(
         if (showSleepDialog) {
             SleepTimerDialog(
                 activeSeconds = playbackState.sleepTimerRemainingSeconds,
+                showEndOfVideo = viewModel.userPrefs.collectAsState().value.isEnabled(com.lnxv.player.core.flags.FeatureFlag.SLEEP_TIMER_EXTRAS),
                 onSelect = { viewModel.startSleepTimer(it) },
                 onCancelTimer = { viewModel.cancelSleepTimer() },
                 onDismiss = { showSleepDialog = false }

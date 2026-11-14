@@ -25,6 +25,11 @@ enum class FeatureFlag(val title: String, val description: String, val defaultEn
         "Open with",
         "Play videos opened from other apps (VIEW intents).",
         true
+    ),
+    SLEEP_TIMER_EXTRAS(
+        "Sleep timer extras",
+        "Adds an 'End of video' option and fades the volume out over the last 10 seconds before the timer stops playback.",
+        true
     );
 
     companion object {

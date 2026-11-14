@@ -257,7 +257,10 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     fun setPointB() = playerManager.setPointB()
     fun clearABRepeat() = playerManager.clearABRepeat()
 
-    fun startSleepTimer(minutes: Int) = playerManager.startSleepTimer(minutes)
+    fun startSleepTimer(minutes: Int) = playerManager.startSleepTimer(
+        minutes,
+        fadeOut = userPrefs.value.isEnabled(com.lnxv.player.core.flags.FeatureFlag.SLEEP_TIMER_EXTRAS)
+    )
     fun cancelSleepTimer() = playerManager.cancelSleepTimer()
 
     fun selectAudioTrack(track: AudioTrackInfo) = playerManager.selectAudioTrack(track)

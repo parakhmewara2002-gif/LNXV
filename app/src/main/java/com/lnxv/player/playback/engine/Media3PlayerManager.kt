@@ -1,5 +1,6 @@
 package com.lnxv.player.playback.engine
 
+import com.lnxv.player.core.model.SleepFade
 import android.content.Context
 import android.net.Uri
 import androidx.annotation.OptIn
@@ -429,29 +430,46 @@ class Media3PlayerManager(private val context: Context) : Player.Listener {
     }
 
     // --- Sleep Timer Functionality ---
-    fun startSleepTimer(minutes: Int) {
+    fun startSleepTimer(minutes: Int, fadeOut: Boolean = false) {
         sleepTimerJob?.cancel()
-        if (minutes <= 0) {
+        exoPlayer.volume = 1f
+        if (minutes == 0 || minutes < SleepFade.END_OF_VIDEO) {
             _playbackState.update { it.copy(sleepTimerRemainingSeconds = null) }
             return
         }
 
-        var remainingSeconds = minutes * 60L
-        _playbackState.update { it.copy(sleepTimerRemainingSeconds = remainingSeconds) }
-
         sleepTimerJob = scope.launch {
-            while (remainingSeconds > 0 && isActive) {
-                delay(1000L)
-                remainingSeconds--
-                _playbackState.update { it.copy(sleepTimerRemainingSeconds = remainingSeconds) }
+            if (minutes == SleepFade.END_OF_VIDEO) {
+                // Pause when the current video finishes (or at the end, after the optional fade).
+                while (isActive) {
+                    val dur = exoPlayer.duration
+                    val remainingMs = if (dur > 0) (dur - exoPlayer.currentPosition).coerceAtLeast(0L) else Long.MAX_VALUE
+                    _playbackState.update {
+                        it.copy(sleepTimerRemainingSeconds = if (remainingMs == Long.MAX_VALUE) 0L else remainingMs / 1000L)
+                    }
+                    if (fadeOut) exoPlayer.volume = SleepFade.factor(remainingMs)
+                    if (exoPlayer.playbackState == Player.STATE_ENDED || (dur > 0 && remainingMs <= 300L)) break
+                    delay(500L)
+                }
+            } else {
+                val endAt = android.os.SystemClock.elapsedRealtime() + minutes * 60_000L
+                while (isActive) {
+                    val remainingMs = (endAt - android.os.SystemClock.elapsedRealtime()).coerceAtLeast(0L)
+                    _playbackState.update { it.copy(sleepTimerRemainingSeconds = (remainingMs + 999L) / 1000L) }
+                    if (fadeOut) exoPlayer.volume = SleepFade.factor(remainingMs)
+                    if (remainingMs <= 0L) break
+                    delay(500L)
+                }
             }
             pause()
+            exoPlayer.volume = 1f
             _playbackState.update { it.copy(sleepTimerRemainingSeconds = null) }
         }
     }
 
     fun cancelSleepTimer() {
         sleepTimerJob?.cancel()
+        exoPlayer.volume = 1f
         _playbackState.update { it.copy(sleepTimerRemainingSeconds = null) }
     }
 
