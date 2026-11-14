@@ -30,6 +30,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import dev.chrisbanes.haze.haze
+import dev.chrisbanes.haze.hazeChild
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -176,6 +178,9 @@ fun HomeScreen(
         )
     }
     var isSortMenuExpanded by remember { mutableStateOf(false) }
+    // One blur layer: the top bar blurs the list scrolling under it (skipped when "Reduce effects" is on).
+    val hazeState = remember { dev.chrisbanes.haze.HazeState() }
+    val reduceEffects = com.lnxv.player.core.design.LocalReduceEffects.current
     BackHandler(enabled = uiState.openFolderPath != null) { viewModel.closeFolder() }
 
     Scaffold(
@@ -185,9 +190,15 @@ fun HomeScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .then(
+                        if (reduceEffects) Modifier else Modifier.hazeChild(
+                            state = hazeState,
+                            shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)
+                        )
+                    )
                     .liquidGlassSurface(
                         shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp),
-                        backgroundColor = appColors.barFill,
+                        backgroundColor = if (reduceEffects) appColors.barFill else appColors.barFill.copy(alpha = 0.45f),
                         borderColor = appColors.glassBorder,
                         borderWidth = 1.dp
                     )
@@ -335,8 +346,14 @@ fun HomeScreen(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues),
-            contentPadding = PaddingValues(16.dp),
+                .then(if (reduceEffects) Modifier else Modifier.haze(state = hazeState)),
+            // The list scrolls under the top bar (so there is something to blur); padding keeps first item clear of it.
+            contentPadding = PaddingValues(
+                start = 16.dp,
+                end = 16.dp,
+                top = paddingValues.calculateTopPadding() + 16.dp,
+                bottom = paddingValues.calculateBottomPadding() + 16.dp
+            ),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // Continue Watching Carousel (shown on Videos tab when available)
