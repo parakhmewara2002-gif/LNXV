@@ -124,10 +124,16 @@ Known limits: per-video resume for transient opens is not stored; network-specif
 
 ## 13. Phase 5 closure
 - Audio-only mode via TrackSelector (video track type disabled), reset when the next video is prepared.
-- Closed as infeasible on the current stack (not skipped by choice): chapters (no Media3 1.4.1 API for MP4/MKV chapter lists), brightness/contrast/saturation (needs a GL effect pipeline on the ExoPlayer surface; Media3 effects target Transformer / ExoPlayer.setVideoEffects with a texture surface, incompatible with the current SurfaceView path), true loudness normalization (Media3 loudness controller needs API 35 / newer Media3), online subtitle search (needs a third-party API key and a UI to hold it).
+- Closed as infeasible on the current stack (not skipped by choice): chapters (no Media3 1.4.1 API for MP4/MKV chapter lists), brightness/contrast/saturation (CORRECTION: this was wrong; implemented in section 15 via ExoPlayer.setVideoEffects + media3-effect), true loudness normalization (Media3 loudness controller needs API 35 / newer Media3), online subtitle search (needs a third-party API key and a UI to hold it).
 
 ## 14. Phase 6 increment 2 (CI-compiled, NOT DEVICE-TESTED)
 - Multi-select, duplicates, search tokens (SearchQuery), playlist editing (PlaylistOrder, observeVideoIds/setPosition DAO queries - no schema change, no migration).
 - Localization: values-hi covers base strings plus Home UI; remaining screens are English. Translations were written without a native-speaker review: have one checked before release.
 - Accessibility: partial. Decorative icons keep contentDescription = null on purpose (text sits beside them).
 - Not built: see PROGRESS.md for the list and reasons.
+
+## 15. Final hardening round (Rules A-C, colour effects)
+- Rule A: material-icons-extended removed (24 icons as in-repo vector paths); custom ExtractorsFactory (Matroska, FMP4, MP4, TS, AVI, FLV, Ogg, PS, WAV, FLAC, ADTS, MP3 only; AC3/AC4/AMR/MIDI/image extractors dropped); resource locales en/hi; R8 full mode; store AAB; sizes printed to the CI step summary. CI green. R8 runtime behaviour NOT DEVICE-TESTED.
+- Rule B: `CacheCleaner` prunes cache/subs (7d, 20 MB), cache/updates (3d, 200 MB), cache/diag (14d, 5 MB) at startup off the main thread; unit-tested. Settings > Storage has manual clear.
+- Rule C: `DefaultLoadControl` with small buffers (15-40 s / 32 MB; 8-20 s / 16 MB on isLowRamDevice). No `largeHeap` in any manifest (verified by grep). Player release on leaving screen was already in place.
+- Phase 5: brightness / contrast / saturation via `ExoPlayer.setVideoEffects` (media3-effect 1.4.1, same version as other Media3 modules), behind flag VIDEO_TRANSFORMS, reset per video, neutral = no effect chain. NOT DEVICE-TESTED (GL pipeline behaviour on SurfaceView, vault/FLAG_SECURE interaction and low-end GPUs unverified).

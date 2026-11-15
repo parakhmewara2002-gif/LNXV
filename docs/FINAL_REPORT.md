@@ -33,7 +33,12 @@ Encrypted MKV lacks the late-Cues seek fix; interrupted encryption restarts; no 
 
 ## Not done (and why)
 - Phase 4: Home/Settings/Vault ViewModels on DI, PlayerViewModel unit test with a fake controller.
-- Phase 5 (infeasible on this stack, see changelog section 13): true loudness normalization, chapters, brightness/contrast/saturation, online subtitle search; per-axis gesture customization not built.
+- Phase 5 (infeasible on this stack, see changelog section 13): true loudness normalization, chapters, online subtitle search; per-axis gesture customization not built.
 - Phase 6: Paging 3, SAF picker, shortcuts/widget, full Hindi string extraction (Settings/Player/Vault), TalkBack audit, TV layouts (reasons in PROGRESS.md).
 - Rules A/C/D: remove material-icons-extended, locale filters, custom ExtractorsFactory, DefaultLoadControl tuning, WebP thumbnails, R8 full mode, APK size measurement.
 See also docs/DEVICE_CHECKLIST.md and PROGRESS.md.
+
+## Update: final round
+Done since the last report: Rules A (icons, extractors, locales, R8 full, AAB), B (cache cleanup), C (load control, no largeHeap), and video brightness/contrast/saturation (my earlier "infeasible" claim was wrong). Sizes are printed by CI in the run's step summary; none measured on device.
+
+Still NOT done (honest list): biometric unlock, chapter markers, true loudness normalization, online subtitle search, subtitle font choice, per-axis gesture customization, orientation lock modes/cutout handling, audio-only with screen off, thumbnail size slider, multi-select delete/share/rename (MediaStore write requests), Favorites smart collection, partial-hash duplicate finder, codec/duration/folder search filters, SAF picker, shortcuts/widget, D-pad/TV and foldable layouts, TalkBack pass, full string extraction for Settings/Player/Vault, Paging 3, WebP thumbnails, Koin for Home/Settings/Vault VMs, instrumented/macro tests beyond the compile-only :benchmark module. Everything above and all shipped features remain NOT DEVICE-TESTED.
