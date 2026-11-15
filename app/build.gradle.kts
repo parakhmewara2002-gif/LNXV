@@ -24,6 +24,9 @@ android {
     }
 
     // sideload: self-updating APK (arm64 only to keep it small). store: no installer permission, no updater.
+    // Only ship the languages LNXV is translated into (drops unused library locale resources).
+    defaultConfig { resourceConfigurations += listOf("en", "hi") }
+
     flavorDimensions += "dist"
     productFlavors {
         create("sideload") {
@@ -120,7 +123,6 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
-    implementation(libs.androidx.material.icons.extended)
     implementation(libs.androidx.navigation.compose)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.leakcanary)

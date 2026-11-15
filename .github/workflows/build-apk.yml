@@ -50,6 +50,13 @@ jobs:
         continue-on-error: true
         run: ./gradlew lintSideloadDebug --console=plain
 
+      - name: Report artifact sizes (measured, not estimated)
+        run: |
+          for f in app/build/outputs/apk/sideload/release/*.apk app/build/outputs/apk/store/release/*.apk app/build/outputs/bundle/storeRelease/*.aab; do
+            [ -f "$f" ] && echo "$(du -b "$f" | cut -f1) bytes  $f"
+          done | tee sizes.txt
+          { echo '### Artifact sizes'; echo '```'; cat sizes.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Compile benchmark module (not run; needs a device)
         run: ./gradlew :benchmark:assembleBenchmark --stacktrace
 
@@ -84,7 +91,7 @@ jobs:
           KS_PASS: ${{ secrets.KS_PASS }}
         run: |
           set +e
-          ./gradlew assembleSideloadRelease assembleStoreRelease --stacktrace --console=plain > build.log 2>&1
+          ./gradlew assembleSideloadRelease assembleStoreRelease bundleStoreRelease --stacktrace --console=plain > build.log 2>&1
           code=$?
           if [ $code -ne 0 ]; then
             grep -E "^e: |error:|What went wrong|Execution failed|Could not|FAILED|Caused by" build.log | head -40 | while IFS= read -r l; do echo "::error::${l:0:400}"; done

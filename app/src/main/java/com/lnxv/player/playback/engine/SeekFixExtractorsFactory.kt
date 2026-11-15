@@ -3,7 +3,20 @@ package com.lnxv.player.playback.engine
 import android.content.Context
 import android.net.Uri
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.extractor.DefaultExtractorsFactory
+import androidx.media3.common.Format
+import androidx.media3.common.util.TimestampAdjuster
+import androidx.media3.extractor.avi.AviExtractor
+import androidx.media3.extractor.flac.FlacExtractor
+import androidx.media3.extractor.flv.FlvExtractor
+import androidx.media3.extractor.mp3.Mp3Extractor
+import androidx.media3.extractor.mp4.FragmentedMp4Extractor
+import androidx.media3.extractor.mp4.Mp4Extractor
+import androidx.media3.extractor.ogg.OggExtractor
+import androidx.media3.extractor.ts.AdtsExtractor
+import androidx.media3.extractor.ts.DefaultTsPayloadReaderFactory
+import androidx.media3.extractor.ts.PsExtractor
+import androidx.media3.extractor.ts.TsExtractor
+import androidx.media3.extractor.wav.WavExtractor
 import androidx.media3.extractor.Extractor
 import androidx.media3.extractor.ExtractorsFactory
 import androidx.media3.extractor.mkv.MatroskaExtractor
@@ -46,40 +59,62 @@ class SeekFixMatroskaExtractor(
     }
 }
 
-/** Same extractors as [DefaultExtractorsFactory], except Matroska gets the Cues workaround when needed. */
+/**
+ * LNXV's own extractor list (Phase 4 / rule A): only the containers a video player needs, in a fixed sniffing order.
+ * Compared with Media3's DefaultExtractorsFactory it drops AC-3/AC-4/AMR/MIDI and the image extractors
+ * (JPEG, PNG, WebP, BMP, HEIF, AVIF), so R8 can strip them. Matroska gets the Cues workaround when needed.
+ * Supported: MKV/WebM, MP4/MOV/3GP (+fragmented), MPEG-TS, AVI, FLV, Ogg, MPEG-PS, WAV, FLAC, AAC (ADTS), MP3.
+ */
 @UnstableApi
 class SeekFixExtractorsFactory(private val context: Context) : ExtractorsFactory {
 
-    private val defaults = DefaultExtractorsFactory()
     private var subtitleParserFactory: SubtitleParser.Factory = DefaultSubtitleParserFactory()
     private var textTrackTranscodingEnabled = true
 
     @Suppress("OVERRIDE_DEPRECATION", "DEPRECATION")
     override fun experimentalSetTextTrackTranscodingEnabled(textTrackTranscodingEnabled: Boolean): ExtractorsFactory {
-        defaults.experimentalSetTextTrackTranscodingEnabled(textTrackTranscodingEnabled)
         this.textTrackTranscodingEnabled = textTrackTranscodingEnabled
         return this
     }
 
     override fun setSubtitleParserFactory(subtitleParserFactory: SubtitleParser.Factory): ExtractorsFactory {
-        defaults.setSubtitleParserFactory(subtitleParserFactory)
         this.subtitleParserFactory = subtitleParserFactory
         return this
     }
 
-    override fun createExtractors(): Array<Extractor> = defaults.createExtractors()
+    override fun createExtractors(): Array<Extractor> = build(null)
 
-    override fun createExtractors(uri: Uri, responseHeaders: Map<String, List<String>>): Array<Extractor> {
-        val base = defaults.createExtractors(uri, responseHeaders)
-        val cuesRelative = findCuesHint(uri) ?: return base
-        val flags = if (textTrackTranscodingEnabled) 0 else MatroskaExtractor.FLAG_EMIT_RAW_SUBTITLE_DATA
-        return Array(base.size) { i ->
-            if (base[i].underlyingImplementation is MatroskaExtractor) {
-                SeekFixMatroskaExtractor(subtitleParserFactory, flags, cuesRelative)
-            } else {
-                base[i]
-            }
-        }
+    override fun createExtractors(uri: Uri, responseHeaders: Map<String, List<String>>): Array<Extractor> =
+        build(findCuesHint(uri))
+
+    private fun build(cuesRelative: Long?): Array<Extractor> {
+        val rawSubs = !textTrackTranscodingEnabled
+        val mkvFlags = if (rawSubs) MatroskaExtractor.FLAG_EMIT_RAW_SUBTITLE_DATA else 0
+        val matroska: Extractor =
+            if (cuesRelative != null) SeekFixMatroskaExtractor(subtitleParserFactory, mkvFlags, cuesRelative)
+            else MatroskaExtractor(subtitleParserFactory, mkvFlags)
+        val cbr = Mp3Extractor.FLAG_ENABLE_CONSTANT_BITRATE_SEEKING
+        return arrayOf(
+            matroska,
+            FragmentedMp4Extractor(subtitleParserFactory, if (rawSubs) FragmentedMp4Extractor.FLAG_EMIT_RAW_SUBTITLE_DATA else 0),
+            Mp4Extractor(subtitleParserFactory, if (rawSubs) Mp4Extractor.FLAG_EMIT_RAW_SUBTITLE_DATA else 0),
+            TsExtractor(
+                TsExtractor.MODE_SINGLE_PMT,
+                if (rawSubs) TsExtractor.FLAG_EMIT_RAW_SUBTITLE_DATA else 0,
+                subtitleParserFactory,
+                TimestampAdjuster(0),
+                DefaultTsPayloadReaderFactory(0, emptyList<Format>()),
+                TsExtractor.DEFAULT_TIMESTAMP_SEARCH_BYTES
+            ),
+            AviExtractor(if (rawSubs) AviExtractor.FLAG_EMIT_RAW_SUBTITLE_DATA else 0, subtitleParserFactory),
+            FlvExtractor(),
+            OggExtractor(),
+            PsExtractor(),
+            WavExtractor(),
+            FlacExtractor(0),
+            AdtsExtractor(AdtsExtractor.FLAG_ENABLE_CONSTANT_BITRATE_SEEKING),
+            Mp3Extractor(cbr) // last: its sniffing is the most lenient
+        )
     }
 
     private fun findCuesHint(uri: Uri): Long? {
