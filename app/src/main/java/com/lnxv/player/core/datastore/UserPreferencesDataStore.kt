@@ -36,6 +36,7 @@ data class UserPreferences(
     val subtitleTextColorHex: String = "#FFFFFFFF",
     val subtitleBgOpacityPct: Int = 50,
     val gestureSensitivityPct: Int = 100,
+    val thumbSizeDp: Int = 170,
     val subtitleEdge: String = "OUTLINE",
     val subtitleBottomPct: Int = 8,
     val librarySortMode: String = "DATE_DESC",
@@ -91,6 +92,7 @@ class UserPreferencesDataStore(private val context: Context) {
         val SUBTITLE_COLOR = stringPreferencesKey("subtitle_color")
         val SUBTITLE_BG = intPreferencesKey("subtitle_bg_pct")
         val GESTURE_SENS = intPreferencesKey("gesture_sensitivity_pct")
+        val THUMB_SIZE = intPreferencesKey("thumb_size_dp")
         val SUBTITLE_EDGE = stringPreferencesKey("subtitle_edge")
         val SUBTITLE_BOTTOM = intPreferencesKey("subtitle_bottom_pct")
         val LIBRARY_SORT = stringPreferencesKey("library_sort")
@@ -137,6 +139,7 @@ class UserPreferencesDataStore(private val context: Context) {
             subtitleTextColorHex = prefs[PreferencesKeys.SUBTITLE_COLOR] ?: "#FFFFFFFF",
             subtitleBgOpacityPct = prefs[PreferencesKeys.SUBTITLE_BG] ?: 50,
             gestureSensitivityPct = prefs[PreferencesKeys.GESTURE_SENS] ?: 100,
+            thumbSizeDp = prefs[PreferencesKeys.THUMB_SIZE] ?: 170,
             subtitleEdge = prefs[PreferencesKeys.SUBTITLE_EDGE] ?: "OUTLINE",
             subtitleBottomPct = prefs[PreferencesKeys.SUBTITLE_BOTTOM] ?: 8,
             librarySortMode = prefs[PreferencesKeys.LIBRARY_SORT] ?: "DATE_DESC",
@@ -225,6 +228,7 @@ class UserPreferencesDataStore(private val context: Context) {
         context.dataStore.edit { it[PreferencesKeys.SUBTITLE_SIZE] = size }
     }
 
+    suspend fun updateThumbSize(dp: Int) { context.dataStore.edit { it[PreferencesKeys.THUMB_SIZE] = dp.coerceIn(120, 260) } }
     suspend fun updateGestureSensitivity(pct: Int) { context.dataStore.edit { it[PreferencesKeys.GESTURE_SENS] = pct.coerceIn(50, 200) } }
     suspend fun updateSubtitleBg(pct: Int) { context.dataStore.edit { it[PreferencesKeys.SUBTITLE_BG] = pct.coerceIn(0, 100) } }
     suspend fun updateSubtitleEdge(edge: String) { context.dataStore.edit { it[PreferencesKeys.SUBTITLE_EDGE] = edge } }

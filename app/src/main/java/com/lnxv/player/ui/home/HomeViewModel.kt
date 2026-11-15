@@ -62,6 +62,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val vaultRepo = app.vaultRepository
     private val dataStore = app.dataStore
 
+    val thumbSizeDp: StateFlow<Int> = dataStore.userPreferencesFlow.map { it.thumbSizeDp }.distinctUntilChanged()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 170)
+
     private val _selectedTab = MutableStateFlow(HomeTab.VIDEOS)
     private val _searchQuery = MutableStateFlow("")
     private val _sortOption = MutableStateFlow(SortOption.DATE_DESC)
@@ -75,10 +78,16 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         val sort: SortOption,
         val refreshing: Boolean,
         val openFolder: String?,
-        val collection: com.lnxv.player.core.model.SmartCollection = com.lnxv.player.core.model.SmartCollection.ALL
+        val collection: com.lnxv.player.core.model.SmartCollection = com.lnxv.player.core.model.SmartCollection.ALL,
+        val dupVerified: Set<Long>? = null
     )
 
+    /** Ids confirmed as true duplicates by partial hash; null = not verified (yet), show size+duration candidates. */
+    private val _dupVerified = MutableStateFlow<Set<Long>?>(null)
+    private var dupJob: kotlinx.coroutines.Job? = null
+
     private val controlsFlow = combine(
+        combine(
         combine(
             _selectedTab,
             _searchQuery,
@@ -87,7 +96,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             _openFolder
         ) { tab, query, sort, refreshing, folder -> Controls(tab, query, sort, refreshing, folder) },
         _collection
-    ) { c, collection -> c.copy(collection = collection) }
+        ) { c, collection -> c.copy(collection = collection) },
+        _dupVerified
+    ) { c, verified -> c.copy(dupVerified = verified) }
 
     // hidden folders + grid/list mode
     private val libraryPrefsFlow = dataStore.userPreferencesFlow
@@ -120,7 +131,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         val nowSec = System.currentTimeMillis() / 1000L
         val inCollection = when (controls.collection) {
             com.lnxv.player.core.model.SmartCollection.ALL -> visible
-            com.lnxv.player.core.model.SmartCollection.DUPLICATES -> com.lnxv.player.core.model.DuplicateFinder.flatten(visible)
+            com.lnxv.player.core.model.SmartCollection.DUPLICATES -> com.lnxv.player.core.model.DuplicateFinder.flatten(visible).let { flat -> controls.dupVerified?.let { ok -> flat.filter { it.id in ok } } ?: flat }
             else -> visible.filter { controls.collection.matches(it, nowSec) }
         }
         val filteredVideos = if (query.isBlank()) {
@@ -176,6 +187,19 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     fun selectCollection(c: com.lnxv.player.core.model.SmartCollection) {
         _collection.value = c
+        dupJob?.cancel()
+        _dupVerified.value = null
+        if (c == com.lnxv.player.core.model.SmartCollection.DUPLICATES) {
+            // Rule D: background, cancellable partial-hash confirmation (<= 192 KiB read per file).
+            dupJob = viewModelScope.launch(Dispatchers.IO) {
+                val all = repository.allVideosFlow.first().filter { !it.isVault }
+                val groups = com.lnxv.player.core.model.DuplicateFinder.groups(all)
+                val confirmed = com.lnxv.player.core.model.DuplicateFinder.confirm(groups) { v ->
+                    com.lnxv.player.core.util.PartialHash.compute(java.io.File(v.path))
+                }
+                _dupVerified.value = confirmed.flatten().map { it.id }.toSet()
+            }
+        }
     }
 
     fun updateSortOption(sort: SortOption) {

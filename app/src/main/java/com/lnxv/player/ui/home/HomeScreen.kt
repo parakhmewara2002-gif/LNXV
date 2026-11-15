@@ -105,7 +105,8 @@ fun HomeScreen(
     val uiState by viewModel.uiState.collectAsState()
     val selection by viewModel.selection.collectAsState()
     // Adaptive grid: ~170dp per card, 2 columns on phones, more on landscape/tablets.
-    val gridColumns = (androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp / 170).coerceIn(2, 6)
+    val thumbDp by viewModel.thumbSizeDp.collectAsState()
+    val gridColumns = (androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp / thumbDp).coerceIn(2, 6)
     val openPlaylistId by viewModel.openPlaylistId.collectAsState()
     val openPlaylistVideos by viewModel.openPlaylistVideos.collectAsState()
     val selectionPool = remember(uiState) {

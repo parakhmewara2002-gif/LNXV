@@ -20,3 +20,11 @@ class DuplicateFinderTest {
         assertEquals(99L, r[0][0].size)
     }
 }
+
+class DuplicateConfirmTest {
+    @org.junit.Test fun confirmSplitsByHash() = kotlinx.coroutines.runBlocking {
+        val g = listOf(listOf("a", "b", "c"))
+        val r = DuplicateFinder.confirm(g) { if (it == "c") "z" else "h" }
+        org.junit.Assert.assertEquals(listOf(listOf("a", "b")), r)
+    }
+}

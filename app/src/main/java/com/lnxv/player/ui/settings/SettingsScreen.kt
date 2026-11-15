@@ -243,6 +243,8 @@ fun SettingsScreen(
                                 modifier = Modifier.clickable { viewModel.setSubtitleSize(prefs.subtitleTextSize + 2f) }
                             )
                         }
+                        Spacer(modifier = Modifier.height(14.dp))
+                        StepRow("Thumbnail size", "${prefs.thumbSizeDp}dp", { viewModel.setThumbSize(prefs.thumbSizeDp - 20) }, { viewModel.setThumbSize(prefs.thumbSizeDp + 20) })
                         if (prefs.isEnabled(com.lnxv.player.core.flags.FeatureFlag.GESTURE_SENSITIVITY)) {
                             Spacer(modifier = Modifier.height(14.dp))
                             StepRow("Gesture sensitivity", "${prefs.gestureSensitivityPct}%", { viewModel.setGestureSensitivity(prefs.gestureSensitivityPct - 10) }, { viewModel.setGestureSensitivity(prefs.gestureSensitivityPct + 10) })

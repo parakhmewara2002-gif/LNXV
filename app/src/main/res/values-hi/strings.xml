@@ -50,6 +50,7 @@
     <string name="collection_recent">हाल में जोड़े गए</string>
     <string name="collection_unfinished">अधूरे</string>
     <string name="collection_large">बड़ी फ़ाइलें</string>
+    <string name="collection_favorites">पसंदीदा</string>
     <string name="collection_duplicates">संभावित डुप्लीकेट</string>
     <string name="search_hint_filters">खोजें… (ext:mkv res:1080 size>500mb)</string>
     <string name="selected_count">%1$d चुने गए</string>

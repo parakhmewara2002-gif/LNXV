@@ -40,3 +40,17 @@ class SearchQueryTest {
     }
     @Test fun emptyQuery() = assertTrue(SearchQuery.parse("   ").isEmpty)
 }
+
+class SearchQueryFilterTest {
+    @org.junit.Test fun durationAndFolder() {
+        val q = SearchQuery.parse("dur>30m folder:Movies")
+        org.junit.Assert.assertEquals(1_800_000L, q.minDurationMs)
+        org.junit.Assert.assertTrue(q.matches("a", "My Movies", "/x/a.mkv", 1080, 1L, 2_000_000L))
+        org.junit.Assert.assertFalse(q.matches("a", "My Movies", "/x/a.mkv", 1080, 1L, 60_000L))
+        org.junit.Assert.assertFalse(q.matches("a", "Clips", "/x/a.mkv", 1080, 1L, 2_000_000L))
+    }
+    @org.junit.Test fun maxDurationSeconds() {
+        val q = SearchQuery.parse("dur<90s")
+        org.junit.Assert.assertEquals(90_000L, q.maxDurationMs)
+    }
+}

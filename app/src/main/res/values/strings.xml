@@ -54,6 +54,7 @@
     <string name="collection_recent">Recently added</string>
     <string name="collection_unfinished">Unfinished</string>
     <string name="collection_large">Large files</string>
+    <string name="collection_favorites">Favorites</string>
     <string name="collection_duplicates">Possible duplicates</string>
     <string name="search_hint_filters">Search… (ext:mkv res:1080 size>500mb)</string>
     <string name="selected_count">%1$d selected</string>

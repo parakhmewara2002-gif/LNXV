@@ -6,12 +6,14 @@ enum class SmartCollection(val label: String, @androidx.annotation.StringRes val
     RECENT("Recently added", com.lnxv.player.R.string.collection_recent),
     UNFINISHED("Unfinished", com.lnxv.player.R.string.collection_unfinished),
     LARGE("Large files", com.lnxv.player.R.string.collection_large),
+    FAVORITES("Favorites", com.lnxv.player.R.string.collection_favorites),
     DUPLICATES("Possible duplicates", com.lnxv.player.R.string.collection_duplicates);
 
     fun matches(v: VideoItem, nowSec: Long): Boolean =
-        matches(v.dateAddedSec, v.sizeBytes, v.durationMs, v.lastPositionMs, nowSec)
+        matches(v.dateAddedSec, v.sizeBytes, v.durationMs, v.lastPositionMs, nowSec, v.isFavorite)
 
-    fun matches(dateAddedSec: Long, sizeBytes: Long, durationMs: Long, lastPositionMs: Long, nowSec: Long): Boolean = when (this) {
+    fun matches(dateAddedSec: Long, sizeBytes: Long, durationMs: Long, lastPositionMs: Long, nowSec: Long, isFavorite: Boolean = false): Boolean = when (this) {
+        FAVORITES -> isFavorite
         ALL -> true
         RECENT -> dateAddedSec > 0 && nowSec - dateAddedSec <= RECENT_WINDOW_SEC
         UNFINISHED -> isUnfinished(durationMs, lastPositionMs)
