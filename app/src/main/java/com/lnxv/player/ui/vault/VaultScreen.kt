@@ -432,7 +432,7 @@ fun VaultScreen(
                                             modifier = Modifier
                                                 .size(68.dp)
                                                 .clip(CircleShape)
-                                                .clickable { viewModel.deleteDigit() },
+                                                .clickable(role = androidx.compose.ui.semantics.Role.Button, onClickLabel = "Delete last digit") { viewModel.deleteDigit() },
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Icon(
@@ -450,7 +450,7 @@ fun VaultScreen(
                                                     backgroundColor = appColors.glassSubtle,
                                                     borderColor = appColors.glassBorder
                                                 )
-                                                .clickable { viewModel.enterDigit(key) },
+                                                .clickable(role = androidx.compose.ui.semantics.Role.Button, onClickLabel = "Enter digit $key") { viewModel.enterDigit(key) },
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Text(

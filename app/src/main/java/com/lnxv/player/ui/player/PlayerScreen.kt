@@ -55,6 +55,9 @@ import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.animation.togetherWith
 import coil.request.videoFrameMillis
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
@@ -645,7 +648,11 @@ fun PlayerScreen(
                                         },
                                         modifier = Modifier
                                             .weight(1f)
-                                            .padding(horizontal = 12.dp),
+                                            .padding(horizontal = 12.dp)
+                                            .semantics {
+                                                contentDescription = "Seek bar"
+                                                stateDescription = "${VideoItem.formatDuration(positionMs)} of ${VideoItem.formatDuration(playbackState.durationMs)}"
+                                            },
                                         colors = SliderDefaults.colors(
                                             thumbColor = NeonCyan,
                                             activeTrackColor = NeonCyan,

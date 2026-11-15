@@ -104,6 +104,8 @@ fun HomeScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val selection by viewModel.selection.collectAsState()
+    // Adaptive grid: ~170dp per card, 2 columns on phones, more on landscape/tablets.
+    val gridColumns = (androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp / 170).coerceIn(2, 6)
     val openPlaylistId by viewModel.openPlaylistId.collectAsState()
     val openPlaylistVideos by viewModel.openPlaylistVideos.collectAsState()
     val selectionPool = remember(uiState) {
@@ -490,7 +492,7 @@ fun HomeScreen(
                     if (uiState.videos.isEmpty()) {
                         item { EmptyStateView(message = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.empty_discovered)) }
                     } else if (uiState.isGridView) {
-                        items(uiState.videos.chunked(2), key = { row -> row.first().id }) { row ->
+                        items(uiState.videos.chunked(gridColumns), key = { row -> row.first().id }) { row ->
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -508,7 +510,7 @@ fun HomeScreen(
                                         onDelete = { viewModel.deleteVideo(video) }
                                     )
                                 }
-                                if (row.size == 1) Spacer(modifier = Modifier.weight(1f))
+                                repeat(gridColumns - row.size) { Spacer(modifier = Modifier.weight(1f)) }
                             }
                         }
                     } else {
