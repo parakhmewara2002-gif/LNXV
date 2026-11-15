@@ -55,12 +55,15 @@ data class HomeUiState(
     val collection: com.lnxv.player.core.model.SmartCollection = com.lnxv.player.core.model.SmartCollection.ALL
 )
 
-class HomeViewModel(application: Application) : AndroidViewModel(application) {
-
-    private val app = application as LNXVApplication
-    private val repository = app.videoRepository
-    private val vaultRepo = app.vaultRepository
-    private val dataStore = app.dataStore
+class HomeViewModel(
+    application: Application,
+    private val repository: com.lnxv.player.data.repository.VideoRepository,
+    private val vaultRepo: com.lnxv.player.data.repository.VaultRepository,
+    private val dataStore: com.lnxv.player.core.datastore.UserPreferencesDataStore,
+    private val playlistDao: com.lnxv.player.core.database.PlaylistDao,
+    private val transfers: com.lnxv.player.data.repository.VaultTransferManager,
+    private val session: com.lnxv.player.core.session.SessionState
+) : AndroidViewModel(application) {
 
     val thumbSizeDp: StateFlow<Int> = dataStore.userPreferencesFlow.map { it.thumbSizeDp }.distinctUntilChanged()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 170)
@@ -286,15 +289,15 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     fun moveToVault(video: VideoItem) {
         viewModelScope.launch {
             if (!vaultRepo.isPinSet()) {
-                app.vaultTransfers.postMessage("Open the Private Vault once to create your PIN, then move videos.")
+                transfers.postMessage("Open the Private Vault once to create your PIN, then move videos.")
                 return@launch
             }
             val prefs = dataStore.userPreferencesFlow.first()
             if (!prefs.isEnabled(com.lnxv.player.core.flags.FeatureFlag.ENCRYPTED_VAULT)) {
-                app.vaultTransfers.postMessage("Encrypted vault is turned off in Settings > Advanced > Experimental.")
+                transfers.postMessage("Encrypted vault is turned off in Settings > Advanced > Experimental.")
                 return@launch
             }
-            app.vaultTransfers.enqueueMove(video)
+            transfers.enqueueMove(video)
         }
     }
 
@@ -325,12 +328,12 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     /** Validates and opens a network stream through the transient-video player route. Returns an error text or null. */
     fun openStream(rawUrl: String): String? {
-        val debuggable = app.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE != 0
+        val debuggable = getApplication<Application>().applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE != 0
         return when (val r = com.lnxv.player.core.util.StreamUrl.validate(rawUrl, allowCleartextHttp = debuggable)) {
             is com.lnxv.player.core.util.StreamUrl.Result.Error -> r.message
             is com.lnxv.player.core.util.StreamUrl.Result.Ok -> {
                 rememberStream(r.url)
-                app.transientVideo = VideoItem(
+                session.transientVideo = VideoItem(
                     id = LNXVApplication.TRANSIENT_VIDEO_ID,
                     title = com.lnxv.player.core.util.StreamUrl.titleFor(r.url),
                     uri = android.net.Uri.parse(r.url),
@@ -338,7 +341,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     mimeType = "video/*", dateAddedSec = System.currentTimeMillis() / 1000,
                     folderPath = "Network Streams", folderName = "Network"
                 )
-                app.pendingOpenVideoId.value = LNXVApplication.TRANSIENT_VIDEO_ID
+                session.pendingOpenVideoId.value = LNXVApplication.TRANSIENT_VIDEO_ID
                 null
             }
         }
@@ -346,7 +349,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     // ------------------------------------------------------------------ playlists
 
-    private val playlistDao = app.playlistDao
 
     val playlists: kotlinx.coroutines.flow.StateFlow<List<com.lnxv.player.core.database.PlaylistSummary>> =
         playlistDao.observePlaylists().stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5000), emptyList())
@@ -428,8 +430,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             val ids = playlistDao.getVideoIds(playlistId)
             if (videoId !in ids) return@launch
-            app.queueOverride = ids
-            app.pendingOpenVideoId.value = videoId
+            session.queueOverride = ids
+            session.pendingOpenVideoId.value = videoId
         }
     }
 
@@ -446,8 +448,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             val ids = playlistDao.getVideoIds(playlistId)
             if (ids.isEmpty()) return@launch
-            app.queueOverride = ids
-            app.pendingOpenVideoId.value = ids.first()
+            session.queueOverride = ids
+            session.pendingOpenVideoId.value = ids.first()
         }
     }
 }

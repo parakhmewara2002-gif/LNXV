@@ -5,7 +5,6 @@ import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -64,7 +63,7 @@ fun LNXVNavigationHost(navController: NavHostController) {
           androidx.compose.runtime.CompositionLocalProvider(
             com.lnxv.player.core.design.LocalNavAnimatedScope provides this
           ) {
-            val homeViewModel: HomeViewModel = viewModel()
+            val homeViewModel: HomeViewModel = org.koin.androidx.compose.koinViewModel()
             HomeScreen(
                 viewModel = homeViewModel,
                 onVideoClick = { video ->
@@ -127,7 +126,7 @@ fun LNXVNavigationHost(navController: NavHostController) {
         }
 
         composable(Screen.Vault.route) {
-            val vaultViewModel: VaultViewModel = viewModel()
+            val vaultViewModel: VaultViewModel = org.koin.androidx.compose.koinViewModel()
             VaultScreen(
                 viewModel = vaultViewModel,
                 onBackClick = { navController.popBackStack() },
@@ -138,7 +137,7 @@ fun LNXVNavigationHost(navController: NavHostController) {
         }
 
         composable(Screen.Settings.route) {
-            val settingsViewModel: SettingsViewModel = viewModel()
+            val settingsViewModel: SettingsViewModel = org.koin.androidx.compose.koinViewModel()
             SettingsScreen(
                 viewModel = settingsViewModel,
                 onBackClick = { navController.popBackStack() }

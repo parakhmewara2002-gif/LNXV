@@ -34,6 +34,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import dev.chrisbanes.haze.haze
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.launch
@@ -64,39 +65,61 @@ fun SettingsScreen(
     val updaterEnabled = androidx.compose.ui.res.booleanResource(com.lnxv.player.R.bool.updater_enabled)
     LaunchedEffect(Unit) { if (updaterEnabled) viewModel.checkForUpdate() }
 
+    val hazeState = androidx.compose.runtime.remember { dev.chrisbanes.haze.HazeState() }
+    val reduceEffects = com.lnxv.player.core.design.LocalReduceEffects.current
+    val queryState = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf("") }
+    val query = queryState.value.trim()
+    fun show(vararg keys: String) = query.isEmpty() || keys.any { it.contains(query, ignoreCase = true) }
+    val settingsContext = androidx.compose.ui.platform.LocalContext.current
+    var confirmResetFlags by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+
+    if (confirmResetFlags) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { confirmResetFlags = false },
+            title = { Text("Reset experimental flags?") },
+            text = { Text("Every flag under Advanced returns to its default. Your PIN, vault and other settings are not touched.") },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = { viewModel.resetFlags(); confirmResetFlags = false }) { Text("Reset") }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { confirmResetFlags = false }) { Text("Cancel") }
+            }
+        )
+    }
+
     Scaffold(
         modifier = Modifier.fillMaxSize().ambientBackground(),
         containerColor = Color.Transparent,
         topBar = {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 40.dp, bottom = 16.dp, start = 16.dp, end = 16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                GlassIconButton(
-                    icon = Icons.Default.ArrowBack,
-                    contentDescription = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.cd_back),
-                    onClick = onBackClick
-                )
-                Spacer(modifier = Modifier.width(16.dp))
-                Text(
-                    text = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.settings_title),
-                    color = appColors.textPrimary,
-                    style = Typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
-            }
+            com.lnxv.player.core.design.GlassTopBar(
+                title = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.settings_title),
+                onBack = onBackClick,
+                hazeState = hazeState
+            )
         }
     ) { paddingValues ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
-                .padding(horizontal = 16.dp),
+                .then(if (reduceEffects) Modifier else Modifier.haze(state = hazeState)),
+            // The list scrolls under the glass top bar (so there is something to blur); padding keeps the first row clear of it.
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                start = 16.dp,
+                end = 16.dp,
+                top = paddingValues.calculateTopPadding() + 12.dp,
+                bottom = paddingValues.calculateBottomPadding() + 24.dp
+            ),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item {
+                com.lnxv.player.core.design.GlassSearchField(
+                    value = queryState.value,
+                    onValueChange = { queryState.value = it },
+                    placeholder = "Search settings"
+                )
+            }
+
+            if (show("Appearance & Glass Engine", "appearance","theme","glass","amoled","dark","light")) item {
                 SectionHeader("Appearance & Glass Engine")
                 GlassPanel(
                     modifier = Modifier.fillMaxWidth(),
@@ -156,7 +179,7 @@ fun SettingsScreen(
                 }
             }
 
-            item {
+            if (show("Playback & Gestures", "playback","gesture","subtitle","speed","resume","seek")) item {
                 SectionHeader("Playback & Gestures")
                 GlassPanel(
                     modifier = Modifier.fillMaxWidth(),
@@ -314,7 +337,7 @@ fun SettingsScreen(
                 }
             }
 
-            if (updaterEnabled) item {
+            if (updaterEnabled) if (show("Updates", "update","version")) item {
                 SectionHeader("Updates")
                 GlassPanel(
                     modifier = Modifier.fillMaxWidth(),
@@ -405,7 +428,7 @@ fun SettingsScreen(
                 }
             }
 
-            item {
+            if (show("Appearance & performance", "performance","effects","blur","material","reduce")) item {
                 SectionHeader("Appearance & performance")
                 GlassPanel(
                     modifier = Modifier.fillMaxWidth(),
@@ -445,7 +468,7 @@ fun SettingsScreen(
                 }
             }
 
-            item {
+            if (show("Security", "security","vault","pin","biometric","screenshot","lock")) item {
                 SectionHeader("Security")
                 GlassPanel(
                     modifier = Modifier.fillMaxWidth(),
@@ -485,7 +508,7 @@ fun SettingsScreen(
                 }
             }
 
-            item {
+            if (show("Advanced > Experimental", "advanced","experimental","flag","developer")) item {
                 SectionHeader("Advanced > Experimental")
                 GlassPanel(
                     modifier = Modifier.fillMaxWidth(),
@@ -506,7 +529,7 @@ fun SettingsScreen(
                 }
             }
 
-            item {
+            if (show("Storage", "storage","cache","clear")) item {
                 SectionHeader("Storage")
                 GlassPanel(
                     modifier = Modifier.fillMaxWidth(),
@@ -560,7 +583,7 @@ fun SettingsScreen(
                 }
             }
 
-            item {
+            if (show("Privacy", "privacy","permission")) item {
                 SectionHeader("Privacy")
                 GlassPanel(
                     modifier = Modifier.fillMaxWidth(),
@@ -597,7 +620,7 @@ fun SettingsScreen(
                 }
             }
 
-            item {
+            if (show("About LNXV", "about","version","info")) item {
                 SectionHeader("About LNXV")
                 GlassPanel(
                     modifier = Modifier.fillMaxWidth(),
@@ -629,6 +652,36 @@ fun SettingsScreen(
                                 color = appColors.textTertiary,
                                 fontSize = 12.sp
                             )
+                        }
+                    }
+                }
+            }
+
+            if (show("Developer", "system info", "device", "build", "debug", "reset flags")) item {
+                SectionHeader("Developer")
+                com.lnxv.player.core.design.GlassGroup {
+                    com.lnxv.player.core.design.GlassInfoRow("App version", viewModel.currentVersion)
+                    com.lnxv.player.core.design.GlassDivider()
+                    com.lnxv.player.core.design.GlassInfoRow("Android", "${android.os.Build.VERSION.RELEASE} (API ${android.os.Build.VERSION.SDK_INT})")
+                    com.lnxv.player.core.design.GlassDivider()
+                    com.lnxv.player.core.design.GlassInfoRow("Device", "${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}")
+                    com.lnxv.player.core.design.GlassDivider()
+                    com.lnxv.player.core.design.GlassInfoRow("ABI", android.os.Build.SUPPORTED_ABIS.firstOrNull() ?: "unknown")
+                    com.lnxv.player.core.design.GlassDivider()
+                    com.lnxv.player.core.design.GlassInfoRow("Effects", if (reduceEffects) "Reduced" else "Full (backdrop blur on)")
+                    com.lnxv.player.core.design.GlassDivider()
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        androidx.compose.material3.TextButton(onClick = {
+                            val info = "LNXV ${viewModel.currentVersion} | Android ${android.os.Build.VERSION.RELEASE} (API ${android.os.Build.VERSION.SDK_INT}) | " +
+                                "${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL} | ${android.os.Build.SUPPORTED_ABIS.firstOrNull() ?: "?"} | effects=${if (reduceEffects) "reduced" else "full"}"
+                            val cm = settingsContext.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                            cm.setPrimaryClip(android.content.ClipData.newPlainText("LNXV system info", info))
+                        }) { Text("Copy system info", color = appColors.accent) }
+                        androidx.compose.material3.TextButton(onClick = { confirmResetFlags = true }) {
+                            Text("Reset flags", color = appColors.accent)
                         }
                     }
                 }
