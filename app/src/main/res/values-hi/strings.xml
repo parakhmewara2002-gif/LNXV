@@ -70,4 +70,8 @@
     <string name="onboarding_title">LNXV में आपका स्वागत है</string>
     <string name="onboarding_message">वीडियो की सूची बनाने और उन्हें चलाने के लिए LNXV को आपके डिवाइस के वीडियो पढ़ने की अनुमति चाहिए। कुछ भी अपलोड नहीं होता: कोई एनालिटिक्स या ट्रैकिंग नहीं है, और आपका इतिहास, पसंदीदा और एन्क्रिप्टेड वॉल्ट इसी डिवाइस पर रहते हैं।</string>
     <string name="action_continue">आगे बढ़ें</string>
+    <string name="shortcut_continue_short">देखना जारी रखें</string>
+    <string name="shortcut_continue_long">देखना जारी रखें</string>
+    <string name="widget_continue_desc">आख़िरी वीडियो फिर से शुरू करें</string>
+    <string name="widget_nothing">फिर से शुरू करने के लिए कुछ नहीं</string>
 </resources>

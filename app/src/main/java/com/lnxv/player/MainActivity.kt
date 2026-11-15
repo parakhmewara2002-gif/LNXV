@@ -150,6 +150,7 @@ class MainActivity : ComponentActivity() {
 
     /** Opens a video handed over by another app (VIEW intent): validated, played transiently, not saved to Room. */
     private fun handleViewIntent(intent: Intent?) {
+        if (intent?.action == ACTION_CONTINUE) { handleContinue(); return }
         if (intent?.action != Intent.ACTION_VIEW) return
         val uri = intent.data ?: return
         if (!IncomingIntentValidator.isAllowedViewData(uri.scheme, intent.type)) return
@@ -178,6 +179,19 @@ class MainActivity : ComponentActivity() {
             )
             app.pendingOpenVideoId.value = LNXVApplication.TRANSIENT_VIDEO_ID
         }
+    }
+
+    /** App shortcut / widget: resume the last unfinished library video (vault items are never offered). */
+    private fun handleContinue() {
+        val app = application as LNXVApplication
+        lifecycleScope.launch {
+            val v = withContext(Dispatchers.IO) { app.database.videoDao().getLastUnfinished() } ?: return@launch
+            app.pendingOpenVideoId.value = v.id
+        }
+    }
+
+    companion object {
+        const val ACTION_CONTINUE = "com.lnxv.player.action.CONTINUE"
     }
 
     private suspend fun findLibraryVideoId(app: LNXVApplication, uri: Uri): Long? {
@@ -300,6 +314,7 @@ class MainActivity : ComponentActivity() {
         super.onStop()
         val app = application as LNXVApplication
         scheduleVaultAutoLock(app)
+        com.lnxv.player.widget.ContinueWidget.requestUpdate(applicationContext)
         if (!app.isPlayerInitialized) return
         val manager = app.playerManager
         if (isInPictureInPictureMode) {

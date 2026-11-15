@@ -12,7 +12,9 @@ import java.security.MessageDigest
 object PartialHash {
     private const val CHUNK = 64 * 1024
 
-    fun compute(file: File): String? = runCatching {
+    fun compute(file: File): String? = tryCompute(file).getOrNull()
+
+    fun tryCompute(file: File): Result<String> = runCatching {
         RandomAccessFile(file, "r").use { raf ->
             val len = raf.length()
             val md = MessageDigest.getInstance("SHA-256")
@@ -31,5 +33,5 @@ object PartialHash {
             }
             md.digest().joinToString("") { "%02x".format(it) }
         }
-    }.getOrNull()
+    }
 }

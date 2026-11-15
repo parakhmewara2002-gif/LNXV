@@ -255,6 +255,9 @@ fun SettingsScreen(
                             Spacer(modifier = Modifier.height(14.dp))
                             StepRow("Subtitle position (from bottom)", "${prefs.subtitleBottomPct}%", { viewModel.setSubtitleBottom(prefs.subtitleBottomPct - 2) }, { viewModel.setSubtitleBottom(prefs.subtitleBottomPct + 2) })
                             Spacer(modifier = Modifier.height(14.dp))
+                            val fonts = listOf("DEFAULT", "SERIF", "MONO", "MEDIUM")
+                            StepRow("Subtitle font", prefs.subtitleFont.lowercase(), { viewModel.setSubtitleFont(fonts[(fonts.indexOf(prefs.subtitleFont).coerceAtLeast(0) + fonts.size - 1) % fonts.size]) }, { viewModel.setSubtitleFont(fonts[(fonts.indexOf(prefs.subtitleFont).coerceAtLeast(0) + 1) % fonts.size]) })
+                            Spacer(modifier = Modifier.height(14.dp))
                             val edges = listOf("OUTLINE", "SHADOW", "NONE")
                             StepRow("Subtitle edge", prefs.subtitleEdge.lowercase(), { viewModel.setSubtitleEdge(edges[(edges.indexOf(prefs.subtitleEdge).coerceAtLeast(0) + edges.size - 1) % edges.size]) }, { viewModel.setSubtitleEdge(edges[(edges.indexOf(prefs.subtitleEdge).coerceAtLeast(0) + 1) % edges.size]) })
                         }

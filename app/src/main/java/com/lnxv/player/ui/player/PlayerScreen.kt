@@ -53,6 +53,10 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.foundation.focusable
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.isShiftPressed
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
@@ -253,11 +257,28 @@ fun PlayerScreen(
             scaleY = overlayState.zoomScale * fit
         }
 
+    val keyFocus = remember { androidx.compose.ui.focus.FocusRequester() }
+    LaunchedEffect(Unit) { runCatching { keyFocus.requestFocus() } }
     Box(
         modifier = Modifier
             .videoSharedBounds(videoId)
             .fillMaxSize()
             .background(Color.Black)
+            .focusRequester(keyFocus)
+            .focusable()
+            .onPreviewKeyEvent { ev ->
+                if (ev.type != androidx.compose.ui.input.key.KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                val action = com.lnxv.player.playback.gestures.PlayerKeyMap.resolve(ev.nativeKeyEvent.keyCode, ev.isShiftPressed)
+                    ?: return@onPreviewKeyEvent false
+                when (action) {
+                    com.lnxv.player.playback.gestures.KeyAction.TOGGLE_PLAY -> viewModel.togglePlayPause()
+                    com.lnxv.player.playback.gestures.KeyAction.NEXT -> viewModel.playNext()
+                    com.lnxv.player.playback.gestures.KeyAction.PREVIOUS -> viewModel.playPrevious()
+                    com.lnxv.player.playback.gestures.KeyAction.SHOW_CONTROLS -> viewModel.setControlsVisibility(true)
+                    else -> viewModel.seekRelative(com.lnxv.player.playback.gestures.PlayerKeyMap.seekDeltaMs(action))
+                }
+                true
+            }
     ) {
         // Player Surface View
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -310,7 +331,12 @@ fun PlayerScreen(
                             android.graphics.Color.TRANSPARENT,
                             edgeType,
                             android.graphics.Color.BLACK,
-                            null
+                            if (!styling) null else when (prefs.subtitleFont) {
+                                "SERIF" -> android.graphics.Typeface.SERIF
+                                "MONO" -> android.graphics.Typeface.MONOSPACE
+                                "MEDIUM" -> android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL)
+                                else -> null
+                            }
                         )
                     )
                 }

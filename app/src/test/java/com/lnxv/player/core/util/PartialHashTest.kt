@@ -7,6 +7,8 @@ import java.io.File
 class PartialHashTest {
     private fun f(bytes: ByteArray) = File.createTempFile("ph", ".bin").apply { writeBytes(bytes); deleteOnExit() }
 
+    @Test fun noException() { val r = PartialHash.tryCompute(f(ByteArray(10))); assertTrue("AssertionError: ${r.exceptionOrNull()}", r.isSuccess) }
+
     @Test fun sameContentSameHash() {
         val b = ByteArray(500_000) { (it % 251).toByte() }
         assertEquals(PartialHash.compute(f(b)), PartialHash.compute(f(b)))

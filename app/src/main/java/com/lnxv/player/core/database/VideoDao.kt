@@ -25,6 +25,9 @@ interface VideoDao {
     @Query("DELETE FROM videos WHERE id IN (:ids)")
     suspend fun deleteVideosByIds(ids: List<Long>)
 
+    @Query("SELECT * FROM videos WHERE isVault = 0 AND lastPlayedTimestamp > 0 AND lastPositionMs > 5000 ORDER BY lastPlayedTimestamp DESC LIMIT 1")
+    suspend fun getLastUnfinished(): VideoEntity?
+
     @Query("SELECT * FROM videos WHERE id = :id LIMIT 1")
     suspend fun getVideoById(id: Long): VideoEntity?
 

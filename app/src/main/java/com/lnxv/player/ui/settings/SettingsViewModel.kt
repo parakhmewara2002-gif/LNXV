@@ -86,6 +86,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch { dataStore.updateSubtitleSize(size.coerceIn(10f, 32f)) }
     }
 
+    fun setSubtitleFont(f: String) { viewModelScope.launch { dataStore.updateSubtitleFont(f) } }
     fun setThumbSize(dp: Int) { viewModelScope.launch { dataStore.updateThumbSize(dp) } }
     fun setGestureSensitivity(pct: Int) { viewModelScope.launch { dataStore.updateGestureSensitivity(pct) } }
     fun setSubtitleBg(pct: Int) { viewModelScope.launch { dataStore.updateSubtitleBg(pct) } }

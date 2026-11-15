@@ -74,4 +74,8 @@
     <string name="onboarding_title">Welcome to LNXV</string>
     <string name="onboarding_message">LNXV needs permission to read the videos on your device so it can list and play them. Nothing is uploaded: there is no analytics or tracking, and your history, favorites and the encrypted vault stay on this device.</string>
     <string name="action_continue">Continue</string>
+    <string name="shortcut_continue_short">Continue watching</string>
+    <string name="shortcut_continue_long">Continue watching</string>
+    <string name="widget_continue_desc">Resume your last video</string>
+    <string name="widget_nothing">Nothing to resume</string>
 </resources>
