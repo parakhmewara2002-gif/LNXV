@@ -104,6 +104,8 @@ fun HomeScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val selection by viewModel.selection.collectAsState()
+    val openPlaylistId by viewModel.openPlaylistId.collectAsState()
+    val openPlaylistVideos by viewModel.openPlaylistVideos.collectAsState()
     val selectionPool = remember(uiState) {
         (uiState.videos + uiState.folderVideos + uiState.favorites + uiState.recentlyPlayed).distinctBy { it.id }
     }
@@ -111,6 +113,7 @@ fun HomeScreen(
     var isSearchExpanded by remember { mutableStateOf(false) }
     var showStreamDialog by remember { mutableStateOf(false) }
     val playlists by viewModel.playlists.collectAsState()
+    val openPl = playlists.firstOrNull { it.id == openPlaylistId }
     val playlistTarget by viewModel.playlistTarget.collectAsState()
     playlistTarget?.let { target ->
         var newName by remember(target.id) { mutableStateOf("") }
@@ -596,9 +599,6 @@ fun HomeScreen(
                     }
                 }
                 HomeTab.PLAYLISTS -> {
-                    val openPlaylistId by viewModel.openPlaylistId.collectAsState()
-                    val openPlaylistVideos by viewModel.openPlaylistVideos.collectAsState()
-                    val openPl = playlists.firstOrNull { it.id == openPlaylistId }
                     if (openPlaylistId != null && openPl == null) {
                         item { EmptyStateView(message = "Playlist not found") }
                     } else if (openPl != null) {
