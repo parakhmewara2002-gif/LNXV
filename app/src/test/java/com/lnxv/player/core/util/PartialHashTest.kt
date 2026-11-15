@@ -5,7 +5,7 @@ import org.junit.Test
 import java.io.File
 
 class PartialHashTest {
-    private fun f(bytes: ByteArray) = File.createTempFile("ph", ".bin").apply { writeBytes(bytes); deleteOnExit() }
+    private fun f(bytes: ByteArray) = File.createTempFile("phash", ".bin").apply { writeBytes(bytes); deleteOnExit() }
 
     @Test fun noException() { val r = PartialHash.tryCompute(f(ByteArray(10))); assertTrue("AssertionError: ${r.exceptionOrNull()}", r.isSuccess) }
 
