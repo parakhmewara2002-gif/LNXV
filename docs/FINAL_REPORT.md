@@ -8,7 +8,7 @@ Status: every change below compiled and unit-tested in GitHub Actions only (PR #
 - Phase 3 Graphics: dynamic color, reduce-effects switch, Haze blur on Home top bar, shared-element transition, player polish (play/pause morph, thumb spring, scrub preview).
 - Phase 4 Architecture: flavors, HomeScreen + PlayerScreen splits, PlayerController + Koin DI (PlayerViewModel), baseline profile + macrobenchmark module (never run), detekt/ktlint/OWASP CI. NOT done: other VMs on DI, controls overlay extraction.
 - Phase 5 Playback: sleep timer extras, per-video speed, skip silence, equalizer + volume boost, rotate/flip, audio-only mode, subtitle styling, gesture sensitivity, vault screenshot block.
-- Phase 6 Library: smart collections, NEW badge, progress bar, Storage + Privacy settings, first-run explanation. Rule B: Coil disk cap 50 MB, memory 12%.
+- Phase 6 Library: smart collections, duplicates, NEW badge, progress bar, multi-select bulk actions, search filter tokens, playlist editing, adaptive grid, Hindi (partial), seek/keypad accessibility, Storage + Privacy settings, first-run explanation. Rule B: Coil disk cap 50 MB, memory 12%.
 
 ## Assumptions
 Koin chosen over Hilt (no codegen, no local build to validate KSP/kapt). Volume boost is fixed gain, not normalization.
@@ -34,6 +34,6 @@ Encrypted MKV lacks the late-Cues seek fix; interrupted encryption restarts; no 
 ## Not done (and why)
 - Phase 4: Home/Settings/Vault ViewModels on DI, PlayerViewModel unit test with a fake controller.
 - Phase 5 (infeasible on this stack, see changelog section 13): true loudness normalization, chapters, brightness/contrast/saturation, online subtitle search; per-axis gesture customization not built.
-- Phase 6: Paging 3 / windowed queries, multi-select actions, duplicate finder, search filters, hidden-folders UI, SAF picker, shortcuts/widget, adaptive/TV layouts, accessibility audit, Hindi localization and string extraction, thumbnail size slider.
+- Phase 6: Paging 3, SAF picker, shortcuts/widget, full Hindi string extraction (Settings/Player/Vault), TalkBack audit, TV layouts (reasons in PROGRESS.md).
 - Rules A/C/D: remove material-icons-extended, locale filters, custom ExtractorsFactory, DefaultLoadControl tuning, WebP thumbnails, R8 full mode, APK size measurement.
 See also docs/DEVICE_CHECKLIST.md and PROGRESS.md.

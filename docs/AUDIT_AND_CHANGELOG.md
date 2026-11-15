@@ -125,3 +125,9 @@ Known limits: per-video resume for transient opens is not stored; network-specif
 ## 13. Phase 5 closure
 - Audio-only mode via TrackSelector (video track type disabled), reset when the next video is prepared.
 - Closed as infeasible on the current stack (not skipped by choice): chapters (no Media3 1.4.1 API for MP4/MKV chapter lists), brightness/contrast/saturation (needs a GL effect pipeline on the ExoPlayer surface; Media3 effects target Transformer / ExoPlayer.setVideoEffects with a texture surface, incompatible with the current SurfaceView path), true loudness normalization (Media3 loudness controller needs API 35 / newer Media3), online subtitle search (needs a third-party API key and a UI to hold it).
+
+## 14. Phase 6 increment 2 (CI-compiled, NOT DEVICE-TESTED)
+- Multi-select, duplicates, search tokens (SearchQuery), playlist editing (PlaylistOrder, observeVideoIds/setPosition DAO queries - no schema change, no migration).
+- Localization: values-hi covers base strings plus Home UI; remaining screens are English. Translations were written without a native-speaker review: have one checked before release.
+- Accessibility: partial. Decorative icons keep contentDescription = null on purpose (text sits beside them).
+- Not built: see PROGRESS.md for the list and reasons.

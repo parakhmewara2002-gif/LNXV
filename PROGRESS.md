@@ -60,6 +60,15 @@ Build status: authoring environment had no Android SDK/Maven access; every chang
 - Smart collections, NEW badge, watched progress bar, Settings > Storage (cache clear), Privacy statement, first-run permission explanation, Coil caps.
 - Deliverables written: docs/FINAL_REPORT.md, docs/DEVICE_CHECKLIST.md. Full not-done list is in FINAL_REPORT.md.
 
+## Done (Phase 6 increment 2, CI green, NOT DEVICE-TESTED)
+- Multi-select (long-press; bulk Favorite / Add to playlist / Vault / Remove-from-library with confirm / Select all).
+- "Possible duplicates" collection (same size + duration; suggestion only, never auto-deletes).
+- Search filter tokens: ext:, type:, res:, size>/size<.
+- Playlist detail: rename, reorder, remove item, play from item, delete confirm (closes the earlier playlist limitation).
+- Hindi localization (values-hi) for the strings listed below; adaptive grid columns (2-6 by width); seek bar + PIN keypad accessibility semantics.
+- Hidden-folders UI already existed (folder row toggle).
+- Phase 6 NOT built, with reasons: Paging 3 (every filter/sort/collection/duplicate/search path is in-memory; Paging needs SQL equivalents of all of them, a re-architecture; the lists are already lazy), SAF folder picker (needs a non-MediaStore ID scheme and refresh logic so scans do not delete SAF items; MediaStore already indexes all normal video folders), shortcuts/widget (widget needs Glance; shortcuts low value), full string extraction (only Home/tabs/collections/selection/empty states/onboarding/base strings are in Hindi; Settings, Player, Vault screens remain English), TalkBack audit (only the seek bar and keypad were fixed), TV/Chromebook layouts, thumbnail size slider (adaptive columns instead).
+
 ## Next
 Phase 4 remainder: split PlayerScreen/HomeScreen, DI + PlayerController interface, Baseline Profile, detekt/ktlint/OWASP CI, Actions SHA pinning. Then Phases 5 and 6. Phase 2.6 (floating mini player, Cast) intentionally skipped: it is optional and SYSTEM_ALERT_WINDOW was removed in Phase 1.4.
 

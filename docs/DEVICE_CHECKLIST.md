@@ -30,3 +30,11 @@ Test on at least: one low-RAM device (<=3 GB), one Android 14 device, one Androi
 - [ ] Dynamic color on Android 12+; Reduced effects on a low-RAM device.
 - [ ] Release APK (R8) plays HLS/DASH/RTSP and uses reflection-based seek fix; no crash.
 - [ ] Measure APK size (APK Analyzer) and cold start before/after; record real numbers.
+
+## Phase 6 additions
+- [ ] Long-press selects; bulk Fav / Playlist / Vault / Remove work; back clears selection.
+- [ ] Possible duplicates chip lists same-size/same-duration pairs; verify no false positives on your library.
+- [ ] Search: `ext:mkv`, `res:1080`, `size>500mb`, combined with words.
+- [ ] Playlist: open, rename, reorder, remove, play from an item, delete.
+- [ ] Switch device language to Hindi: tabs, chips, selection bar, empty states, onboarding render correctly (no clipping). Get the Hindi text reviewed.
+- [ ] Grid columns change on rotation/tablet. TalkBack reads "Seek bar" with position, keypad keys announce as buttons.
