@@ -77,6 +77,8 @@ class PlayerViewModel(
     val eqPreset: StateFlow<com.lnxv.player.core.model.EqPreset> = playerManager.eqPreset
     val audioOnly: StateFlow<Boolean> = playerManager.audioOnly
     fun toggleAudioOnly() = playerManager.setAudioOnly(!playerManager.audioOnly.value)
+    val videoColor: StateFlow<com.lnxv.player.core.model.VideoColor> = playerManager.videoColor
+    fun setVideoColor(c: com.lnxv.player.core.model.VideoColor) = playerManager.setVideoColor(c)
     val boostMb: StateFlow<Int> = playerManager.boostMb
     fun cycleBoost() = playerManager.setBoostMb(
         when (playerManager.boostMb.value) { 0 -> 300; 300 -> 600; 600 -> 900; else -> 0 }

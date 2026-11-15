@@ -106,6 +106,23 @@ fun PlayerMoreMenuItems(
                 text = { Text(if (videoFlip) "Flip horizontal (on)" else "Flip horizontal") },
                 onClick = onFlipVideo
             )
+            val vc = viewModel.videoColor.collectAsState().value
+            PlayerMenuItem(
+                text = { Text("Brightness: %+.0f%%".format(vc.brightness * 100)) },
+                onClick = { viewModel.setVideoColor(vc.copy(brightness = com.lnxv.player.core.model.VideoColor.cycle(vc.brightness))) }
+            )
+            PlayerMenuItem(
+                text = { Text("Contrast: %+.0f%%".format(vc.contrast * 100)) },
+                onClick = { viewModel.setVideoColor(vc.copy(contrast = com.lnxv.player.core.model.VideoColor.cycle(vc.contrast))) }
+            )
+            PlayerMenuItem(
+                text = { Text("Saturation: %+.0f%%".format(vc.saturation * 100)) },
+                onClick = { viewModel.setVideoColor(vc.copy(saturation = com.lnxv.player.core.model.VideoColor.cycle(vc.saturation))) }
+            )
+            if (!vc.isNeutral) PlayerMenuItem(
+                text = { Text("Reset colour") },
+                onClick = { viewModel.setVideoColor(com.lnxv.player.core.model.VideoColor()) }
+            )
         }
         PlayerMenuItem(
             text = { Text("Screenshot") },

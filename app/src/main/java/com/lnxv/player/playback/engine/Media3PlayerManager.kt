@@ -174,6 +174,21 @@ class Media3PlayerManager(private val context: Context) : PlayerController, Play
         _audioOnly.value = enabled
     }
 
+    private val _videoColor = MutableStateFlow(com.lnxv.player.core.model.VideoColor())
+    override val videoColor: StateFlow<com.lnxv.player.core.model.VideoColor> = _videoColor
+
+    /** GL video effects (media3-effect). Neutral = no effect chain, so no GPU pass is added. */
+    override fun setVideoColor(color: com.lnxv.player.core.model.VideoColor) {
+        _videoColor.value = color
+        val fx = ArrayList<androidx.media3.common.Effect>()
+        if (!color.isNeutral) {
+            if (color.brightness != 0f) fx += androidx.media3.effect.Brightness(color.brightness)
+            if (color.contrast != 0f) fx += androidx.media3.effect.Contrast(color.contrast)
+            if (color.saturation != 0f) fx += androidx.media3.effect.HslAdjustment.Builder().adjustSaturation(color.saturation * 100f).build()
+        }
+        runCatching { exoPlayer.setVideoEffects(fx) }
+    }
+
     private val _boostMb = MutableStateFlow(0)
     override val boostMb: StateFlow<Int> = _boostMb
 
@@ -279,6 +294,7 @@ class Media3PlayerManager(private val context: Context) : PlayerController, Play
         externalSubtitleSource = null
         _playbackError.value = null
         if (_audioOnly.value) setAudioOnly(false) // audio-only applies per video
+        if (!_videoColor.value.isNeutral) setVideoColor(com.lnxv.player.core.model.VideoColor()) // colour tweaks apply per video
         _subtitleDelayMs.value = 0L
         _hasExternalSubtitle.value = false
         val mediaItemBuilder = MediaItem.Builder().setUri(uri)

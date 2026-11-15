@@ -55,6 +55,8 @@ interface PlayerController {
     fun setEqPreset(p: EqPreset)
     fun setBoostMb(mb: Int)
     fun setAudioOnly(enabled: Boolean)
+    val videoColor: StateFlow<com.lnxv.player.core.model.VideoColor>
+    fun setVideoColor(color: com.lnxv.player.core.model.VideoColor)
     suspend fun loadExternalSubtitle(uri: Uri): Boolean
     suspend fun adjustSubtitleDelay(deltaMs: Long)
     fun describeStream(): List<Pair<String, String>>
