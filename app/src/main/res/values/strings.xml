@@ -124,4 +124,5 @@
     <string name="settings_tap_change">Tap to change</string>
     <string name="settings_sub_size">Subtitle Text Size</string>
     <string name="settings_sub_color">Subtitle Color</string>
+    <string name="action_delete">Delete</string>
 </resources>

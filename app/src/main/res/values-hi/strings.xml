@@ -120,4 +120,5 @@
     <string name="settings_tap_change">बदलने के लिए टैप करें</string>
     <string name="settings_sub_size">सबटाइटल टेक्स्ट साइज़</string>
     <string name="settings_sub_color">सबटाइटल रंग</string>
+    <string name="action_delete">हटाएँ</string>
 </resources>
