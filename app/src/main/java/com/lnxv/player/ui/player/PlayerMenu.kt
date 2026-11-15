@@ -80,18 +80,18 @@ fun PlayerMoreMenuItems(
             onClick = { viewModel.adjustAudioDelay(50L) }
         )
         PlayerMenuItem(
-            text = { Text("Audio delay -50 ms") },
+            text = { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.menu_audio_delay_minus)) },
             onClick = { viewModel.adjustAudioDelay(-50L) }
         )
         PlayerMenuItem(
-            text = { Text("Previous frame") },
+            text = { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.menu_prev_frame)) },
             onClick = {
                 viewModel.stepFrame(false)
                 closeMenu()
             }
         )
         PlayerMenuItem(
-            text = { Text("Next frame") },
+            text = { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.menu_next_frame)) },
             onClick = {
                 viewModel.stepFrame(true)
                 closeMenu()
@@ -120,12 +120,12 @@ fun PlayerMoreMenuItems(
                 onClick = { viewModel.setVideoColor(vc.copy(saturation = com.lnxv.player.core.model.VideoColor.cycle(vc.saturation))) }
             )
             if (!vc.isNeutral) PlayerMenuItem(
-                text = { Text("Reset colour") },
+                text = { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.menu_reset_colour)) },
                 onClick = { viewModel.setVideoColor(com.lnxv.player.core.model.VideoColor()) }
             )
         }
         PlayerMenuItem(
-            text = { Text("Screenshot") },
+            text = { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.menu_screenshot)) },
             onClick = {
                 closeMenu()
                 // Never capture frames of vault videos.
@@ -137,28 +137,28 @@ fun PlayerMoreMenuItems(
             }
         )
         PlayerMenuItem(
-            text = { Text("Set Point A (AB Repeat)") },
+            text = { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.menu_point_a)) },
             onClick = {
                 viewModel.setPointA()
                 closeMenu()
             }
         )
         PlayerMenuItem(
-            text = { Text("Set Point B (AB Repeat)") },
+            text = { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.menu_point_b)) },
             onClick = {
                 viewModel.setPointB()
                 closeMenu()
             }
         )
         PlayerMenuItem(
-            text = { Text("Clear AB Repeat") },
+            text = { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.menu_clear_ab)) },
             onClick = {
                 viewModel.clearABRepeat()
                 closeMenu()
             }
         )
         PlayerMenuItem(
-            text = { Text("Video Properties") },
+            text = { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.menu_properties)) },
             onClick = {
                 viewModel.showPropertiesDialog(true)
                 closeMenu()

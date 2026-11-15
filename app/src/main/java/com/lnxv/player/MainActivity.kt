@@ -320,7 +320,7 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
         if (isInPictureInPictureMode) {
             // PiP window was dismissed by the user: stop playback completely
             manager.stopPlayback()
-        } else if (!backgroundPlayEnabled) {
+        } else if (!backgroundPlayEnabled && !manager.audioOnly.value) {
             manager.pause()
         }
     }

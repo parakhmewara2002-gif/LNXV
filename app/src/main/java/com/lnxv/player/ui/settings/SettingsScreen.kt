@@ -76,12 +76,12 @@ fun SettingsScreen(
             ) {
                 GlassIconButton(
                     icon = Icons.Default.ArrowBack,
-                    contentDescription = "Back",
+                    contentDescription = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.cd_back),
                     onClick = onBackClick
                 )
                 Spacer(modifier = Modifier.width(16.dp))
                 Text(
-                    text = "Settings",
+                    text = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.settings_title),
                     color = appColors.textPrimary,
                     style = Typography.titleLarge,
                     fontWeight = FontWeight.Bold
@@ -105,7 +105,7 @@ fun SettingsScreen(
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
-                            text = "Theme",
+                            text = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.settings_theme),
                             color = appColors.textPrimary,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Medium
@@ -207,8 +207,8 @@ fun SettingsScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
-                                Text(text = "Resume Playback", color = appColors.textPrimary, fontSize = 15.sp, fontWeight = FontWeight.Medium)
-                                Text(text = "Tap to change", color = appColors.textSecondary, fontSize = 12.sp)
+                                Text(text = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.settings_resume), color = appColors.textPrimary, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                                Text(text = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.settings_tap_change), color = appColors.textSecondary, fontSize = 12.sp)
                             }
                             Text(
                                 text = when (prefs.resumePlaybackMode) {
@@ -227,7 +227,7 @@ fun SettingsScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
-                                Text(text = "Subtitle Text Size", color = appColors.textPrimary, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                                Text(text = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.settings_sub_size), color = appColors.textPrimary, fontSize = 15.sp, fontWeight = FontWeight.Medium)
                                 Text(text = "${prefs.subtitleTextSize.toInt()} sp", color = appColors.textSecondary, fontSize = 12.sp)
                             }
                             Text(
@@ -267,7 +267,7 @@ fun SettingsScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(text = "Subtitle Color", color = appColors.textPrimary, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                            Text(text = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.settings_sub_color), color = appColors.textPrimary, fontSize = 15.sp, fontWeight = FontWeight.Medium)
                             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                 listOf(
                                     "#FFFFFFFF" to Color(0xFFFFFFFF),

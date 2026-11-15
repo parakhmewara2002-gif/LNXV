@@ -408,7 +408,7 @@ fun PlayerScreen(
                     ) {
                         GlassIconButton(
                             icon = Icons.Default.Lock,
-                            contentDescription = "Unlock Screen",
+                            contentDescription = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.cd_unlock_screen),
                             onClick = { viewModel.toggleScreenLock() },
                             tint = NeonCyan,
                             size = 54.dp
@@ -441,7 +441,7 @@ fun PlayerScreen(
                                 ) {
                                     GlassIconButton(
                                         icon = Icons.Default.ArrowBack,
-                                        contentDescription = "Back",
+                                        contentDescription = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.cd_back),
                                         onClick = {
                                             viewModel.closePlayer()
                                             onBackClick()
@@ -462,7 +462,7 @@ fun PlayerScreen(
                                     // Aspect Ratio Toggle
                                     GlassIconButton(
                                         icon = Icons.Default.AspectRatio,
-                                        contentDescription = "Aspect Ratio",
+                                        contentDescription = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.cd_aspect),
                                         onClick = { viewModel.showAspectRatioDialog(true) },
                                         size = 36.dp
                                     )
@@ -470,7 +470,7 @@ fun PlayerScreen(
                                     // Audio Track Switcher
                                     GlassIconButton(
                                         icon = Icons.Default.Audiotrack,
-                                        contentDescription = "Audio Tracks",
+                                        contentDescription = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.cd_audio_tracks),
                                         onClick = { viewModel.showAudioDialog(true) },
                                         size = 36.dp
                                     )
@@ -478,7 +478,7 @@ fun PlayerScreen(
                                     // Subtitles Switcher
                                     GlassIconButton(
                                         icon = Icons.Default.Subtitles,
-                                        contentDescription = "Subtitles",
+                                        contentDescription = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.cd_subtitles),
                                         onClick = { viewModel.showSubtitleDialog(true) },
                                         size = 36.dp
                                     )
@@ -487,7 +487,7 @@ fun PlayerScreen(
                                     if (activity != null && PipManager.isPipSupported(activity)) {
                                         GlassIconButton(
                                             icon = Icons.Default.PictureInPicture,
-                                            contentDescription = "PiP",
+                                            contentDescription = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.cd_pip),
                                             onClick = {
                                                 PipManager.enterPipMode(
                                                     activity,
@@ -503,7 +503,7 @@ fun PlayerScreen(
                                     Box {
                                         GlassIconButton(
                                             icon = Icons.Default.MoreVert,
-                                            contentDescription = "More",
+                                            contentDescription = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.cd_more),
                                             onClick = { isMoreMenuOpen = true },
                                             size = 36.dp
                                         )
@@ -528,14 +528,14 @@ fun PlayerScreen(
                             if (queueUi.size > 1) {
                                 GlassIconButton(
                                     icon = Icons.Default.SkipPrevious,
-                                    contentDescription = "Previous video",
+                                    contentDescription = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.cd_prev_video),
                                     onClick = { viewModel.playPrevious() },
                                     size = 40.dp
                                 )
                             }
                             GlassIconButton(
                                 icon = Icons.Default.FastRewind,
-                                contentDescription = "Seek -10s",
+                                contentDescription = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.cd_seek_back),
                                 onClick = { viewModel.seekRelative(-10000L) },
                                 size = 44.dp
                             )
@@ -565,7 +565,7 @@ fun PlayerScreen(
                                 ) { playing ->
                                     Icon(
                                         imageVector = if (playing) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                        contentDescription = "Play/Pause",
+                                        contentDescription = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.cd_play_pause),
                                         tint = Color.Black,
                                         modifier = Modifier.size(36.dp)
                                     )
@@ -574,14 +574,14 @@ fun PlayerScreen(
 
                             GlassIconButton(
                                 icon = Icons.Default.FastForward,
-                                contentDescription = "Seek +10s",
+                                contentDescription = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.cd_seek_fwd),
                                 onClick = { viewModel.seekRelative(10000L) },
                                 size = 44.dp
                             )
                             if (queueUi.size > 1) {
                                 GlassIconButton(
                                     icon = Icons.Default.SkipNext,
-                                    contentDescription = "Next video",
+                                    contentDescription = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.cd_next_video),
                                     onClick = { viewModel.playNext() },
                                     size = 40.dp
                                 )
@@ -722,7 +722,7 @@ fun PlayerScreen(
                                         // Screen Lock
                                         GlassIconButton(
                                             icon = Icons.Default.LockOpen,
-                                            contentDescription = "Lock Controls",
+                                            contentDescription = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.cd_lock_controls),
                                             onClick = { viewModel.toggleScreenLock() },
                                             size = 36.dp
                                         )
@@ -734,7 +734,7 @@ fun PlayerScreen(
                                                 2 -> Icons.Default.ScreenLockPortrait
                                                 else -> Icons.Default.ScreenRotation
                                             },
-                                            contentDescription = "Orientation",
+                                            contentDescription = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.cd_orientation),
                                             onClick = {
                                                 orientationMode = (orientationMode + 1) % 3
                                                 activity?.requestedOrientation = when (orientationMode) {

@@ -100,13 +100,13 @@ fun VaultScreen(
         var newPin by remember { mutableStateOf("") }
         AlertDialog(
             onDismissRequest = viewModel::closeChangePin,
-            title = { Text("Change PIN") },
+            title = { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.pin_change_title)) },
             text = {
                 Column {
                     androidx.compose.material3.OutlinedTextField(
                         value = oldPin,
                         onValueChange = { oldPin = it.filter(Char::isDigit).take(8) },
-                        label = { Text("Current PIN") },
+                        label = { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.pin_current)) },
                         singleLine = true,
                         visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
                         keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
@@ -117,7 +117,7 @@ fun VaultScreen(
                     androidx.compose.material3.OutlinedTextField(
                         value = newPin,
                         onValueChange = { newPin = it.filter(Char::isDigit).take(8) },
-                        label = { Text("New PIN (4-8 digits)") },
+                        label = { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.pin_new)) },
                         singleLine = true,
                         visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
                         keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
@@ -132,17 +132,17 @@ fun VaultScreen(
             },
             confirmButton = {
                 TextButton(onClick = { viewModel.changePin(oldPin, newPin) }, enabled = oldPin.length >= 4 && newPin.length >= 4) {
-                    Text("Change")
+                    Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.action_change))
                 }
             },
-            dismissButton = { TextButton(onClick = viewModel::closeChangePin) { Text("Cancel") } }
+            dismissButton = { TextButton(onClick = viewModel::closeChangePin) { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.action_cancel)) } }
         )
     }
 
     if (uiState.showForgotConfirm) {
         AlertDialog(
             onDismissRequest = viewModel::dismissForgotPin,
-            title = { Text("Forgot PIN?") },
+            title = { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.pin_forgot)) },
             text = {
                 Text("The vault is encrypted with a key protected by your PIN. Resetting the PIN permanently deletes " +
                     "ALL videos stored in the vault. This cannot be undone.")
@@ -150,7 +150,7 @@ fun VaultScreen(
             confirmButton = {
                 TextButton(onClick = viewModel::confirmWipe) { Text("Delete vault & reset", color = CrimsonAlert) }
             },
-            dismissButton = { TextButton(onClick = viewModel::dismissForgotPin) { Text("Cancel") } }
+            dismissButton = { TextButton(onClick = viewModel::dismissForgotPin) { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.action_cancel)) } }
         )
     }
 
@@ -166,12 +166,12 @@ fun VaultScreen(
             ) {
                 GlassIconButton(
                     icon = Icons.Default.ArrowBack,
-                    contentDescription = "Back",
+                    contentDescription = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.cd_back),
                     onClick = onBackClick
                 )
                 Spacer(modifier = Modifier.width(16.dp))
                 Text(
-                    text = "Private Vault",
+                    text = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.vault_title),
                     color = appColors.textPrimary,
                     style = Typography.titleLarge,
                     fontWeight = FontWeight.Bold,
@@ -204,7 +204,7 @@ fun VaultScreen(
                         )
                         Spacer(Modifier.height(6.dp))
                         LinearProgressIndicator(progress = { job.progress }, modifier = Modifier.fillMaxWidth())
-                        TextButton(onClick = viewModel::cancelTransfers) { Text("Cancel") }
+                        TextButton(onClick = viewModel::cancelTransfers) { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.action_cancel)) }
                     }
                 }
                 if (legacyCount > 0 && !job.isRunning) {
@@ -233,14 +233,14 @@ fun VaultScreen(
                             )
                             Spacer(modifier = Modifier.height(16.dp))
                             Text(
-                                text = "Your Vault is Empty",
+                                text = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.vault_empty_title),
                                 color = appColors.textPrimary,
                                 style = Typography.titleMedium,
                                 fontWeight = FontWeight.SemiBold
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = "Move videos here from the home screen options menu.",
+                                text = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.vault_empty_hint),
                                 color = appColors.textTertiary,
                                 fontSize = 13.sp
                             )
@@ -301,7 +301,7 @@ fun VaultScreen(
                                     IconButton(onClick = { viewModel.restoreFromVault(video) }) {
                                         Icon(
                                             imageVector = Icons.Default.Restore,
-                                            contentDescription = "Restore to Library",
+                                            contentDescription = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.vault_restore),
                                             tint = appColors.accent
                                         )
                                     }
@@ -446,7 +446,7 @@ fun VaultScreen(
                                         ) {
                                             Icon(
                                                 imageVector = Icons.Default.Backspace,
-                                                contentDescription = "Delete",
+                                                contentDescription = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.action_delete),
                                                 tint = appColors.textPrimary
                                             )
                                         }
