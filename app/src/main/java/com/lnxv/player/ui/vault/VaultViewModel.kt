@@ -13,6 +13,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -35,7 +36,8 @@ data class VaultUiState(
     val showForgotConfirm: Boolean = false,
     val showChangePin: Boolean = false,
     val changePinMessage: String? = null,
-    val busy: Boolean = false
+    val busy: Boolean = false,
+    val biometricEnabled: Boolean = false
 ) {
     /** While entering an existing PIN its length is known; during setup the user chooses 4-8 and confirms. */
     val needsConfirmButton: Boolean get() = authState != VaultAuthState.ENTER_PIN
@@ -74,7 +76,9 @@ class VaultViewModel(application: Application) : AndroidViewModel(application) {
                 isSet -> VaultAuthState.ENTER_PIN
                 else -> VaultAuthState.SETUP_PIN
             }
-            _uiState.value = _uiState.value.copy(authState = state, pinLength = len)
+            val prefs = app.dataStore.userPreferencesFlow.first()
+            val bio = isSet && prefs.vaultBiometric && prefs.isEnabled(com.lnxv.player.core.flags.FeatureFlag.BIOMETRIC_UNLOCK)
+            _uiState.value = _uiState.value.copy(authState = state, pinLength = len, biometricEnabled = bio)
             if (state == VaultAuthState.AUTHENTICATED) onAuthenticated()
             else startLockoutCountdownIfNeeded()
         }
@@ -170,6 +174,15 @@ class VaultViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
             VaultAuthState.AUTHENTICATED -> {}
+        }
+    }
+
+    fun unlockWithBiometric() {
+        viewModelScope.launch {
+            if (vaultRepo.unlockWithBiometric()) {
+                _uiState.value = _uiState.value.copy(authState = VaultAuthState.AUTHENTICATED, enteredPin = "", errorMessage = null)
+                onAuthenticated()
+            }
         }
     }
 

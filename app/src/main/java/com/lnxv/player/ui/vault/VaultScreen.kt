@@ -399,6 +399,15 @@ fun VaultScreen(
                             Text("OK", color = appColors.accent)
                         }
                     }
+                    if (uiState.authState == VaultAuthState.ENTER_PIN && uiState.biometricEnabled && uiState.lockoutRemainingSec == 0L &&
+                        com.lnxv.player.core.security.BiometricGate.canAuthenticate(androidx.compose.ui.platform.LocalContext.current)
+                    ) {
+                        TextButton(onClick = {
+                            (activity as? androidx.fragment.app.FragmentActivity)?.let { a ->
+                                com.lnxv.player.core.security.BiometricGate.prompt(a, "Unlock vault", "Use PIN", { viewModel.unlockWithBiometric() })
+                            }
+                        }) { Text("Use biometrics", color = appColors.accent, fontSize = 13.sp) }
+                    }
                     if (uiState.authState == VaultAuthState.ENTER_PIN) {
                         TextButton(onClick = viewModel::requestForgotPin) {
                             Text("Forgot PIN?", color = appColors.textTertiary, fontSize = 12.sp)

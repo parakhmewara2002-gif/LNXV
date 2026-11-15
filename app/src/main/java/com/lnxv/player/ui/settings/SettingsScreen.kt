@@ -547,6 +547,23 @@ fun SettingsScreen(
                     backgroundColor = appColors.glassFill
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
+                        val bioCtx = androidx.compose.ui.platform.LocalContext.current
+                        if (prefs.isEnabled(com.lnxv.player.core.flags.FeatureFlag.BIOMETRIC_UNLOCK) && com.lnxv.player.core.security.BiometricGate.canAuthenticate(bioCtx)) {
+                            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("Unlock vault with biometrics", color = appColors.textPrimary, fontSize = 14.sp)
+                                androidx.compose.material3.Switch(
+                                    checked = prefs.vaultBiometric,
+                                    onCheckedChange = { want ->
+                                        if (!want) viewModel.setVaultBiometric(false)
+                                        else (bioCtx as? androidx.fragment.app.FragmentActivity)?.let { a ->
+                                            // Enabling needs a successful biometric confirmation first.
+                                            com.lnxv.player.core.security.BiometricGate.prompt(a, "Enable biometric unlock", "Cancel", { viewModel.setVaultBiometric(true) })
+                                        }
+                                    }
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(10.dp))
+                        }
                         Text("No analytics. No tracking. No ads.", color = appColors.textPrimary, fontSize = 15.sp, fontWeight = FontWeight.Medium)
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(

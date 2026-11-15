@@ -46,9 +46,14 @@ enum class FeatureFlag(val title: String, val description: String, val defaultEn
         "Adds 'Audio only' to the player menu: video decoding is switched off (saves battery) while audio keeps playing. Applies to the current video only.",
         true
     ),
+    BIOMETRIC_UNLOCK(
+        "Biometric vault unlock",
+        "Lets you unlock the vault with fingerprint/face (Android BiometricPrompt, strong class) instead of the PIN. Enable it in Settings > Privacy. The PIN always still works; biometrics are refused while the PIN lockout is active.",
+        false
+    ),
     VIDEO_TRANSFORMS(
-        "Rotate / flip video",
-        "Adds Rotate and Flip to the player menu. Applied to the video surface; may look wrong on some devices (SurfaceView).",
+        "Rotate / flip / colour",
+        "Adds Rotate, Flip and Brightness/Contrast/Saturation to the player menu. Rotate/flip is applied to the video surface and may look wrong on some devices (SurfaceView); colour uses a GL effect pass.",
         false
     ),
     EQUALIZER(

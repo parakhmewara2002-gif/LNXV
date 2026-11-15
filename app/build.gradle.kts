@@ -133,6 +133,7 @@ dependencies {
     implementation(libs.androidx.media3.exoplayer.hls)
     implementation(libs.androidx.media3.exoplayer.dash)
     implementation(libs.androidx.media3.exoplayer.rtsp)
+    implementation(libs.androidx.biometric) // optional vault unlock (flag BIOMETRIC_UNLOCK); BiometricPrompt requires FragmentActivity
     implementation(libs.androidx.media3.ui)
     implementation(libs.androidx.media3.effect) // brightness/contrast/saturation (Phase 5, flag VIDEO_TRANSFORMS)
     implementation(libs.androidx.media3.session)

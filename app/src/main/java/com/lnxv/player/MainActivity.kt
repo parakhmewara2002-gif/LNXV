@@ -38,7 +38,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 
-class MainActivity : ComponentActivity() {
+class MainActivity : androidx.fragment.app.FragmentActivity() {
 
     /** null until DataStore delivered the first value; the splash screen is held until then (no runBlocking). */
     private val prefsState = MutableStateFlow<UserPreferences?>(null)

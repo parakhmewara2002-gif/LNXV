@@ -112,6 +112,16 @@ class VaultRepository(
         }
     }
 
+    /** Unlocks after a successful BiometricPrompt. Refused while the PIN lockout is active or biometrics are not enabled. */
+    suspend fun unlockWithBiometric(): Boolean = withContext(Dispatchers.Default) {
+        val prefs = dataStore.userPreferencesFlow.first()
+        if (!prefs.isEnabled(com.lnxv.player.core.flags.FeatureFlag.BIOMETRIC_UNLOCK) || !prefs.vaultBiometric) return@withContext false
+        if (prefs.vaultPinDerived.isEmpty()) return@withContext false
+        if (LockoutPolicy.remainingMs(prefs.lockoutState, System.currentTimeMillis()) > 0) return@withContext false
+        keys.ensureKey(); keys.unlock()
+        true
+    }
+
     /**
      * Change PIN: verifies the old PIN (counts toward lockout) and stores a new PBKDF2 credential.
      * The master key is wrapped by the Keystore, not derived from the PIN, so no file re-encryption is needed.
