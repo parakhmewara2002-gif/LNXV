@@ -38,3 +38,15 @@ Test on at least: one low-RAM device (<=3 GB), one Android 14 device, one Androi
 - [ ] Playlist: open, rename, reorder, remove, play from an item, delete.
 - [ ] Switch device language to Hindi: tabs, chips, selection bar, empty states, onboarding render correctly (no clipping). Get the Hindi text reviewed.
 - [ ] Grid columns change on rotation/tablet. TalkBack reads "Seek bar" with position, keypad keys announce as buttons.
+
+## Final-round additions (all NOT DEVICE-TESTED)
+- Player menu: Brightness / Contrast / Saturation change the picture; Reset colour restores it; open a new video and confirm they reset.
+- Duplicates collection: initially shows candidates, then narrows to confirmed (partial-hash) duplicates; cancel by switching collection.
+- Search `dur>30m`, `folder:Movies` filter correctly.
+- Long-press a video: select several, "⋮" Share, Rename (single), Delete from device (system confirmation on Android 11+).
+- Hardware keyboard / TV remote: Space, arrows, J/L, N/P control playback.
+- Long-press the app icon: "Continue watching" resumes the last unfinished video; add the widget and tap it.
+- Enable flag BIOMETRIC_UNLOCK, Settings > Privacy toggle, then unlock the vault with a fingerprint; confirm it is refused during PIN lockout.
+- Audio-only on, turn the screen off: audio continues.
+- Settings > Gestures: each of brightness / volume / seek / long-press toggles works independently.
+- Switch language to Hindi: new strings appear and nothing is clipped.

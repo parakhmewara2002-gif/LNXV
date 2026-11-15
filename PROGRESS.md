@@ -76,3 +76,4 @@ Phase 4 remainder: split PlayerScreen/HomeScreen, DI + PlayerController interfac
 Phases 3, 4, 5, 6 and the LOW RAM / LOW STORAGE rules (A–D).
 
 - Final round: Rules A/B/C done (CI green); brightness/contrast/saturation implemented (VIDEO_TRANSFORMS). Remaining items listed in docs/FINAL_REPORT.md.
+- Completion round: see docs/FINAL_REPORT.md (done vs deliberately-not-done lists).
