@@ -179,10 +179,31 @@ fun SettingsScreen(
                         )
                         Spacer(modifier = Modifier.height(14.dp))
                         SettingSwitchRow(
-                            title = "Brightness & Volume Gestures",
-                            subtitle = "Swipe vertically on screen edges",
+                            title = "Brightness gesture",
+                            subtitle = "Swipe vertically on the left side",
                             isChecked = prefs.isBrightnessGestureEnabled,
                             onCheckedChange = { viewModel.toggleBrightnessGesture(it) }
+                        )
+                        Spacer(modifier = Modifier.height(14.dp))
+                        SettingSwitchRow(
+                            title = "Volume gesture",
+                            subtitle = "Swipe vertically on the right side",
+                            isChecked = prefs.isVolumeGestureEnabled,
+                            onCheckedChange = { viewModel.toggleVolumeGesture(it) }
+                        )
+                        Spacer(modifier = Modifier.height(14.dp))
+                        SettingSwitchRow(
+                            title = "Seek gesture",
+                            subtitle = "Swipe horizontally to seek",
+                            isChecked = prefs.isSeekGestureEnabled,
+                            onCheckedChange = { viewModel.toggleSeekGesture(it) }
+                        )
+                        Spacer(modifier = Modifier.height(14.dp))
+                        SettingSwitchRow(
+                            title = "Long-press speed",
+                            subtitle = "Hold to play at 2x",
+                            isChecked = prefs.isLongPressSpeedEnabled,
+                            onCheckedChange = { viewModel.toggleLongPressGesture(it) }
                         )
                         Spacer(modifier = Modifier.height(14.dp))
                         SettingSwitchRow(

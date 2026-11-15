@@ -214,6 +214,10 @@ class UserPreferencesDataStore(private val context: Context) {
         context.dataStore.edit { it[PreferencesKeys.AUTO_PIP] = enabled }
     }
 
+    suspend fun updateVolumeGesture(enabled: Boolean) { context.dataStore.edit { it[PreferencesKeys.GESTURE_VOLUME] = enabled } }
+    suspend fun updateSeekGesture(enabled: Boolean) { context.dataStore.edit { it[PreferencesKeys.GESTURE_SEEK] = enabled } }
+    suspend fun updateLongPressGesture(enabled: Boolean) { context.dataStore.edit { it[PreferencesKeys.GESTURE_LONG_PRESS] = enabled } }
+
     suspend fun updateBrightnessGesture(enabled: Boolean) {
         context.dataStore.edit { it[PreferencesKeys.GESTURE_BRIGHTNESS] = enabled }
     }

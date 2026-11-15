@@ -369,7 +369,7 @@ fun PlayerScreen(
             durationMs = playbackState.durationMs,
             currentPositionProvider = { viewModel.positionMs.value },
             brightnessEnabled = prefs.isBrightnessGestureEnabled,
-            volumeEnabled = prefs.isBrightnessGestureEnabled,
+            volumeEnabled = prefs.isVolumeGestureEnabled,
             seekEnabled = prefs.isSeekGestureEnabled,
             longPressEnabled = prefs.isLongPressSpeedEnabled,
             doubleTapSeekMs = prefs.doubleTapSeekSeconds * 1000L,

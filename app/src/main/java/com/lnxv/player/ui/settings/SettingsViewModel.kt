@@ -140,6 +140,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    fun toggleVolumeGesture(on: Boolean) { viewModelScope.launch { dataStore.updateVolumeGesture(on) } }
+    fun toggleSeekGesture(on: Boolean) { viewModelScope.launch { dataStore.updateSeekGesture(on) } }
+    fun toggleLongPressGesture(on: Boolean) { viewModelScope.launch { dataStore.updateLongPressGesture(on) } }
+
     fun toggleBrightnessGesture(enabled: Boolean) {
         viewModelScope.launch {
             dataStore.updateBrightnessGesture(enabled)
