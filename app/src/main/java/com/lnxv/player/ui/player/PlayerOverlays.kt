@@ -35,7 +35,6 @@ import com.lnxv.player.core.design.icons.FastForward
 import com.lnxv.player.core.design.icons.SkipNext
 import com.lnxv.player.core.design.icons.SkipPrevious
 import com.lnxv.player.core.design.icons.FastRewind
-import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
 import com.lnxv.player.core.design.icons.LockOpen
