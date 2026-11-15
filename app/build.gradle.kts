@@ -23,6 +23,23 @@ android {
         }
     }
 
+    // sideload: self-updating APK (arm64 only to keep it small). store: no installer permission, no updater.
+    // Only ship the languages LNXV is translated into (drops unused library locale resources).
+    defaultConfig { resourceConfigurations += listOf("en", "hi") }
+
+    flavorDimensions += "dist"
+    productFlavors {
+        create("sideload") {
+            dimension = "dist"
+            ndk { abiFilters += "arm64-v8a" }
+            resValue("bool", "updater_enabled", "true")
+        }
+        create("store") {
+            dimension = "dist"
+            resValue("bool", "updater_enabled", "false")
+        }
+    }
+
     signingConfigs {
         create("lnxvRelease") {
             val ksPath = System.getenv("KEYSTORE_PATH")
@@ -45,6 +62,13 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+        }
+        // Used only by :benchmark (macrobenchmark / baseline-profile generation). Never shipped.
+        create("benchmark") {
+            initWith(getByName("release"))
+            signingConfig = signingConfigs.getByName("debug")
+            matchingFallbacks += listOf("release")
+            isDebuggable = false
         }
         debug {
             applicationIdSuffix = ".debug"
@@ -83,6 +107,12 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
     implementation("androidx.profileinstaller:profileinstaller:1.3.1")
     implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.core.splashscreen)
+    // Real backdrop blur (RenderEffect on Android 12+, translucent fallback below). Used on one bar only.
+    implementation(libs.haze)
+    implementation("androidx.profileinstaller:profileinstaller:1.3.1")
+    implementation(libs.koin.android)
+    implementation(libs.koin.compose)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.activity.compose)
@@ -93,13 +123,19 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
-    implementation(libs.androidx.material.icons.extended)
     implementation(libs.androidx.navigation.compose)
     debugImplementation(libs.androidx.ui.tooling)
+    debugImplementation(libs.leakcanary)
 
     // Media3 ExoPlayer
     implementation(libs.androidx.media3.exoplayer)
+    // Network streams (Phase 2.3): HLS, DASH and RTSP sources. Same pinned Media3 version, loaded lazily by the media source factory.
+    implementation(libs.androidx.media3.exoplayer.hls)
+    implementation(libs.androidx.media3.exoplayer.dash)
+    implementation(libs.androidx.media3.exoplayer.rtsp)
+    implementation(libs.androidx.biometric) // optional vault unlock (flag BIOMETRIC_UNLOCK); BiometricPrompt requires FragmentActivity
     implementation(libs.androidx.media3.ui)
+    implementation(libs.androidx.media3.effect) // brightness/contrast/saturation (Phase 5, flag VIDEO_TRANSFORMS)
     implementation(libs.androidx.media3.session)
     implementation(libs.androidx.media3.common)
     implementation(libs.androidx.media3.extractor)

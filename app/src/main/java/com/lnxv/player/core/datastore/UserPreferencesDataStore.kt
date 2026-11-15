@@ -8,12 +8,14 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-import java.security.MessageDigest
+import com.lnxv.player.core.security.LockoutState
+import com.lnxv.player.core.flags.FeatureFlag
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "lnxv_user_preferences")
 
@@ -32,6 +34,13 @@ data class UserPreferences(
     val resumePlaybackMode: String = "ALWAYS",
     val subtitleTextSize: Float = 16f,
     val subtitleTextColorHex: String = "#FFFFFFFF",
+    val subtitleBgOpacityPct: Int = 50,
+    val gestureSensitivityPct: Int = 100,
+    val thumbSizeDp: Int = 170,
+    val subtitleFont: String = "DEFAULT",
+    val vaultBiometric: Boolean = false,
+    val subtitleEdge: String = "OUTLINE",
+    val subtitleBottomPct: Int = 8,
     val librarySortMode: String = "DATE_DESC",
     val vaultPinHash: String = "",
     val isBackgroundPlayEnabled: Boolean = false,
@@ -40,8 +49,32 @@ data class UserPreferences(
     val lastSpeed: Float = 1.0f,
     val hiddenFolders: Set<String> = emptySet(),
     val libraryViewMode: String = "LIST",
-    val themeMode: String = "DARK"
-)
+    val themeMode: String = "DARK",
+    /** Base64 PBKDF2 credential (replaces the legacy static-salt SHA-256 in [vaultPinHash]). */
+    val vaultPinSalt: String = "",
+    val vaultPinDerived: String = "",
+    val vaultPinIterations: Int = 0,
+    val vaultPinLength: Int = 6,
+    val vaultFailedAttempts: Int = 0,
+    val vaultLockedUntilMs: Long = 0L,
+    /** 0 = immediately when the app leaves the foreground, otherwise grace period in ms. */
+    val vaultAutoLockMs: Long = 0L,
+    val blockScreenshotsEverywhere: Boolean = false,
+    val updateWifiOnly: Boolean = false,
+    val dynamicColor: Boolean = false,
+    /** AUTO / ON / OFF: reduce effects (blur, shared elements, heavy animations). AUTO follows device-tier detection. */
+    val effectsMode: String = "AUTO",
+    /** Newline-separated recent stream URLs (credentials stripped). */
+    val recentStreams: String = "",
+    val perVideoSpeeds: String = "",
+    val onboardingDone: Boolean = false,
+    val skippedUpdateBuild: Int = 0,
+    val featureFlags: Map<FeatureFlag, Boolean> = FeatureFlag.defaults()
+) {
+    val hasVaultCredential: Boolean get() = vaultPinDerived.isNotEmpty() || vaultPinHash.isNotEmpty()
+    val lockoutState: LockoutState get() = LockoutState(vaultFailedAttempts, vaultLockedUntilMs)
+    fun isEnabled(flag: FeatureFlag): Boolean = featureFlags[flag] ?: flag.defaultEnabled
+}
 
 class UserPreferencesDataStore(private val context: Context) {
 
@@ -59,6 +92,13 @@ class UserPreferencesDataStore(private val context: Context) {
         val RESUME_MODE = stringPreferencesKey("resume_mode")
         val SUBTITLE_SIZE = floatPreferencesKey("subtitle_size")
         val SUBTITLE_COLOR = stringPreferencesKey("subtitle_color")
+        val SUBTITLE_BG = intPreferencesKey("subtitle_bg_pct")
+        val GESTURE_SENS = intPreferencesKey("gesture_sensitivity_pct")
+        val THUMB_SIZE = intPreferencesKey("thumb_size_dp")
+        val SUB_FONT = stringPreferencesKey("subtitle_font")
+        val VAULT_BIO = booleanPreferencesKey("vault_biometric")
+        val SUBTITLE_EDGE = stringPreferencesKey("subtitle_edge")
+        val SUBTITLE_BOTTOM = intPreferencesKey("subtitle_bottom_pct")
         val LIBRARY_SORT = stringPreferencesKey("library_sort")
         val VAULT_PIN_HASH = stringPreferencesKey("vault_pin_hash")
         val BACKGROUND_PLAY = booleanPreferencesKey("background_play")
@@ -68,6 +108,22 @@ class UserPreferencesDataStore(private val context: Context) {
         val HIDDEN_FOLDERS = stringSetPreferencesKey("hidden_folders")
         val VIEW_MODE = stringPreferencesKey("library_view_mode")
         val THEME_MODE = stringPreferencesKey("theme_mode")
+        val VAULT_PIN_SALT = stringPreferencesKey("vault_pin_salt")
+        val VAULT_PIN_DERIVED = stringPreferencesKey("vault_pin_derived")
+        val VAULT_PIN_ITER = intPreferencesKey("vault_pin_iter")
+        val VAULT_PIN_LEN = intPreferencesKey("vault_pin_len")
+        val VAULT_FAILED = intPreferencesKey("vault_failed_attempts")
+        val VAULT_LOCKED_UNTIL = longPreferencesKey("vault_locked_until")
+        val VAULT_AUTOLOCK = longPreferencesKey("vault_autolock_ms")
+        val BLOCK_SCREENSHOTS = booleanPreferencesKey("block_screenshots")
+        val RECENT_STREAMS = stringPreferencesKey("recent_streams")
+        val PER_VIDEO_SPEEDS = stringPreferencesKey("per_video_speeds")
+        val ONBOARDING_DONE = booleanPreferencesKey("onboarding_done")
+        val DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
+        val EFFECTS_MODE = stringPreferencesKey("effects_mode")
+        val UPDATE_WIFI_ONLY = booleanPreferencesKey("update_wifi_only")
+        val UPDATE_SKIPPED = intPreferencesKey("update_skipped_build")
+        fun flagKey(flag: FeatureFlag) = booleanPreferencesKey("ff_" + flag.name.lowercase())
     }
 
     val userPreferencesFlow: Flow<UserPreferences> = context.dataStore.data.map { prefs ->
@@ -85,6 +141,13 @@ class UserPreferencesDataStore(private val context: Context) {
             resumePlaybackMode = prefs[PreferencesKeys.RESUME_MODE] ?: "ALWAYS",
             subtitleTextSize = prefs[PreferencesKeys.SUBTITLE_SIZE] ?: 16f,
             subtitleTextColorHex = prefs[PreferencesKeys.SUBTITLE_COLOR] ?: "#FFFFFFFF",
+            subtitleBgOpacityPct = prefs[PreferencesKeys.SUBTITLE_BG] ?: 50,
+            gestureSensitivityPct = prefs[PreferencesKeys.GESTURE_SENS] ?: 100,
+            thumbSizeDp = prefs[PreferencesKeys.THUMB_SIZE] ?: 170,
+            subtitleFont = prefs[PreferencesKeys.SUB_FONT] ?: "DEFAULT",
+            vaultBiometric = prefs[PreferencesKeys.VAULT_BIO] ?: false,
+            subtitleEdge = prefs[PreferencesKeys.SUBTITLE_EDGE] ?: "OUTLINE",
+            subtitleBottomPct = prefs[PreferencesKeys.SUBTITLE_BOTTOM] ?: 8,
             librarySortMode = prefs[PreferencesKeys.LIBRARY_SORT] ?: "DATE_DESC",
             vaultPinHash = prefs[PreferencesKeys.VAULT_PIN_HASH] ?: "",
             isBackgroundPlayEnabled = prefs[PreferencesKeys.BACKGROUND_PLAY] ?: false,
@@ -93,7 +156,25 @@ class UserPreferencesDataStore(private val context: Context) {
             lastSpeed = prefs[PreferencesKeys.LAST_SPEED] ?: 1.0f,
             hiddenFolders = prefs[PreferencesKeys.HIDDEN_FOLDERS] ?: emptySet(),
             libraryViewMode = prefs[PreferencesKeys.VIEW_MODE] ?: "LIST",
-            themeMode = prefs[PreferencesKeys.THEME_MODE] ?: "DARK"
+            themeMode = prefs[PreferencesKeys.THEME_MODE] ?: "DARK",
+            vaultPinSalt = prefs[PreferencesKeys.VAULT_PIN_SALT] ?: "",
+            vaultPinDerived = prefs[PreferencesKeys.VAULT_PIN_DERIVED] ?: "",
+            vaultPinIterations = prefs[PreferencesKeys.VAULT_PIN_ITER] ?: 0,
+            vaultPinLength = prefs[PreferencesKeys.VAULT_PIN_LEN] ?: 6,
+            vaultFailedAttempts = prefs[PreferencesKeys.VAULT_FAILED] ?: 0,
+            vaultLockedUntilMs = prefs[PreferencesKeys.VAULT_LOCKED_UNTIL] ?: 0L,
+            vaultAutoLockMs = prefs[PreferencesKeys.VAULT_AUTOLOCK] ?: 0L,
+            blockScreenshotsEverywhere = prefs[PreferencesKeys.BLOCK_SCREENSHOTS] ?: false,
+            updateWifiOnly = prefs[PreferencesKeys.UPDATE_WIFI_ONLY] ?: false,
+            dynamicColor = prefs[PreferencesKeys.DYNAMIC_COLOR] ?: false,
+            effectsMode = prefs[PreferencesKeys.EFFECTS_MODE] ?: "AUTO",
+            recentStreams = prefs[PreferencesKeys.RECENT_STREAMS] ?: "",
+            perVideoSpeeds = prefs[PreferencesKeys.PER_VIDEO_SPEEDS] ?: "",
+            onboardingDone = prefs[PreferencesKeys.ONBOARDING_DONE] ?: false,
+            skippedUpdateBuild = prefs[PreferencesKeys.UPDATE_SKIPPED] ?: 0,
+            featureFlags = FeatureFlag.values().associateWith { f ->
+                prefs[PreferencesKeys.flagKey(f)] ?: f.defaultEnabled
+            }
         )
     }
 
@@ -133,6 +214,10 @@ class UserPreferencesDataStore(private val context: Context) {
         context.dataStore.edit { it[PreferencesKeys.AUTO_PIP] = enabled }
     }
 
+    suspend fun updateVolumeGesture(enabled: Boolean) { context.dataStore.edit { it[PreferencesKeys.GESTURE_VOLUME] = enabled } }
+    suspend fun updateSeekGesture(enabled: Boolean) { context.dataStore.edit { it[PreferencesKeys.GESTURE_SEEK] = enabled } }
+    suspend fun updateLongPressGesture(enabled: Boolean) { context.dataStore.edit { it[PreferencesKeys.GESTURE_LONG_PRESS] = enabled } }
+
     suspend fun updateBrightnessGesture(enabled: Boolean) {
         context.dataStore.edit { it[PreferencesKeys.GESTURE_BRIGHTNESS] = enabled }
     }
@@ -153,6 +238,14 @@ class UserPreferencesDataStore(private val context: Context) {
         context.dataStore.edit { it[PreferencesKeys.SUBTITLE_SIZE] = size }
     }
 
+    suspend fun updateVaultBiometric(on: Boolean) { context.dataStore.edit { it[PreferencesKeys.VAULT_BIO] = on } }
+    suspend fun updateSubtitleFont(f: String) { context.dataStore.edit { it[PreferencesKeys.SUB_FONT] = f } }
+    suspend fun updateThumbSize(dp: Int) { context.dataStore.edit { it[PreferencesKeys.THUMB_SIZE] = dp.coerceIn(120, 260) } }
+    suspend fun updateGestureSensitivity(pct: Int) { context.dataStore.edit { it[PreferencesKeys.GESTURE_SENS] = pct.coerceIn(50, 200) } }
+    suspend fun updateSubtitleBg(pct: Int) { context.dataStore.edit { it[PreferencesKeys.SUBTITLE_BG] = pct.coerceIn(0, 100) } }
+    suspend fun updateSubtitleEdge(edge: String) { context.dataStore.edit { it[PreferencesKeys.SUBTITLE_EDGE] = edge } }
+    suspend fun updateSubtitleBottom(pct: Int) { context.dataStore.edit { it[PreferencesKeys.SUBTITLE_BOTTOM] = pct.coerceIn(0, 40) } }
+
     suspend fun updateSubtitleColor(hex: String) {
         context.dataStore.edit { it[PreferencesKeys.SUBTITLE_COLOR] = hex }
     }
@@ -172,20 +265,75 @@ class UserPreferencesDataStore(private val context: Context) {
         }
     }
 
-    suspend fun setVaultPin(pin: String) {
-        val hash = hashPin(pin)
-        context.dataStore.edit { it[PreferencesKeys.VAULT_PIN_HASH] = hash }
+    suspend fun saveVaultCredential(saltB64: String, derivedB64: String, iterations: Int, pinLength: Int) {
+        context.dataStore.edit {
+            it[PreferencesKeys.VAULT_PIN_SALT] = saltB64
+            it[PreferencesKeys.VAULT_PIN_DERIVED] = derivedB64
+            it[PreferencesKeys.VAULT_PIN_ITER] = iterations
+            it[PreferencesKeys.VAULT_PIN_LEN] = pinLength
+            it.remove(PreferencesKeys.VAULT_PIN_HASH) // drop legacy static-salt hash
+            it[PreferencesKeys.VAULT_FAILED] = 0
+            it[PreferencesKeys.VAULT_LOCKED_UNTIL] = 0L
+        }
     }
 
-    suspend fun verifyVaultPin(enteredPin: String, currentHash: String): Boolean {
-        if (currentHash.isEmpty()) return false
-        val enteredHash = hashPin(enteredPin)
-        return enteredHash == currentHash
+    suspend fun clearVaultCredential() {
+        context.dataStore.edit {
+            it.remove(PreferencesKeys.VAULT_PIN_HASH)
+            it.remove(PreferencesKeys.VAULT_PIN_SALT)
+            it.remove(PreferencesKeys.VAULT_PIN_DERIVED)
+            it.remove(PreferencesKeys.VAULT_PIN_ITER)
+            it.remove(PreferencesKeys.VAULT_PIN_LEN)
+            it[PreferencesKeys.VAULT_FAILED] = 0
+            it[PreferencesKeys.VAULT_LOCKED_UNTIL] = 0L
+        }
     }
 
-    private fun hashPin(pin: String): String {
-        val md = MessageDigest.getInstance("SHA-256")
-        val digest = md.digest("LNXV_SALT_$pin".toByteArray())
-        return digest.fold("") { str, it -> str + "%02x".format(it) }
+    suspend fun saveLockout(state: LockoutState) {
+        context.dataStore.edit {
+            it[PreferencesKeys.VAULT_FAILED] = state.failedAttempts
+            it[PreferencesKeys.VAULT_LOCKED_UNTIL] = state.lockedUntilMs
+        }
+    }
+
+    suspend fun updateVaultAutoLock(ms: Long) {
+        context.dataStore.edit { it[PreferencesKeys.VAULT_AUTOLOCK] = ms }
+    }
+
+    suspend fun setOnboardingDone() { context.dataStore.edit { it[PreferencesKeys.ONBOARDING_DONE] = true } }
+
+    suspend fun setVideoSpeed(videoId: Long, speed: Float) {
+        context.dataStore.edit {
+            it[PreferencesKeys.PER_VIDEO_SPEEDS] =
+                com.lnxv.player.core.model.PerVideoSpeed.with(it[PreferencesKeys.PER_VIDEO_SPEEDS] ?: "", videoId, speed)
+        }
+    }
+
+    suspend fun saveRecentStreams(encoded: String) {
+        context.dataStore.edit { it[PreferencesKeys.RECENT_STREAMS] = encoded }
+    }
+
+    suspend fun updateDynamicColor(enabled: Boolean) {
+        context.dataStore.edit { it[PreferencesKeys.DYNAMIC_COLOR] = enabled }
+    }
+
+    suspend fun updateEffectsMode(mode: String) {
+        context.dataStore.edit { it[PreferencesKeys.EFFECTS_MODE] = mode }
+    }
+
+    suspend fun updateUpdateWifiOnly(enabled: Boolean) {
+        context.dataStore.edit { it[PreferencesKeys.UPDATE_WIFI_ONLY] = enabled }
+    }
+
+    suspend fun skipUpdateBuild(build: Int) {
+        context.dataStore.edit { it[PreferencesKeys.UPDATE_SKIPPED] = build }
+    }
+
+    suspend fun updateBlockScreenshots(enabled: Boolean) {
+        context.dataStore.edit { it[PreferencesKeys.BLOCK_SCREENSHOTS] = enabled }
+    }
+
+    suspend fun setFeatureFlag(flag: FeatureFlag, enabled: Boolean) {
+        context.dataStore.edit { it[PreferencesKeys.flagKey(flag)] = enabled }
     }
 }

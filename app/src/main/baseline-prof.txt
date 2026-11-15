@@ -1,0 +1,5 @@
+# Hand-written baseline profile rules (Phase 4). Replace/extend with a generated profile:
+#   ./gradlew :benchmark:connectedBenchmarkAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.lnxv.player.benchmark.BaselineProfileGenerator
+# These wildcard rules mark all app code as startup-relevant (H = hot, S = startup, P = post-startup) so ART precompiles it.
+HSPLcom/lnxv/player/**;->**(**)**
+Lcom/lnxv/player/**;

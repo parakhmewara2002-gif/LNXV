@@ -1,0 +1,32 @@
+name: Dependency vulnerability scan (OWASP)
+
+# Weekly + manual. Needs the optional repository secret NVD_API_KEY, otherwise the NVD download is very slow/rate-limited.
+on:
+  schedule:
+    - cron: "0 3 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Run OWASP dependency-check CLI
+        continue-on-error: true
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/odc" reports
+          curl -fsSL -o "$RUNNER_TEMP/odc/odc.zip" https://github.com/jeremylong/DependencyCheck/releases/download/v10.0.4/dependency-check-10.0.4-release.zip
+          unzip -q "$RUNNER_TEMP/odc/odc.zip" -d "$RUNNER_TEMP/odc"
+          "$RUNNER_TEMP/odc/dependency-check/bin/dependency-check.sh" --scan gradle/libs.versions.toml app/build.gradle.kts \
+            --format HTML --out reports ${NVD_API_KEY:+--nvdApiKey "$NVD_API_KEY"}
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: dependency-check
+          path: reports/
+          if-no-files-found: ignore

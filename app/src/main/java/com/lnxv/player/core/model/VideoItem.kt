@@ -20,8 +20,11 @@ data class VideoItem(
     val lastPositionMs: Long = 0L,
     val lastPlayedTimestamp: Long = 0L,
     val isFavorite: Boolean = false,
-    val isVault: Boolean = false
+    val isVault: Boolean = false,
+    val vaultFile: String? = null
 ) {
+    val isEncryptedVault: Boolean get() = isVault && vaultFile != null
+
     val durationFormatted: String
         get() = formatDuration(durationMs)
 

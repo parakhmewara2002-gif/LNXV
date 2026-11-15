@@ -13,6 +13,9 @@ interface VideoDao {
     @Query("SELECT * FROM videos WHERE isVault = 0 ORDER BY dateAddedSec DESC")
     fun getAllVideos(): Flow<List<VideoEntity>>
 
+    @Query("SELECT id FROM videos WHERE isVault = 0 AND folderPath = :folderPath ORDER BY title COLLATE NOCASE ASC")
+    suspend fun getFolderVideoIds(folderPath: String): List<Long>
+
     @Query("SELECT * FROM videos WHERE isVault = 0 AND folderPath = :folderPath ORDER BY title ASC")
     fun getVideosInFolder(folderPath: String): Flow<List<VideoEntity>>
 
@@ -21,6 +24,9 @@ interface VideoDao {
 
     @Query("DELETE FROM videos WHERE id IN (:ids)")
     suspend fun deleteVideosByIds(ids: List<Long>)
+
+    @Query("SELECT * FROM videos WHERE isVault = 0 AND lastPlayedTimestamp > 0 AND lastPositionMs > 5000 ORDER BY lastPlayedTimestamp DESC LIMIT 1")
+    suspend fun getLastUnfinished(): VideoEntity?
 
     @Query("SELECT * FROM videos WHERE id = :id LIMIT 1")
     suspend fun getVideoById(id: Long): VideoEntity?
@@ -51,6 +57,33 @@ interface VideoDao {
 
     @Query("UPDATE videos SET isVault = :isVault WHERE id = :videoId")
     suspend fun updateVaultStatus(videoId: Long, isVault: Boolean)
+
+    @Query("UPDATE videos SET isVault = :isVault, vaultFile = :vaultFile WHERE id = :videoId")
+    suspend fun setVaultState(videoId: Long, isVault: Boolean, vaultFile: String?)
+
+    @Query("SELECT vaultFile FROM videos WHERE vaultFile IS NOT NULL")
+    suspend fun getAllVaultFileNames(): List<String>
+
+    @Query("SELECT COUNT(*) FROM videos WHERE isVault = 1 AND vaultFile IS NULL")
+    fun countLegacyVault(): Flow<Int>
+
+    @Query("SELECT * FROM videos WHERE isVault = 1 AND vaultFile IS NULL")
+    suspend fun getLegacyVault(): List<VideoEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertThumb(thumb: VaultThumbEntity)
+
+    @Query("SELECT * FROM vault_thumbs WHERE videoId = :videoId")
+    suspend fun getThumb(videoId: Long): VaultThumbEntity?
+
+    @Query("DELETE FROM vault_thumbs WHERE videoId = :videoId")
+    suspend fun deleteThumb(videoId: Long)
+
+    @Query("DELETE FROM vault_thumbs")
+    suspend fun clearThumbs()
+
+    @Query("DELETE FROM videos WHERE isVault = 1")
+    suspend fun deleteAllVaultRows()
 
     @Query("DELETE FROM videos WHERE id = :videoId")
     suspend fun deleteVideo(videoId: Long)

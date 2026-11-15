@@ -8,7 +8,7 @@ import com.lnxv.player.core.design.bouncyClickable
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.material.icons.filled.VideoLibrary
+import com.lnxv.player.core.design.icons.VideoLibrary
 import androidx.compose.foundation.border
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.animateFloatAsState
@@ -30,23 +30,27 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import com.lnxv.player.core.design.videoSharedBounds
+import dev.chrisbanes.haze.haze
+import dev.chrisbanes.haze.hazeChild
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.Folder
+import com.lnxv.player.core.design.icons.Folder
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.ViewAgenda
-import androidx.compose.material.icons.filled.GridView
+import com.lnxv.player.core.design.icons.ViewAgenda
+import com.lnxv.player.core.design.icons.GridView
+import com.lnxv.player.core.design.icons.Link
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Sort
+import com.lnxv.player.core.design.icons.Sort
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.DropdownMenu
@@ -99,20 +103,242 @@ fun HomeScreen(
     onSettingsClick: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val selection by viewModel.selection.collectAsState()
+    // Adaptive grid: ~170dp per card, 2 columns on phones, more on landscape/tablets.
+    val thumbDp by viewModel.thumbSizeDp.collectAsState()
+    val gridColumns = (androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp / thumbDp).coerceIn(2, 6)
+    val openPlaylistId by viewModel.openPlaylistId.collectAsState()
+    val openPlaylistVideos by viewModel.openPlaylistVideos.collectAsState()
+    val selectionPool = remember(uiState) {
+        (uiState.videos + uiState.folderVideos + uiState.favorites + uiState.recentlyPlayed).distinctBy { it.id }
+    }
+    var confirmRemove by remember { mutableStateOf(false) }
+    var confirmDeleteDevice by remember { mutableStateOf(false) }
+    var showMoreActions by remember { mutableStateOf(false) }
+    var renameTarget by remember { mutableStateOf<VideoItem?>(null) }
+    var renameText by remember { mutableStateOf("") }
+    // What to do once the system grants the MediaStore write/delete request (API 30+).
+    var pendingAfterGrant by remember { mutableStateOf<(() -> Unit)?>(null) }
+    val actionCtx = LocalContext.current
+    val grantLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.StartIntentSenderForResult()
+    ) { res ->
+        val cb = pendingAfterGrant
+        pendingAfterGrant = null
+        if (res.resultCode == android.app.Activity.RESULT_OK) cb?.invoke()
+    }
+    fun toast(id: Int) = android.widget.Toast.makeText(actionCtx, id, android.widget.Toast.LENGTH_SHORT).show()
     var isSearchExpanded by remember { mutableStateOf(false) }
+    var showStreamDialog by remember { mutableStateOf(false) }
+    val playlists by viewModel.playlists.collectAsState()
+    val openPl = playlists.firstOrNull { it.id == openPlaylistId }
+    val playlistTarget by viewModel.playlistTarget.collectAsState()
+    playlistTarget?.let { target ->
+        var newName by remember(target.id) { mutableStateOf("") }
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = viewModel::dismissAddToPlaylist,
+            title = { Text("Add to playlist") },
+            text = {
+                Column {
+                    playlists.forEach { pl ->
+                        androidx.compose.material3.TextButton(onClick = { viewModel.addToPlaylist(pl.id) }) {
+                            Text("${pl.name} (${pl.itemCount})", maxLines = 1)
+                        }
+                    }
+                    androidx.compose.material3.OutlinedTextField(
+                        value = newName,
+                        onValueChange = { newName = it },
+                        label = { Text("New playlist name") },
+                        singleLine = true
+                    )
+                }
+            },
+            confirmButton = {
+                androidx.compose.material3.TextButton(
+                    onClick = { viewModel.createPlaylistAndAdd(newName) },
+                    enabled = newName.isNotBlank()
+                ) { Text("Create") }
+            },
+            dismissButton = { androidx.compose.material3.TextButton(onClick = viewModel::dismissAddToPlaylist) { Text("Cancel") } }
+        )
+    }
+    val recentStreams by viewModel.recentStreams.collectAsState()
+    if (showStreamDialog) {
+        var url by remember { mutableStateOf("") }
+        var error by remember { mutableStateOf<String?>(null) }
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showStreamDialog = false },
+            title = { Text("Open network stream") },
+            text = {
+                Column {
+                    androidx.compose.material3.OutlinedTextField(
+                        value = url,
+                        onValueChange = { url = it; error = null },
+                        label = { Text("https://, HLS (.m3u8), DASH (.mpd), rtsp://") },
+                        singleLine = true,
+                        isError = error != null,
+                        supportingText = error?.let { e -> { Text(e) } }
+                    )
+                    if (recentStreams.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("Recent", fontSize = 12.sp)
+                        recentStreams.take(5).forEach { r ->
+                            androidx.compose.material3.TextButton(onClick = { url = r; error = null }) {
+                                Text(r, maxLines = 1, fontSize = 12.sp)
+                            }
+                        }
+                        androidx.compose.material3.TextButton(onClick = { viewModel.clearRecentStreams() }) {
+                            Text("Clear recent", fontSize = 12.sp)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    val err = viewModel.openStream(url)
+                    if (err == null) showStreamDialog = false else error = err
+                }) { Text("Play") }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { showStreamDialog = false }) { Text("Cancel") }
+            }
+        )
+    }
     var isSortMenuExpanded by remember { mutableStateOf(false) }
-    BackHandler(enabled = uiState.openFolderPath != null) { viewModel.closeFolder() }
+    // One blur layer: the top bar blurs the list scrolling under it (skipped when "Reduce effects" is on).
+    val hazeState = remember { dev.chrisbanes.haze.HazeState() }
+    val reduceEffects = com.lnxv.player.core.design.LocalReduceEffects.current
+    BackHandler(enabled = selection.isNotEmpty()) { viewModel.clearSelection() }
+    BackHandler(enabled = uiState.openFolderPath != null && selection.isEmpty()) { viewModel.closeFolder() }
+    val deletablePicked = selection.mapNotNull { id -> selectionPool.firstOrNull { it.id == id } }.filter { !it.isVault && it.id != com.lnxv.player.LNXVApplication.TRANSIENT_VIDEO_ID }
+    if (confirmDeleteDevice) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { confirmDeleteDevice = false },
+            title = { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.delete_device_title, deletablePicked.size)) },
+            text = { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.delete_device_text)) },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    confirmDeleteDevice = false
+                    val uris = deletablePicked.map { it.uri }
+                    val sender = com.lnxv.player.data.mediastore.MediaActions.deleteRequest(actionCtx, uris)
+                    val finish = { viewModel.removeSelected(selectionPool) }
+                    if (sender != null) {
+                        pendingAfterGrant = finish
+                        grantLauncher.launch(androidx.activity.result.IntentSenderRequest.Builder(sender).build())
+                    } else if (com.lnxv.player.data.mediastore.MediaActions.deleteDirect(actionCtx, uris) > 0) finish() else toast(com.lnxv.player.R.string.action_failed)
+                }) { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.action_delete_device)) }
+            },
+            dismissButton = { androidx.compose.material3.TextButton(onClick = { confirmDeleteDevice = false }) { Text("Cancel") } }
+        )
+    }
+    renameTarget?.let { target ->
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { renameTarget = null },
+            title = { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.action_rename)) },
+            text = {
+                androidx.compose.material3.OutlinedTextField(
+                    value = renameText, onValueChange = { renameText = it }, singleLine = true,
+                    label = { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.rename_hint)) }
+                )
+            },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    val newName = com.lnxv.player.data.mediastore.MediaActions.sanitizeName(renameText, target.path.substringAfterLast('/'))
+                    renameTarget = null
+                    if (newName == null) { toast(com.lnxv.player.R.string.action_failed); return@TextButton }
+                    val doRename = {
+                        if (com.lnxv.player.data.mediastore.MediaActions.rename(actionCtx, target.uri, newName)) {
+                            viewModel.clearSelection(); viewModel.refreshLibrary(); toast(com.lnxv.player.R.string.action_done)
+                        } else toast(com.lnxv.player.R.string.action_failed)
+                    }
+                    val sender = com.lnxv.player.data.mediastore.MediaActions.writeRequest(actionCtx, listOf(target.uri))
+                    if (sender != null) {
+                        pendingAfterGrant = doRename
+                        grantLauncher.launch(androidx.activity.result.IntentSenderRequest.Builder(sender).build())
+                    } else doRename()
+                }) { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.rename_confirm)) }
+            },
+            dismissButton = { androidx.compose.material3.TextButton(onClick = { renameTarget = null }) { Text("Cancel") } }
+        )
+    }
+    if (confirmRemove) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { confirmRemove = false },
+            title = { Text("Remove ${selection.size} from library?") },
+            text = { Text("This removes them from LNXV's library list. It does not delete the files from your device.") },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    viewModel.removeSelected(selectionPool)
+                    confirmRemove = false
+                }) { Text("Remove") }
+            },
+            dismissButton = { androidx.compose.material3.TextButton(onClick = { confirmRemove = false }) { Text("Cancel") } }
+        )
+    }
 
     Scaffold(
         modifier = Modifier.fillMaxSize().ambientBackground(),
         containerColor = Color.Transparent,
+        bottomBar = {
+            if (selection.isNotEmpty()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(appColors.barFill)
+                        .padding(horizontal = 8.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.selected_count, selection.size), color = appColors.textPrimary, fontSize = 14.sp, modifier = Modifier.padding(start = 8.dp))
+                    Row {
+                        androidx.compose.material3.TextButton(onClick = { viewModel.selectAll(selectionPool.filter { v -> v.id in (if (uiState.openFolderPath != null) uiState.folderVideos else uiState.videos).map { it.id } }) }) { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.action_all)) }
+                        androidx.compose.material3.TextButton(onClick = { viewModel.favoriteSelected(selectionPool) }) { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.action_fav)) }
+                        androidx.compose.material3.TextButton(onClick = { viewModel.requestAddSelectedToPlaylist(selectionPool) }) { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.action_playlist)) }
+                        androidx.compose.material3.TextButton(onClick = { viewModel.vaultSelected(selectionPool) }) { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.action_vault)) }
+                        androidx.compose.material3.TextButton(onClick = { confirmRemove = true }) { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.action_remove)) }
+                        Box {
+                            androidx.compose.material3.TextButton(onClick = { showMoreActions = true }) { Text("⋮") }
+                            androidx.compose.material3.DropdownMenu(expanded = showMoreActions, onDismissRequest = { showMoreActions = false }) {
+                                androidx.compose.material3.DropdownMenuItem(
+                                    text = { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.action_share)) },
+                                    enabled = deletablePicked.isNotEmpty(),
+                                    onClick = {
+                                        showMoreActions = false
+                                        actionCtx.startActivity(com.lnxv.player.data.mediastore.MediaActions.shareIntent(deletablePicked.map { it.uri }))
+                                    }
+                                )
+                                if (deletablePicked.size == 1 && selection.size == 1) androidx.compose.material3.DropdownMenuItem(
+                                    text = { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.action_rename)) },
+                                    onClick = {
+                                        showMoreActions = false
+                                        renameText = deletablePicked[0].path.substringAfterLast('/').substringBeforeLast('.')
+                                        renameTarget = deletablePicked[0]
+                                    }
+                                )
+                                androidx.compose.material3.DropdownMenuItem(
+                                    text = { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.action_delete_device)) },
+                                    enabled = deletablePicked.isNotEmpty(),
+                                    onClick = { showMoreActions = false; confirmDeleteDevice = true }
+                                )
+                            }
+                        }
+                        androidx.compose.material3.TextButton(onClick = { viewModel.clearSelection() }) { Text("✕") }
+                    }
+                }
+            }
+        },
         topBar = {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .then(
+                        if (reduceEffects) Modifier else Modifier
+                            .clip(RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp))
+                            .hazeChild(state = hazeState)
+                    )
                     .liquidGlassSurface(
                         shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp),
-                        backgroundColor = appColors.barFill,
+                        backgroundColor = if (reduceEffects) appColors.barFill else appColors.barFill.copy(alpha = 0.45f),
                         borderColor = appColors.glassBorder,
                         borderWidth = 1.dp
                     )
@@ -160,6 +386,13 @@ fun HomeScreen(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         GlassIconButton(
+                            icon = Icons.Default.Link,
+                            contentDescription = "Open network stream",
+                            onClick = { showStreamDialog = true },
+                            size = 38.dp
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        GlassIconButton(
                             icon = Icons.Default.Lock,
                             contentDescription = "Private Vault",
                             onClick = onVaultClick,
@@ -180,7 +413,7 @@ fun HomeScreen(
                     TextField(
                         value = uiState.searchQuery,
                         onValueChange = { viewModel.updateSearchQuery(it) },
-                        placeholder = { Text("Search videos or folders…", color = appColors.textTertiary) },
+                        placeholder = { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.search_hint_filters), color = appColors.textTertiary) },
                         modifier = Modifier
                             .fillMaxWidth()
                             .liquidGlassSurface(shape = RoundedCornerShape(14.dp)),
@@ -239,7 +472,7 @@ fun HomeScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = tab.label,
+                                text = androidx.compose.ui.res.stringResource(tab.labelRes),
                                 color = tabTextColor,
                                 fontSize = 13.sp,
                                 fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
@@ -253,8 +486,14 @@ fun HomeScreen(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues),
-            contentPadding = PaddingValues(16.dp),
+                .then(if (reduceEffects) Modifier else Modifier.haze(state = hazeState)),
+            // The list scrolls under the top bar (so there is something to blur); padding keeps first item clear of it.
+            contentPadding = PaddingValues(
+                start = 16.dp,
+                end = 16.dp,
+                top = paddingValues.calculateTopPadding() + 16.dp,
+                bottom = paddingValues.calculateBottomPadding() + 16.dp
+            ),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // Continue Watching Carousel (shown on Videos tab when available)
@@ -329,10 +568,24 @@ fun HomeScreen(
                             }
                         }
                     }
+                    item {
+                        androidx.compose.foundation.lazy.LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            items(com.lnxv.player.core.model.SmartCollection.values().toList()) { c ->
+                                androidx.compose.material3.FilterChip(
+                                    selected = uiState.collection == c,
+                                    onClick = { viewModel.selectCollection(c) },
+                                    label = { Text(androidx.compose.ui.res.stringResource(c.labelRes)) }
+                                )
+                            }
+                        }
+                    }
                     if (uiState.videos.isEmpty()) {
-                        item { EmptyStateView(message = "No videos discovered on device") }
+                        item { EmptyStateView(message = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.empty_discovered)) }
                     } else if (uiState.isGridView) {
-                        items(uiState.videos.chunked(2), key = { row -> row.first().id }) { row ->
+                        items(uiState.videos.chunked(gridColumns), key = { row -> row.first().id }) { row ->
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -341,22 +594,28 @@ fun HomeScreen(
                                     VideoGridCard(
                                         video = video,
                                         modifier = Modifier.weight(1f),
-                                        onClick = { onVideoClick(video) },
+                                        onClick = { if (selection.isNotEmpty()) viewModel.toggleSelect(video.id) else onVideoClick(video) },
+                                selected = video.id in selection,
+                                onLongClick = { viewModel.toggleSelect(video.id) },
                                         onFavoriteToggle = { viewModel.toggleFavorite(video) },
                                         onVaultMove = { viewModel.moveToVault(video) },
+                                onAddToPlaylist = { viewModel.requestAddToPlaylist(video) },
                                         onDelete = { viewModel.deleteVideo(video) }
                                     )
                                 }
-                                if (row.size == 1) Spacer(modifier = Modifier.weight(1f))
+                                repeat(gridColumns - row.size) { Spacer(modifier = Modifier.weight(1f)) }
                             }
                         }
                     } else {
                         items(uiState.videos, key = { it.id }) { video ->
                             VideoItemRow(
                                 video = video,
-                                onClick = { onVideoClick(video) },
+                                onClick = { if (selection.isNotEmpty()) viewModel.toggleSelect(video.id) else onVideoClick(video) },
+                                selected = video.id in selection,
+                                onLongClick = { viewModel.toggleSelect(video.id) },
                                 onFavoriteToggle = { viewModel.toggleFavorite(video) },
                                 onVaultMove = { viewModel.moveToVault(video) },
+                                onAddToPlaylist = { viewModel.requestAddToPlaylist(video) },
                                 onDelete = { viewModel.deleteVideo(video) }
                             )
                         }
@@ -389,20 +648,23 @@ fun HomeScreen(
                             }
                         }
                         if (uiState.folderVideos.isEmpty()) {
-                            item { EmptyStateView(message = "This folder is empty") }
+                            item { EmptyStateView(message = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.empty_folder)) }
                         } else {
                             items(uiState.folderVideos, key = { it.id }) { video ->
                                 VideoItemRow(
                                     video = video,
-                                    onClick = { onVideoClick(video) },
+                                    onClick = { if (selection.isNotEmpty()) viewModel.toggleSelect(video.id) else onVideoClick(video) },
+                                selected = video.id in selection,
+                                onLongClick = { viewModel.toggleSelect(video.id) },
                                     onFavoriteToggle = { viewModel.toggleFavorite(video) },
                                     onVaultMove = { viewModel.moveToVault(video) },
+                                onAddToPlaylist = { viewModel.requestAddToPlaylist(video) },
                                     onDelete = { viewModel.deleteVideo(video) }
                                 )
                             }
                         }
                     } else if (uiState.folders.isEmpty()) {
-                        item { EmptyStateView(message = "No video folders found") }
+                        item { EmptyStateView(message = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.empty_no_folders)) }
                     } else {
                         items(uiState.folders, key = { it.path }) { folder ->
                             FolderItemRow(
@@ -415,484 +677,124 @@ fun HomeScreen(
                 }
                 HomeTab.RECENTS -> {
                     if (uiState.recentlyPlayed.isEmpty()) {
-                        item { EmptyStateView(message = "No recently played videos") }
+                        item { EmptyStateView(message = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.empty_recents)) }
                     } else {
                         items(uiState.recentlyPlayed, key = { it.id }) { video ->
                             VideoItemRow(
                                 video = video,
-                                onClick = { onVideoClick(video) },
+                                onClick = { if (selection.isNotEmpty()) viewModel.toggleSelect(video.id) else onVideoClick(video) },
+                                selected = video.id in selection,
+                                onLongClick = { viewModel.toggleSelect(video.id) },
                                 onFavoriteToggle = { viewModel.toggleFavorite(video) },
                                 onVaultMove = { viewModel.moveToVault(video) },
+                                onAddToPlaylist = { viewModel.requestAddToPlaylist(video) },
                                 onDelete = { viewModel.deleteVideo(video) }
                             )
+                        }
+                    }
+                }
+                HomeTab.PLAYLISTS -> {
+                    if (openPlaylistId != null && openPl == null) {
+                        item { EmptyStateView(message = "Playlist not found") }
+                    } else if (openPl != null) {
+                        item {
+                            var renaming by remember(openPl.id) { mutableStateOf(false) }
+                            var newName by remember(openPl.id, openPl.name) { mutableStateOf(openPl.name) }
+                            if (renaming) {
+                                androidx.compose.material3.AlertDialog(
+                                    onDismissRequest = { renaming = false },
+                                    title = { Text("Rename playlist") },
+                                    text = {
+                                        androidx.compose.material3.OutlinedTextField(
+                                            value = newName, onValueChange = { newName = it }, singleLine = true
+                                        )
+                                    },
+                                    confirmButton = {
+                                        androidx.compose.material3.TextButton(
+                                            onClick = { viewModel.renamePlaylist(openPl.id, newName); renaming = false },
+                                            enabled = newName.isNotBlank()
+                                        ) { Text("Save") }
+                                    },
+                                    dismissButton = { androidx.compose.material3.TextButton(onClick = { renaming = false }) { Text("Cancel") } }
+                                )
+                            }
+                            BackHandler { viewModel.closePlaylist() }
+                            Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                androidx.compose.material3.TextButton(onClick = { viewModel.closePlaylist() }) { Text("← Back") }
+                                Text(openPl.name, color = appColors.textPrimary, fontSize = 16.sp, maxLines = 1, modifier = Modifier.weight(1f))
+                                androidx.compose.material3.TextButton(onClick = { renaming = true }) { Text("Rename") }
+                                androidx.compose.material3.TextButton(onClick = { viewModel.playPlaylist(openPl.id) }) { Text("Play all") }
+                            }
+                        }
+                        if (openPlaylistVideos.isEmpty()) {
+                            item { EmptyStateView(message = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.empty_playlist)) }
+                        } else {
+                            items(openPlaylistVideos, key = { it.id }) { video ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { viewModel.playPlaylistFrom(openPl.id, video.id) }
+                                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(video.title, color = appColors.textPrimary, fontSize = 14.sp, maxLines = 2, modifier = Modifier.weight(1f))
+                                    androidx.compose.material3.TextButton(onClick = { viewModel.moveInPlaylist(openPl.id, video.id, -1) }) { Text("▲") }
+                                    androidx.compose.material3.TextButton(onClick = { viewModel.moveInPlaylist(openPl.id, video.id, 1) }) { Text("▼") }
+                                    androidx.compose.material3.TextButton(onClick = { viewModel.removeFromPlaylist(openPl.id, video.id) }) { Text("✕", color = Color.Red) }
+                                }
+                            }
+                        }
+                    } else if (playlists.isEmpty()) {
+                        item { EmptyStateView(message = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.empty_playlists)) }
+                    } else {
+                        items(playlists, key = { it.id }) { pl ->
+                            var confirmDelete by remember(pl.id) { mutableStateOf(false) }
+                            if (confirmDelete) {
+                                androidx.compose.material3.AlertDialog(
+                                    onDismissRequest = { confirmDelete = false },
+                                    title = { Text("Delete \"${pl.name}\"?") },
+                                    text = { Text("The videos themselves are not deleted.") },
+                                    confirmButton = {
+                                        androidx.compose.material3.TextButton(onClick = { viewModel.deletePlaylist(pl.id); confirmDelete = false }) { Text("Delete") }
+                                    },
+                                    dismissButton = { androidx.compose.material3.TextButton(onClick = { confirmDelete = false }) { Text("Cancel") } }
+                                )
+                            }
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { viewModel.openPlaylist(pl.id) }
+                                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(pl.name, color = appColors.textPrimary, fontSize = 15.sp, maxLines = 1)
+                                    Text("${pl.itemCount} video(s)", color = appColors.textTertiary, fontSize = 12.sp)
+                                }
+                                androidx.compose.material3.TextButton(onClick = { viewModel.playPlaylist(pl.id) }) { Text("Play") }
+                                androidx.compose.material3.TextButton(onClick = { confirmDelete = true }) {
+                                    Text("Delete", color = Color.Red)
+                                }
+                            }
                         }
                     }
                 }
                 HomeTab.FAVORITES -> {
                     if (uiState.favorites.isEmpty()) {
-                        item { EmptyStateView(message = "No favorite videos saved") }
+                        item { EmptyStateView(message = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.empty_fav)) }
                     } else {
                         items(uiState.favorites, key = { it.id }) { video ->
                             VideoItemRow(
                                 video = video,
-                                onClick = { onVideoClick(video) },
+                                onClick = { if (selection.isNotEmpty()) viewModel.toggleSelect(video.id) else onVideoClick(video) },
+                                selected = video.id in selection,
+                                onLongClick = { viewModel.toggleSelect(video.id) },
                                 onFavoriteToggle = { viewModel.toggleFavorite(video) },
                                 onVaultMove = { viewModel.moveToVault(video) },
+                                onAddToPlaylist = { viewModel.requestAddToPlaylist(video) },
                                 onDelete = { viewModel.deleteVideo(video) }
                             )
                         }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun VideoItemRow(
-    video: VideoItem,
-    onClick: () -> Unit,
-    onFavoriteToggle: () -> Unit,
-    onVaultMove: () -> Unit,
-    onDelete: () -> Unit
-) {
-    var isMenuOpen by remember { mutableStateOf(false) }
-
-    GlassPanel(
-        modifier = Modifier
-            .fillMaxWidth()
-            .bouncyClickable { onClick() },
-        shape = RoundedCornerShape(16.dp),
-        backgroundColor = appColors.glassFill,
-        borderColor = appColors.glassBorder
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Thumbnail with Duration & Resolution Badges
-            Box(
-                modifier = Modifier
-                    .size(width = 110.dp, height = 70.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(appColors.placeholder)
-            ) {
-                AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current)
-                        .data(video.uri)
-                        .videoFrameMillis(1000)
-                        .size(coil.size.Size(360, 240))
-                        .crossfade(150)
-                        .build(),
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
-                )
-
-                // Resolution Badge
-                GlassBadge(
-                    text = video.resolutionLabel,
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .padding(4.dp)
-                )
-
-                // Duration Badge
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(4.dp)
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(Color(0xCC000000))
-                        .padding(horizontal = 4.dp, vertical = 2.dp)
-                ) {
-                    Text(
-                        text = video.durationFormatted,
-                        color = Color.White,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            // Video Details
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
-                Text(
-                    text = video.title,
-                    color = appColors.textPrimary,
-                    style = Typography.titleSmall,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = "${video.sizeFormatted} • ${video.folderName}",
-                        color = appColors.textSecondary,
-                        fontSize = 11.sp
-                    )
-                }
-            }
-
-            // Options Menu
-            Box {
-                IconButton(onClick = { isMenuOpen = true }) {
-                    Icon(
-                        imageVector = Icons.Default.MoreVert,
-                        contentDescription = "Options",
-                        tint = appColors.textTertiary
-                    )
-                }
-                DropdownMenu(
-                    expanded = isMenuOpen,
-                    onDismissRequest = { isMenuOpen = false }
-                ) {
-                    DropdownMenuItem(
-                        text = { Text(if (video.isFavorite) "Remove from Favorites" else "Add to Favorites") },
-                        onClick = {
-                            onFavoriteToggle()
-                            isMenuOpen = false
-                        }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Move to Private Vault") },
-                        onClick = {
-                            onVaultMove()
-                            isMenuOpen = false
-                        }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Delete", color = Color.Red) },
-                        onClick = {
-                            onDelete()
-                            isMenuOpen = false
-                        }
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun FolderItemRow(
-    folder: FolderItem,
-    onClick: () -> Unit,
-    onToggleHidden: () -> Unit
-) {
-    var menuOpen by remember { mutableStateOf(false) }
-    GlassPanel(
-        modifier = Modifier
-            .fillMaxWidth()
-            .bouncyClickable { onClick() },
-        shape = RoundedCornerShape(16.dp),
-        backgroundColor = appColors.glassFill
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .liquidGlassSurface(
-                        shape = RoundedCornerShape(12.dp),
-                        backgroundColor = appColors.accent.copy(alpha = 0.15f),
-                        borderColor = appColors.accent.copy(alpha = 0.4f)
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Folder,
-                    contentDescription = null,
-                    tint = appColors.accent,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
-            Spacer(modifier = Modifier.width(14.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = folder.name,
-                    color = appColors.textPrimary,
-                    style = Typography.titleMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = "${folder.videoCount} videos • ${folder.sizeFormatted}" +
-                        if (folder.isHidden) " • Hidden" else "",
-                    color = if (folder.isHidden) appColors.accent.copy(alpha = 0.7f) else appColors.textTertiary,
-                    fontSize = 12.sp
-                )
-            }
-            Box {
-                IconButton(onClick = { menuOpen = true }) {
-                    Icon(
-                        imageVector = Icons.Default.MoreVert,
-                        contentDescription = "Folder options",
-                        tint = appColors.textTertiary
-                    )
-                }
-                DropdownMenu(
-                    expanded = menuOpen,
-                    onDismissRequest = { menuOpen = false }
-                ) {
-                    DropdownMenuItem(
-                        text = { Text(if (folder.isHidden) "Show in library" else "Hide from library") },
-                        onClick = {
-                            onToggleHidden()
-                            menuOpen = false
-                        }
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun ContinueWatchingCard(
-    video: VideoItem,
-    onClick: () -> Unit
-) {
-    Box(
-        modifier = Modifier
-            .width(200.dp)
-            .liquidGlassSurface(
-                shape = RoundedCornerShape(16.dp),
-                backgroundColor = appColors.glassFill
-            )
-            .clickable { onClick() }
-    ) {
-        Column {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(115.dp)
-                    .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
-            ) {
-                AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current)
-                        .data(video.uri)
-                        .videoFrameMillis(video.lastPositionMs.coerceAtLeast(1000L))
-                        .size(coil.size.Size(360, 240))
-                        .crossfade(150)
-                        .build(),
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
-                )
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            Brush.verticalGradient(
-                                listOf(Color.Transparent, Color(0xCC000000))
-                            )
-                        )
-                )
-                // Resume play floating button
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .align(Alignment.Center)
-                        .clip(CircleShape)
-                        .background(appColors.accent.copy(alpha = 0.85f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.PlayArrow,
-                        contentDescription = "Resume",
-                        tint = Color.Black
-                    )
-                }
-            }
-            Column(modifier = Modifier.padding(10.dp)) {
-                Text(
-                    text = video.title,
-                    color = appColors.textPrimary,
-                    style = Typography.titleSmall,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(modifier = Modifier.height(6.dp))
-                val progress = if (video.durationMs > 0) {
-                    (video.lastPositionMs.toFloat() / video.durationMs.toFloat()).coerceIn(0f, 1f)
-                } else 0f
-                LinearProgressIndicator(
-                    progress = { progress },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(3.dp)
-                        .clip(CircleShape),
-                    color = appColors.accent,
-                    trackColor = appColors.glassBorder
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun EmptyStateView(message: String) {
-    var shown by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { shown = true }
-    val appear by animateFloatAsState(
-        targetValue = if (shown) 1f else 0f,
-        animationSpec = tween(400),
-        label = "empty_appear"
-    )
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(40.dp)
-            .graphicsLayer {
-                alpha = appear
-                translationY = (1f - appear) * 24f
-            },
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Box(
-            modifier = Modifier
-                .size(72.dp)
-                .clip(CircleShape)
-                .background(appColors.glassSubtle)
-                .border(1.dp, appColors.glassBorder, CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Default.VideoLibrary,
-                contentDescription = null,
-                tint = appColors.accent.copy(alpha = 0.8f),
-                modifier = Modifier.size(32.dp)
-            )
-        }
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = message,
-            color = appColors.textSecondary,
-            style = Typography.bodyMedium,
-            textAlign = TextAlign.Center
-        )
-    }
-}
-
-
-@Composable
-fun VideoGridCard(
-    video: VideoItem,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit,
-    onFavoriteToggle: () -> Unit,
-    onVaultMove: () -> Unit,
-    onDelete: () -> Unit
-) {
-    var isMenuOpen by remember { mutableStateOf(false) }
-
-    GlassPanel(
-        modifier = modifier.bouncyClickable { onClick() },
-        shape = RoundedCornerShape(16.dp),
-        backgroundColor = appColors.glassFill,
-        borderColor = appColors.glassBorder
-    ) {
-        Column {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(100.dp)
-                    .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
-                    .background(appColors.placeholder)
-            ) {
-                AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current)
-                        .data(video.uri)
-                        .videoFrameMillis(1000)
-                        .size(coil.size.Size(360, 240))
-                        .crossfade(150)
-                        .build(),
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
-                )
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(6.dp)
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(Color(0xCC000000))
-                        .padding(horizontal = 4.dp, vertical = 2.dp)
-                ) {
-                    Text(
-                        text = video.durationFormatted,
-                        color = Color.White,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
-            }
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 10.dp, top = 6.dp, bottom = 6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = video.title,
-                        color = appColors.textPrimary,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        text = video.sizeFormatted,
-                        color = appColors.textSecondary,
-                        fontSize = 11.sp
-                    )
-                }
-                Box {
-                    IconButton(onClick = { isMenuOpen = true }) {
-                        Icon(
-                            imageVector = Icons.Default.MoreVert,
-                            contentDescription = "Options",
-                            tint = appColors.textTertiary
-                        )
-                    }
-                    DropdownMenu(
-                        expanded = isMenuOpen,
-                        onDismissRequest = { isMenuOpen = false }
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text(if (video.isFavorite) "Remove from Favorites" else "Add to Favorites") },
-                            onClick = {
-                                onFavoriteToggle()
-                                isMenuOpen = false
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Move to Private Vault") },
-                            onClick = {
-                                onVaultMove()
-                                isMenuOpen = false
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Delete", color = Color.Red) },
-                            onClick = {
-                                onDelete()
-                                isMenuOpen = false
-                            }
-                        )
                     }
                 }
             }
