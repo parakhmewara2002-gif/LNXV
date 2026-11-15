@@ -395,7 +395,10 @@ fun PlayerScreen(
             // Controls Overlay
             AnimatedVisibility(
                 visible = uiState.isControlsVisible || playbackState.isScreenLocked,
-                enter = fadeIn(tween(200)),
+                enter = if (reduceEffects) fadeIn(tween(200)) else fadeIn(tween(200)) + androidx.compose.animation.scaleIn(
+                    initialScale = 0.97f,
+                    animationSpec = androidx.compose.animation.core.spring(dampingRatio = 0.8f, stiffness = 400f)
+                ),
                 exit = fadeOut(tween(160))
             ) {
                 if (playbackState.isScreenLocked) {

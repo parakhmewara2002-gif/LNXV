@@ -77,3 +77,10 @@ Phases 3, 4, 5, 6 and the LOW RAM / LOW STORAGE rules (A–D).
 
 - Final round: Rules A/B/C done (CI green); brightness/contrast/saturation implemented (VIDEO_TRANSFORMS). Remaining items listed in docs/FINAL_REPORT.md.
 - Completion round: see docs/FINAL_REPORT.md (done vs deliberately-not-done lists).
+
+## Done (premium glass + architecture round, PR #2, NOT DEVICE-TESTED)
+- Architecture: every ViewModel (Home, Vault, Settings, Player) gets its dependencies through Koin constructors; none reads `LNXVApplication` directly. Cross-screen hand-off state lives in `core/session/SessionState` (Application keeps delegating properties for the remaining non-ViewModel call sites).
+- Design: `core/design/GlassKit.kt` (GlassSurface, GlassGroup, GlassTopBar, GlassSearchField, GlassInfoRow); all blur goes through one gate (`LocalReduceEffects`).
+- Settings: blurred glass top bar, in-screen search (filters sections), Developer section (system info + copy, reset experimental flags; PIN/vault/theme untouched).
+- Player: gesture HUD is now a glass pill with a progress bar (brightness/volume) and spring-in; controls overlay springs in (both skipped when effects are reduced).
+- Not done: glass applied to Home cards/Vault screens, PlayerScreen controls overlay still inline, PlayerViewModel unit test with a fake controller, Settings is still one scrolling list (no drill-down pages).

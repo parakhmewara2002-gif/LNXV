@@ -126,31 +126,79 @@ import com.lnxv.player.playback.gestures.PlayerGestureDetector
 import com.lnxv.player.playback.pip.PipManager
 import kotlinx.coroutines.delay
 
-/** Gesture HUD (brightness / volume / seek / zoom). Extracted from PlayerScreen (Phase 4 split). */
+/**
+ * Gesture HUD (brightness / volume / seek / zoom): a glass pill that springs in near the top of the video,
+ * with a progress bar for brightness/volume. Keeps the last gesture's content while it fades out.
+ */
 @Composable
 fun GestureHud(state: GestureOverlayState) {
-    if (state.activeGesture != GestureType.NONE) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Box(
-                modifier = Modifier
-                    .background(Color(0xB3000000), RoundedCornerShape(16.dp))
-                    .padding(horizontal = 20.dp, vertical = 12.dp)
-            ) {
-                Text(
-                    text = when (state.activeGesture) {
-                        GestureType.BRIGHTNESS -> "Brightness ${state.brightnessPercent}%"
-                        GestureType.VOLUME -> "Volume ${state.volumePercent}%"
-                        GestureType.SEEK -> {
-                            val d = state.seekDeltaMs
-                            "${if (d >= 0) "+" else "-"}${abs(d) / 1000}s  •  ${VideoItem.formatDuration(state.seekTargetMs)}"
-                        }
-                        GestureType.ZOOM -> "Zoom ${"%.1f".format(state.zoomScale)}x"
-                        else -> ""
-                    },
-                    color = Color.White,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold
+    val reduce = com.lnxv.player.core.design.LocalReduceEffects.current
+    val active = state.activeGesture != GestureType.NONE
+    // Non-state holder: remembers the last active gesture so the pill does not change content during its exit fade.
+    val last = remember { arrayOfNulls<GestureOverlayState>(1) }
+    if (active) last[0] = state
+    val shown = last[0] ?: state
+    AnimatedVisibility(
+        visible = active,
+        enter = fadeIn(tween(120)) + (
+            if (reduce) androidx.compose.animation.EnterTransition.None
+            else androidx.compose.animation.scaleIn(
+                initialScale = 0.9f,
+                animationSpec = androidx.compose.animation.core.spring(
+                    dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy,
+                    stiffness = androidx.compose.animation.core.Spring.StiffnessMedium
                 )
+            )
+        ),
+        exit = fadeOut(tween(160)),
+        modifier = Modifier.fillMaxSize()
+    ) {
+        Box(
+            modifier = Modifier.fillMaxSize().padding(top = 72.dp),
+            contentAlignment = Alignment.TopCenter
+        ) {
+            val (label, value, fraction) = when (shown.activeGesture) {
+                GestureType.BRIGHTNESS -> Triple("Brightness", "${shown.brightnessPercent}%", shown.brightnessPercent / 100f)
+                GestureType.VOLUME -> Triple("Volume", "${shown.volumePercent}%", shown.volumePercent / 100f)
+                GestureType.SEEK -> {
+                    val d = shown.seekDeltaMs
+                    Triple("${if (d >= 0) "+" else "-"}${abs(d) / 1000}s", VideoItem.formatDuration(shown.seekTargetMs), null)
+                }
+                GestureType.ZOOM -> Triple("Zoom", "${"%.1f".format(shown.zoomScale)}x", null)
+                else -> Triple("", "", null)
+            }
+            Column(
+                modifier = Modifier
+                    .liquidGlassSurface(
+                        shape = RoundedCornerShape(22.dp),
+                        backgroundColor = Color(0x99101622),
+                        borderColor = Color(0x40FFFFFF)
+                    )
+                    .padding(horizontal = 22.dp, vertical = 12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(text = label, color = Color(0xB3FFFFFF), fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(text = value, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                }
+                if (fraction != null) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Box(
+                        modifier = Modifier
+                            .width(150.dp)
+                            .height(6.dp)
+                            .clip(CircleShape)
+                            .background(Color(0x33FFFFFF))
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .height(6.dp)
+                                .fillMaxWidth(fraction.coerceIn(0f, 1f))
+                                .background(NeonCyan)
+                        )
+                    }
+                }
             }
         }
     }
