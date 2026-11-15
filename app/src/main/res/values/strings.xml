@@ -78,4 +78,13 @@
     <string name="shortcut_continue_long">Continue watching</string>
     <string name="widget_continue_desc">Resume your last video</string>
     <string name="widget_nothing">Nothing to resume</string>
+    <string name="action_share">Share</string>
+    <string name="action_rename">Rename</string>
+    <string name="action_delete_device">Delete from device</string>
+    <string name="delete_device_title">Delete %1$d file(s) from device?</string>
+    <string name="delete_device_text">This permanently deletes the files from your device.</string>
+    <string name="rename_hint">New name</string>
+    <string name="rename_confirm">Rename</string>
+    <string name="action_done">Done</string>
+    <string name="action_failed">Could not complete</string>
 </resources>

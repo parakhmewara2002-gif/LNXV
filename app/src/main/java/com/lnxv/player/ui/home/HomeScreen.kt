@@ -113,6 +113,21 @@ fun HomeScreen(
         (uiState.videos + uiState.folderVideos + uiState.favorites + uiState.recentlyPlayed).distinctBy { it.id }
     }
     var confirmRemove by remember { mutableStateOf(false) }
+    var confirmDeleteDevice by remember { mutableStateOf(false) }
+    var showMoreActions by remember { mutableStateOf(false) }
+    var renameTarget by remember { mutableStateOf<VideoItem?>(null) }
+    var renameText by remember { mutableStateOf("") }
+    // What to do once the system grants the MediaStore write/delete request (API 30+).
+    var pendingAfterGrant by remember { mutableStateOf<(() -> Unit)?>(null) }
+    val actionCtx = LocalContext.current
+    val grantLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.StartIntentSenderForResult()
+    ) { res ->
+        val cb = pendingAfterGrant
+        pendingAfterGrant = null
+        if (res.resultCode == android.app.Activity.RESULT_OK) cb?.invoke()
+    }
+    fun toast(id: Int) = android.widget.Toast.makeText(actionCtx, id, android.widget.Toast.LENGTH_SHORT).show()
     var isSearchExpanded by remember { mutableStateOf(false) }
     var showStreamDialog by remember { mutableStateOf(false) }
     val playlists by viewModel.playlists.collectAsState()
@@ -195,6 +210,57 @@ fun HomeScreen(
     val reduceEffects = com.lnxv.player.core.design.LocalReduceEffects.current
     BackHandler(enabled = selection.isNotEmpty()) { viewModel.clearSelection() }
     BackHandler(enabled = uiState.openFolderPath != null && selection.isEmpty()) { viewModel.closeFolder() }
+    val deletablePicked = selection.mapNotNull { id -> selectionPool.firstOrNull { it.id == id } }.filter { !it.isVault && it.id != com.lnxv.player.LNXVApplication.TRANSIENT_VIDEO_ID }
+    if (confirmDeleteDevice) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { confirmDeleteDevice = false },
+            title = { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.delete_device_title, deletablePicked.size)) },
+            text = { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.delete_device_text)) },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    confirmDeleteDevice = false
+                    val uris = deletablePicked.map { it.uri }
+                    val sender = com.lnxv.player.data.mediastore.MediaActions.deleteRequest(actionCtx, uris)
+                    val finish = { viewModel.removeSelected(selectionPool) }
+                    if (sender != null) {
+                        pendingAfterGrant = finish
+                        grantLauncher.launch(androidx.activity.result.IntentSenderRequest.Builder(sender).build())
+                    } else if (com.lnxv.player.data.mediastore.MediaActions.deleteDirect(actionCtx, uris) > 0) finish() else toast(com.lnxv.player.R.string.action_failed)
+                }) { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.action_delete_device)) }
+            },
+            dismissButton = { androidx.compose.material3.TextButton(onClick = { confirmDeleteDevice = false }) { Text("Cancel") } }
+        )
+    }
+    renameTarget?.let { target ->
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { renameTarget = null },
+            title = { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.action_rename)) },
+            text = {
+                androidx.compose.material3.OutlinedTextField(
+                    value = renameText, onValueChange = { renameText = it }, singleLine = true,
+                    label = { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.rename_hint)) }
+                )
+            },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    val newName = com.lnxv.player.data.mediastore.MediaActions.sanitizeName(renameText, target.path.substringAfterLast('/'))
+                    renameTarget = null
+                    if (newName == null) { toast(com.lnxv.player.R.string.action_failed); return@TextButton }
+                    val doRename = {
+                        if (com.lnxv.player.data.mediastore.MediaActions.rename(actionCtx, target.uri, newName)) {
+                            viewModel.clearSelection(); viewModel.refreshLibrary(); toast(com.lnxv.player.R.string.action_done)
+                        } else toast(com.lnxv.player.R.string.action_failed)
+                    }
+                    val sender = com.lnxv.player.data.mediastore.MediaActions.writeRequest(actionCtx, listOf(target.uri))
+                    if (sender != null) {
+                        pendingAfterGrant = doRename
+                        grantLauncher.launch(androidx.activity.result.IntentSenderRequest.Builder(sender).build())
+                    } else doRename()
+                }) { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.rename_confirm)) }
+            },
+            dismissButton = { androidx.compose.material3.TextButton(onClick = { renameTarget = null }) { Text("Cancel") } }
+        )
+    }
     if (confirmRemove) {
         androidx.compose.material3.AlertDialog(
             onDismissRequest = { confirmRemove = false },
@@ -230,6 +296,32 @@ fun HomeScreen(
                         androidx.compose.material3.TextButton(onClick = { viewModel.requestAddSelectedToPlaylist(selectionPool) }) { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.action_playlist)) }
                         androidx.compose.material3.TextButton(onClick = { viewModel.vaultSelected(selectionPool) }) { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.action_vault)) }
                         androidx.compose.material3.TextButton(onClick = { confirmRemove = true }) { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.action_remove)) }
+                        Box {
+                            androidx.compose.material3.TextButton(onClick = { showMoreActions = true }) { Text("⋮") }
+                            androidx.compose.material3.DropdownMenu(expanded = showMoreActions, onDismissRequest = { showMoreActions = false }) {
+                                androidx.compose.material3.DropdownMenuItem(
+                                    text = { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.action_share)) },
+                                    enabled = deletablePicked.isNotEmpty(),
+                                    onClick = {
+                                        showMoreActions = false
+                                        actionCtx.startActivity(com.lnxv.player.data.mediastore.MediaActions.shareIntent(deletablePicked.map { it.uri }))
+                                    }
+                                )
+                                if (deletablePicked.size == 1 && selection.size == 1) androidx.compose.material3.DropdownMenuItem(
+                                    text = { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.action_rename)) },
+                                    onClick = {
+                                        showMoreActions = false
+                                        renameText = deletablePicked[0].path.substringAfterLast('/').substringBeforeLast('.')
+                                        renameTarget = deletablePicked[0]
+                                    }
+                                )
+                                androidx.compose.material3.DropdownMenuItem(
+                                    text = { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.action_delete_device)) },
+                                    enabled = deletablePicked.isNotEmpty(),
+                                    onClick = { showMoreActions = false; confirmDeleteDevice = true }
+                                )
+                            }
+                        }
                         androidx.compose.material3.TextButton(onClick = { viewModel.clearSelection() }) { Text("✕") }
                     }
                 }

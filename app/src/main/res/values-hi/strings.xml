@@ -74,4 +74,13 @@
     <string name="shortcut_continue_long">देखना जारी रखें</string>
     <string name="widget_continue_desc">आख़िरी वीडियो फिर से शुरू करें</string>
     <string name="widget_nothing">फिर से शुरू करने के लिए कुछ नहीं</string>
+    <string name="action_share">शेयर</string>
+    <string name="action_rename">नाम बदलें</string>
+    <string name="action_delete_device">डिवाइस से हटाएँ</string>
+    <string name="delete_device_title">डिवाइस से %1$d फ़ाइल हटाएँ?</string>
+    <string name="delete_device_text">ये फ़ाइलें डिवाइस से हमेशा के लिए हट जाएँगी।</string>
+    <string name="rename_hint">नया नाम</string>
+    <string name="rename_confirm">नाम बदलें</string>
+    <string name="action_done">हो गया</string>
+    <string name="action_failed">पूरा नहीं हो सका</string>
 </resources>
