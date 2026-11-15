@@ -43,4 +43,34 @@
     <string name="vault_pin_mismatch">PINs do not match. Try again.</string>
     <string name="vault_empty">No protected videos in vault</string>
     <string name="vault_add_video">Add Video to Vault</string>
+
+    <!-- Home (Phase 6 localization) -->
+    <string name="tab_videos">Videos</string>
+    <string name="tab_folders">Folders</string>
+    <string name="tab_recents">Recents</string>
+    <string name="tab_favorites">Favorites</string>
+    <string name="tab_playlists">Playlists</string>
+    <string name="collection_all">All</string>
+    <string name="collection_recent">Recently added</string>
+    <string name="collection_unfinished">Unfinished</string>
+    <string name="collection_large">Large files</string>
+    <string name="collection_duplicates">Possible duplicates</string>
+    <string name="search_hint_filters">Search… (ext:mkv res:1080 size>500mb)</string>
+    <string name="selected_count">%1$d selected</string>
+    <string name="action_all">All</string>
+    <string name="action_fav">Fav</string>
+    <string name="action_playlist">Playlist</string>
+    <string name="action_vault">Vault</string>
+    <string name="action_remove">Remove</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="empty_discovered">No videos discovered on device</string>
+    <string name="empty_folder">This folder is empty</string>
+    <string name="empty_no_folders">No video folders found</string>
+    <string name="empty_recents">No recently played videos</string>
+    <string name="empty_playlists">No playlists yet. Use \"Add to playlist\" on a video.</string>
+    <string name="empty_playlist">This playlist is empty</string>
+    <string name="empty_fav">No favorite videos saved</string>
+    <string name="onboarding_title">Welcome to LNXV</string>
+    <string name="onboarding_message">LNXV needs permission to read the videos on your device so it can list and play them. Nothing is uploaded: there is no analytics or tracking, and your history, favorites and the encrypted vault stay on this device.</string>
+    <string name="action_continue">Continue</string>
 </resources>

@@ -21,12 +21,12 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
-enum class HomeTab(val label: String) {
-    VIDEOS("Videos"),
-    FOLDERS("Folders"),
-    RECENTS("Recents"),
-    FAVORITES("Favorites"),
-    PLAYLISTS("Playlists")
+enum class HomeTab(val label: String, @androidx.annotation.StringRes val labelRes: Int) {
+    VIDEOS("Videos", com.lnxv.player.R.string.tab_videos),
+    FOLDERS("Folders", com.lnxv.player.R.string.tab_folders),
+    RECENTS("Recents", com.lnxv.player.R.string.tab_recents),
+    FAVORITES("Favorites", com.lnxv.player.R.string.tab_favorites),
+    PLAYLISTS("Playlists", com.lnxv.player.R.string.tab_playlists)
 }
 
 enum class SortOption(val displayName: String) {

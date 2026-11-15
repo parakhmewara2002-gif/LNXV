@@ -259,13 +259,10 @@ class MainActivity : ComponentActivity() {
                     permissionLauncher.launch(needed.toTypedArray())
                 } else {
                     android.app.AlertDialog.Builder(this@MainActivity)
-                        .setTitle("Welcome to LNXV")
-                        .setMessage(
-                            "LNXV needs permission to read the videos on your device so it can list and play them. " +
-                                "Nothing is uploaded: there is no analytics or tracking, and your history, favorites and the encrypted vault stay on this device."
-                        )
+                        .setTitle(getString(R.string.onboarding_title))
+                        .setMessage(getString(R.string.onboarding_message))
                         .setCancelable(false)
-                        .setPositiveButton("Continue") { _, _ ->
+                        .setPositiveButton(getString(R.string.action_continue)) { _, _ ->
                             lifecycleScope.launch {
                                 (application as LNXVApplication).dataStore.setOnboardingDone()
                                 permissionLauncher.launch(needed.toTypedArray())

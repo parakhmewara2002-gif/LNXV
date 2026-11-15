@@ -220,13 +220,13 @@ fun HomeScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text("${selection.size} selected", color = appColors.textPrimary, fontSize = 14.sp, modifier = Modifier.padding(start = 8.dp))
+                    Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.selected_count, selection.size), color = appColors.textPrimary, fontSize = 14.sp, modifier = Modifier.padding(start = 8.dp))
                     Row {
-                        androidx.compose.material3.TextButton(onClick = { viewModel.selectAll(selectionPool.filter { v -> v.id in (if (uiState.openFolderPath != null) uiState.folderVideos else uiState.videos).map { it.id } }) }) { Text("All") }
-                        androidx.compose.material3.TextButton(onClick = { viewModel.favoriteSelected(selectionPool) }) { Text("Fav") }
-                        androidx.compose.material3.TextButton(onClick = { viewModel.requestAddSelectedToPlaylist(selectionPool) }) { Text("Playlist") }
-                        androidx.compose.material3.TextButton(onClick = { viewModel.vaultSelected(selectionPool) }) { Text("Vault") }
-                        androidx.compose.material3.TextButton(onClick = { confirmRemove = true }) { Text("Remove") }
+                        androidx.compose.material3.TextButton(onClick = { viewModel.selectAll(selectionPool.filter { v -> v.id in (if (uiState.openFolderPath != null) uiState.folderVideos else uiState.videos).map { it.id } }) }) { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.action_all)) }
+                        androidx.compose.material3.TextButton(onClick = { viewModel.favoriteSelected(selectionPool) }) { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.action_fav)) }
+                        androidx.compose.material3.TextButton(onClick = { viewModel.requestAddSelectedToPlaylist(selectionPool) }) { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.action_playlist)) }
+                        androidx.compose.material3.TextButton(onClick = { viewModel.vaultSelected(selectionPool) }) { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.action_vault)) }
+                        androidx.compose.material3.TextButton(onClick = { confirmRemove = true }) { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.action_remove)) }
                         androidx.compose.material3.TextButton(onClick = { viewModel.clearSelection() }) { Text("✕") }
                     }
                 }
@@ -318,7 +318,7 @@ fun HomeScreen(
                     TextField(
                         value = uiState.searchQuery,
                         onValueChange = { viewModel.updateSearchQuery(it) },
-                        placeholder = { Text("Search… (ext:mkv res:1080 size>500mb)", color = appColors.textTertiary) },
+                        placeholder = { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.search_hint_filters), color = appColors.textTertiary) },
                         modifier = Modifier
                             .fillMaxWidth()
                             .liquidGlassSurface(shape = RoundedCornerShape(14.dp)),
@@ -377,7 +377,7 @@ fun HomeScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = tab.label,
+                                text = androidx.compose.ui.res.stringResource(tab.labelRes),
                                 color = tabTextColor,
                                 fontSize = 13.sp,
                                 fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
@@ -482,13 +482,13 @@ fun HomeScreen(
                                 androidx.compose.material3.FilterChip(
                                     selected = uiState.collection == c,
                                     onClick = { viewModel.selectCollection(c) },
-                                    label = { Text(c.label) }
+                                    label = { Text(androidx.compose.ui.res.stringResource(c.labelRes)) }
                                 )
                             }
                         }
                     }
                     if (uiState.videos.isEmpty()) {
-                        item { EmptyStateView(message = "No videos discovered on device") }
+                        item { EmptyStateView(message = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.empty_discovered)) }
                     } else if (uiState.isGridView) {
                         items(uiState.videos.chunked(2), key = { row -> row.first().id }) { row ->
                             Row(
@@ -553,7 +553,7 @@ fun HomeScreen(
                             }
                         }
                         if (uiState.folderVideos.isEmpty()) {
-                            item { EmptyStateView(message = "This folder is empty") }
+                            item { EmptyStateView(message = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.empty_folder)) }
                         } else {
                             items(uiState.folderVideos, key = { it.id }) { video ->
                                 VideoItemRow(
@@ -569,7 +569,7 @@ fun HomeScreen(
                             }
                         }
                     } else if (uiState.folders.isEmpty()) {
-                        item { EmptyStateView(message = "No video folders found") }
+                        item { EmptyStateView(message = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.empty_no_folders)) }
                     } else {
                         items(uiState.folders, key = { it.path }) { folder ->
                             FolderItemRow(
@@ -582,7 +582,7 @@ fun HomeScreen(
                 }
                 HomeTab.RECENTS -> {
                     if (uiState.recentlyPlayed.isEmpty()) {
-                        item { EmptyStateView(message = "No recently played videos") }
+                        item { EmptyStateView(message = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.empty_recents)) }
                     } else {
                         items(uiState.recentlyPlayed, key = { it.id }) { video ->
                             VideoItemRow(
@@ -632,7 +632,7 @@ fun HomeScreen(
                             }
                         }
                         if (openPlaylistVideos.isEmpty()) {
-                            item { EmptyStateView(message = "This playlist is empty") }
+                            item { EmptyStateView(message = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.empty_playlist)) }
                         } else {
                             items(openPlaylistVideos, key = { it.id }) { video ->
                                 Row(
@@ -650,7 +650,7 @@ fun HomeScreen(
                             }
                         }
                     } else if (playlists.isEmpty()) {
-                        item { EmptyStateView(message = "No playlists yet. Use \"Add to playlist\" on a video.") }
+                        item { EmptyStateView(message = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.empty_playlists)) }
                     } else {
                         items(playlists, key = { it.id }) { pl ->
                             var confirmDelete by remember(pl.id) { mutableStateOf(false) }
@@ -686,7 +686,7 @@ fun HomeScreen(
                 }
                 HomeTab.FAVORITES -> {
                     if (uiState.favorites.isEmpty()) {
-                        item { EmptyStateView(message = "No favorite videos saved") }
+                        item { EmptyStateView(message = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.empty_fav)) }
                     } else {
                         items(uiState.favorites, key = { it.id }) { video ->
                             VideoItemRow(

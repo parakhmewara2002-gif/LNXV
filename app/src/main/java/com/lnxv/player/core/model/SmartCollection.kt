@@ -1,12 +1,12 @@
 package com.lnxv.player.core.model
 
 /** Smart collections shown as chips on the Videos tab (Phase 6). Pure logic, unit tested. */
-enum class SmartCollection(val label: String) {
-    ALL("All"),
-    RECENT("Recently added"),
-    UNFINISHED("Unfinished"),
-    LARGE("Large files"),
-    DUPLICATES("Possible duplicates");
+enum class SmartCollection(val label: String, @androidx.annotation.StringRes val labelRes: Int) {
+    ALL("All", com.lnxv.player.R.string.collection_all),
+    RECENT("Recently added", com.lnxv.player.R.string.collection_recent),
+    UNFINISHED("Unfinished", com.lnxv.player.R.string.collection_unfinished),
+    LARGE("Large files", com.lnxv.player.R.string.collection_large),
+    DUPLICATES("Possible duplicates", com.lnxv.player.R.string.collection_duplicates);
 
     fun matches(v: VideoItem, nowSec: Long): Boolean =
         matches(v.dateAddedSec, v.sizeBytes, v.durationMs, v.lastPositionMs, nowSec)
