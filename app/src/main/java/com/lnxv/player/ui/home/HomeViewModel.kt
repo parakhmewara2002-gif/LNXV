@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
@@ -361,7 +362,55 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         clearSelection()
     }
 
+    private val _openPlaylistId = MutableStateFlow<Long?>(null)
+    val openPlaylistId: kotlinx.coroutines.flow.StateFlow<Long?> = _openPlaylistId
+
+    fun openPlaylist(id: Long) { _openPlaylistId.value = id }
+    fun closePlaylist() { _openPlaylistId.value = null }
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val openPlaylistVideos: kotlinx.coroutines.flow.StateFlow<List<VideoItem>> =
+        kotlinx.coroutines.flow.combine(
+            _openPlaylistId.flatMapLatest { id ->
+                if (id == null) kotlinx.coroutines.flow.flowOf(emptyList()) else playlistDao.observeVideoIds(id)
+            },
+            repository.allVideosFlow
+        ) { ids, all ->
+            val byId = all.associateBy { it.id }
+            ids.mapNotNull { byId[it] }
+        }.stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun renamePlaylist(id: Long, name: String) {
+        val clean = name.trim().take(60)
+        if (clean.isEmpty()) return
+        viewModelScope.launch { playlistDao.rename(id, clean) }
+    }
+
+    fun removeFromPlaylist(playlistId: Long, videoId: Long) {
+        viewModelScope.launch { playlistDao.removeItem(playlistId, videoId) }
+    }
+
+    fun moveInPlaylist(playlistId: Long, videoId: Long, delta: Int) {
+        viewModelScope.launch {
+            val ids = playlistDao.getVideoIds(playlistId)
+            val moved = com.lnxv.player.core.model.PlaylistOrder.move(ids, videoId, delta)
+            if (moved == ids) return@launch
+            moved.forEachIndexed { index, id -> playlistDao.setPosition(playlistId, id, index) }
+        }
+    }
+
+    /** Plays the playlist as the queue, starting at [videoId]. */
+    fun playPlaylistFrom(playlistId: Long, videoId: Long) {
+        viewModelScope.launch {
+            val ids = playlistDao.getVideoIds(playlistId)
+            if (videoId !in ids) return@launch
+            app.queueOverride = ids
+            app.pendingOpenVideoId.value = videoId
+        }
+    }
+
     fun deletePlaylist(playlistId: Long) {
+        if (_openPlaylistId.value == playlistId) _openPlaylistId.value = null
         viewModelScope.launch {
             playlistDao.clearItems(playlistId)
             playlistDao.deletePlaylist(playlistId)

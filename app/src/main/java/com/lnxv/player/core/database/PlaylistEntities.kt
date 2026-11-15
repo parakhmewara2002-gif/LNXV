@@ -54,6 +54,15 @@ interface PlaylistDao {
     )
     suspend fun getVideoIds(playlistId: Long): List<Long>
 
+    @Query(
+        "SELECT i.videoId FROM playlist_items i JOIN videos v ON v.id = i.videoId " +
+            "WHERE i.playlistId = :playlistId AND v.isVault = 0 ORDER BY i.position ASC"
+    )
+    fun observeVideoIds(playlistId: Long): Flow<List<Long>>
+
+    @Query("UPDATE playlist_items SET position = :position WHERE playlistId = :playlistId AND videoId = :videoId")
+    suspend fun setPosition(playlistId: Long, videoId: Long, position: Int)
+
     @Query("DELETE FROM playlist_items WHERE playlistId = :playlistId AND videoId = :videoId")
     suspend fun removeItem(playlistId: Long, videoId: Long)
 

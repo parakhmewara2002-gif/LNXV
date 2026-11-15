@@ -596,14 +596,79 @@ fun HomeScreen(
                     }
                 }
                 HomeTab.PLAYLISTS -> {
-                    if (playlists.isEmpty()) {
+                    val openPlaylistId by viewModel.openPlaylistId.collectAsState()
+                    val openPlaylistVideos by viewModel.openPlaylistVideos.collectAsState()
+                    val openPl = playlists.firstOrNull { it.id == openPlaylistId }
+                    if (openPlaylistId != null && openPl == null) {
+                        item { EmptyStateView(message = "Playlist not found") }
+                    } else if (openPl != null) {
+                        item {
+                            var renaming by remember(openPl.id) { mutableStateOf(false) }
+                            var newName by remember(openPl.id, openPl.name) { mutableStateOf(openPl.name) }
+                            if (renaming) {
+                                androidx.compose.material3.AlertDialog(
+                                    onDismissRequest = { renaming = false },
+                                    title = { Text("Rename playlist") },
+                                    text = {
+                                        androidx.compose.material3.OutlinedTextField(
+                                            value = newName, onValueChange = { newName = it }, singleLine = true
+                                        )
+                                    },
+                                    confirmButton = {
+                                        androidx.compose.material3.TextButton(
+                                            onClick = { viewModel.renamePlaylist(openPl.id, newName); renaming = false },
+                                            enabled = newName.isNotBlank()
+                                        ) { Text("Save") }
+                                    },
+                                    dismissButton = { androidx.compose.material3.TextButton(onClick = { renaming = false }) { Text("Cancel") } }
+                                )
+                            }
+                            BackHandler { viewModel.closePlaylist() }
+                            Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                androidx.compose.material3.TextButton(onClick = { viewModel.closePlaylist() }) { Text("← Back") }
+                                Text(openPl.name, color = appColors.textPrimary, fontSize = 16.sp, maxLines = 1, modifier = Modifier.weight(1f))
+                                androidx.compose.material3.TextButton(onClick = { renaming = true }) { Text("Rename") }
+                                androidx.compose.material3.TextButton(onClick = { viewModel.playPlaylist(openPl.id) }) { Text("Play all") }
+                            }
+                        }
+                        if (openPlaylistVideos.isEmpty()) {
+                            item { EmptyStateView(message = "This playlist is empty") }
+                        } else {
+                            items(openPlaylistVideos, key = { it.id }) { video ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { viewModel.playPlaylistFrom(openPl.id, video.id) }
+                                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(video.title, color = appColors.textPrimary, fontSize = 14.sp, maxLines = 2, modifier = Modifier.weight(1f))
+                                    androidx.compose.material3.TextButton(onClick = { viewModel.moveInPlaylist(openPl.id, video.id, -1) }) { Text("▲") }
+                                    androidx.compose.material3.TextButton(onClick = { viewModel.moveInPlaylist(openPl.id, video.id, 1) }) { Text("▼") }
+                                    androidx.compose.material3.TextButton(onClick = { viewModel.removeFromPlaylist(openPl.id, video.id) }) { Text("✕", color = Color.Red) }
+                                }
+                            }
+                        }
+                    } else if (playlists.isEmpty()) {
                         item { EmptyStateView(message = "No playlists yet. Use \"Add to playlist\" on a video.") }
                     } else {
                         items(playlists, key = { it.id }) { pl ->
+                            var confirmDelete by remember(pl.id) { mutableStateOf(false) }
+                            if (confirmDelete) {
+                                androidx.compose.material3.AlertDialog(
+                                    onDismissRequest = { confirmDelete = false },
+                                    title = { Text("Delete \"${pl.name}\"?") },
+                                    text = { Text("The videos themselves are not deleted.") },
+                                    confirmButton = {
+                                        androidx.compose.material3.TextButton(onClick = { viewModel.deletePlaylist(pl.id); confirmDelete = false }) { Text("Delete") }
+                                    },
+                                    dismissButton = { androidx.compose.material3.TextButton(onClick = { confirmDelete = false }) { Text("Cancel") } }
+                                )
+                            }
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clickable { viewModel.playPlaylist(pl.id) }
+                                    .clickable { viewModel.openPlaylist(pl.id) }
                                     .padding(horizontal = 16.dp, vertical = 12.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
@@ -611,7 +676,8 @@ fun HomeScreen(
                                     Text(pl.name, color = appColors.textPrimary, fontSize = 15.sp, maxLines = 1)
                                     Text("${pl.itemCount} video(s)", color = appColors.textTertiary, fontSize = 12.sp)
                                 }
-                                androidx.compose.material3.TextButton(onClick = { viewModel.deletePlaylist(pl.id) }) {
+                                androidx.compose.material3.TextButton(onClick = { viewModel.playPlaylist(pl.id) }) { Text("Play") }
+                                androidx.compose.material3.TextButton(onClick = { confirmDelete = true }) {
                                     Text("Delete", color = Color.Red)
                                 }
                             }
