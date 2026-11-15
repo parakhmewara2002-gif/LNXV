@@ -50,6 +50,7 @@ class LNXVApplication : Application(), ImageLoaderFactory {
         registerScreenOffLock()
         // Warm up DataStore off the main thread
         appScope.launch(Dispatchers.IO) { dataStore.userPreferencesFlow.first() }
+        appScope.launch(Dispatchers.IO) { runCatching { com.lnxv.player.core.util.CacheCleaner.runDefault(cacheDir) } }
     }
 
     /** Transient "Open with" video (never written to Room); played via route id [TRANSIENT_VIDEO_ID]. */

@@ -78,7 +78,21 @@ class Media3PlayerManager(private val context: Context) : PlayerController, Play
         _audioDelayMs.value = v
     }
 
+    // Rule C: small buffers (local files need little read-ahead); lower again on low-RAM devices.
+    private val loadControl = run {
+        val lowRam = (context.getSystemService(Context.ACTIVITY_SERVICE) as? android.app.ActivityManager)?.isLowRamDevice == true
+        androidx.media3.exoplayer.DefaultLoadControl.Builder()
+            .setBufferDurationsMs(
+                if (lowRam) 8_000 else 15_000,
+                if (lowRam) 20_000 else 40_000,
+                1_500, 3_000
+            )
+            .setTargetBufferBytes(if (lowRam) 16 * 1024 * 1024 else 32 * 1024 * 1024)
+            .build()
+    }
+
     val exoPlayer: ExoPlayer = ExoPlayer.Builder(context, renderersFactory)
+        .setLoadControl(loadControl)
         .setTrackSelector(trackSelector)
         .setMediaSourceFactory(
             DefaultMediaSourceFactory(
