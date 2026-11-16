@@ -7,13 +7,17 @@ import java.security.MessageDigest
 
 /** Pure (JVM-testable) helpers for update integrity. */
 object UpdateVerifier {
-    private val ALLOWED_HOSTS = setOf("github.com", "objects.githubusercontent.com", "api.github.com")
+    private val ALLOWED_HOSTS = setOf("github.com", "api.github.com")
+
+    /** GitHub serves release assets from rotating *.githubusercontent.com hosts (objects., release-assets., ...). */
+    private fun isGithubUserContent(host: String?): Boolean =
+        host != null && host.lowercase().endsWith(".githubusercontent.com")
 
     /** Only HTTPS URLs on github.com / objects.githubusercontent.com are ever followed. */
     fun isTrustedUrl(url: String): Boolean = try {
         val u = URI(url)
         u.scheme.equals("https", ignoreCase = true) && u.userInfo == null &&
-            (u.port == -1 || u.port == 443) && u.host?.lowercase() in ALLOWED_HOSTS
+            (u.port == -1 || u.port == 443) && (u.host?.lowercase() in ALLOWED_HOSTS || isGithubUserContent(u.host))
     } catch (e: Exception) { false }
 
     /** Accepts `<64 hex>` or `<64 hex>  filename` (sha256sum output). Returns lowercase hex or null. */

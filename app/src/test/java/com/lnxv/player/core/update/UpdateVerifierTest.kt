@@ -11,6 +11,8 @@ class UpdateVerifierTest {
     @Test fun trustedUrls() {
         assertTrue(UpdateVerifier.isTrustedUrl("https://github.com/o/r/releases/download/v1/LNXV.apk"))
         assertTrue(UpdateVerifier.isTrustedUrl("https://objects.githubusercontent.com/abc?x=1"))
+        assertTrue(UpdateVerifier.isTrustedUrl("https://release-assets.githubusercontent.com/github-production-release-asset/1?x=1"))
+        assertFalse(UpdateVerifier.isTrustedUrl("https://githubusercontent.com.evil.com/x"))
     }
 
     @Test fun untrustedUrls() {
