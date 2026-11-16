@@ -37,21 +37,21 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AspectRatio
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Forward10
-import androidx.compose.material.icons.filled.GraphicEq
-import androidx.compose.material.icons.filled.MoreHoriz
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PictureInPicture
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Replay10
-import androidx.compose.material.icons.filled.SkipNext
-import androidx.compose.material.icons.filled.SkipPrevious
-import androidx.compose.material.icons.filled.Speed
-import androidx.compose.material.icons.filled.Subtitles
-import androidx.compose.material.icons.filled.VolumeOff
-import androidx.compose.material.icons.filled.VolumeUp
+import com.lnxv.player.core.design.icons.AspectRatio
+import com.lnxv.player.core.design.icons.ForwardArrow
+import com.lnxv.player.core.design.icons.GraphicEq
+import com.lnxv.player.core.design.icons.MoreHoriz
+import com.lnxv.player.core.design.icons.Pause
+import com.lnxv.player.core.design.icons.PictureInPicture
+import com.lnxv.player.core.design.icons.RewindArrow
+import com.lnxv.player.core.design.icons.SkipNext
+import com.lnxv.player.core.design.icons.SkipPrevious
+import com.lnxv.player.core.design.icons.Speed
+import com.lnxv.player.core.design.icons.Subtitles
+import com.lnxv.player.core.design.icons.VolumeOff
+import com.lnxv.player.core.design.icons.VolumeUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -171,7 +171,7 @@ fun IosPlayerControls(
             if (queueUi.size > 1) {
                 GlassCircle(Icons.Default.SkipPrevious, stringResource(R.string.cd_prev_video), 48.dp) { viewModel.playPrevious() }
             }
-            GlassCircle(Icons.Default.Replay10, stringResource(R.string.cd_seek_back), 60.dp) { viewModel.seekRelative(-10000L) }
+            GlassCircle(Icons.Default.RewindArrow, stringResource(R.string.cd_seek_back), 60.dp, label = "10") { viewModel.seekRelative(-10000L) }
 
             Box(
                 modifier = Modifier
@@ -200,7 +200,7 @@ fun IosPlayerControls(
                 }
             }
 
-            GlassCircle(Icons.Default.Forward10, stringResource(R.string.cd_seek_fwd), 60.dp) { viewModel.seekRelative(10000L) }
+            GlassCircle(Icons.Default.ForwardArrow, stringResource(R.string.cd_seek_fwd), 60.dp, label = "10") { viewModel.seekRelative(10000L) }
             if (queueUi.size > 1) {
                 GlassCircle(Icons.Default.SkipNext, stringResource(R.string.cd_next_video), 48.dp) { viewModel.playNext() }
             }
@@ -337,7 +337,7 @@ private fun PillIcon(icon: ImageVector, contentDescription: String, onClick: () 
 }
 
 @Composable
-private fun GlassCircle(icon: ImageVector, contentDescription: String, size: Dp, onClick: () -> Unit) {
+private fun GlassCircle(icon: ImageVector, contentDescription: String, size: Dp, label: String? = null, onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .bouncyClickable(pressedScale = 0.92f) { onClick() }
@@ -345,7 +345,10 @@ private fun GlassCircle(icon: ImageVector, contentDescription: String, size: Dp,
             .liquidGlassSurface(shape = CircleShape, backgroundColor = PillFill, borderColor = PillBorder),
         contentAlignment = Alignment.Center
     ) {
-        Icon(icon, contentDescription, tint = Color.White, modifier = Modifier.size(size * 0.55f))
+        Icon(icon, contentDescription, tint = Color.White, modifier = Modifier.size(size * 0.6f))
+        if (label != null) {
+            Text(label, color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 3.dp))
+        }
     }
 }
 
