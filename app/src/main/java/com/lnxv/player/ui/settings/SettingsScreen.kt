@@ -1,5 +1,8 @@
 package com.lnxv.player.ui.settings
 
+import com.lnxv.player.core.design.GlassProgress
+import com.lnxv.player.core.design.GlassSwitch
+import com.lnxv.player.core.design.GlassDialog
 import androidx.compose.ui.draw.clip
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.animateColorAsState
@@ -74,7 +77,7 @@ fun SettingsScreen(
     var confirmResetFlags by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
 
     if (confirmResetFlags) {
-        androidx.compose.material3.AlertDialog(
+        GlassDialog(
             onDismissRequest = { confirmResetFlags = false },
             title = { Text("Reset experimental flags?") },
             text = { Text("Every flag under Advanced returns to its default. Your PIN, vault and other settings are not touched.") },
@@ -377,11 +380,7 @@ fun SettingsScreen(
                         }
                         if (st is UpdateState.Downloading) {
                             Spacer(modifier = Modifier.height(12.dp))
-                            LinearProgressIndicator(
-                                progress = { st.progress },
-                                modifier = Modifier.fillMaxWidth(),
-                                color = appColors.accent
-                            )
+                            GlassProgress(progress = { st.progress }, modifier = Modifier.fillMaxWidth())
                         }
                         if (st is UpdateState.Available && st.info.notes.isNotBlank()) {
                             Spacer(modifier = Modifier.height(10.dp))
@@ -595,7 +594,7 @@ fun SettingsScreen(
                         if (prefs.isEnabled(com.lnxv.player.core.flags.FeatureFlag.BIOMETRIC_UNLOCK) && com.lnxv.player.core.security.BiometricGate.canAuthenticate(bioCtx)) {
                             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                                 Text("Unlock vault with biometrics", color = appColors.textPrimary, fontSize = 14.sp)
-                                androidx.compose.material3.Switch(
+                                GlassSwitch(
                                     checked = prefs.vaultBiometric,
                                     onCheckedChange = { want ->
                                         if (!want) viewModel.setVaultBiometric(false)
@@ -753,15 +752,9 @@ fun SettingSwitchRow(
             Text(text = subtitle, color = appColors.textTertiary, fontSize = 12.sp)
         }
         Spacer(modifier = Modifier.width(12.dp))
-        Switch(
+        GlassSwitch(
             checked = isChecked,
-            onCheckedChange = onCheckedChange,
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = Color.Black,
-                checkedTrackColor = appColors.accent,
-                uncheckedThumbColor = appColors.textTertiary,
-                uncheckedTrackColor = appColors.glassBorder
-            )
+            onCheckedChange = onCheckedChange
         )
     }
 }

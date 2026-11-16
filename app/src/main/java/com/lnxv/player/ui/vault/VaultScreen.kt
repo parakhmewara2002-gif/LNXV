@@ -1,5 +1,7 @@
 package com.lnxv.player.ui.vault
 
+import com.lnxv.player.core.design.GlassProgress
+import com.lnxv.player.core.design.GlassDialog
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -98,7 +100,7 @@ fun VaultScreen(
     if (uiState.showChangePin) {
         var oldPin by remember { mutableStateOf("") }
         var newPin by remember { mutableStateOf("") }
-        AlertDialog(
+        GlassDialog(
             onDismissRequest = viewModel::closeChangePin,
             title = { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.pin_change_title)) },
             text = {
@@ -140,7 +142,7 @@ fun VaultScreen(
     }
 
     if (uiState.showForgotConfirm) {
-        AlertDialog(
+        GlassDialog(
             onDismissRequest = viewModel::dismissForgotPin,
             title = { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.pin_forgot)) },
             text = {
@@ -209,7 +211,7 @@ fun VaultScreen(
                             color = appColors.textPrimary, fontSize = 13.sp, maxLines = 1
                         )
                         Spacer(Modifier.height(6.dp))
-                        LinearProgressIndicator(progress = { job.progress }, modifier = Modifier.fillMaxWidth())
+                        GlassProgress(progress = { job.progress }, modifier = Modifier.fillMaxWidth())
                         TextButton(onClick = viewModel::cancelTransfers) { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.action_cancel)) }
                     }
                 }
@@ -265,7 +267,7 @@ fun VaultScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clickable { onVideoClick(video) },
-                                shape = RoundedCornerShape(16.dp),
+                                shape = RoundedCornerShape(24.dp),
                                 backgroundColor = appColors.glassFill
                             ) {
                                 Row(
@@ -287,7 +289,7 @@ fun VaultScreen(
                                             bitmap = it,
                                             contentDescription = null,
                                             contentScale = ContentScale.Crop,
-                                            modifier = Modifier.size(width = 80.dp, height = 48.dp).clip(RoundedCornerShape(8.dp))
+                                            modifier = Modifier.size(width = 80.dp, height = 48.dp).clip(RoundedCornerShape(14.dp))
                                         )
                                         Spacer(Modifier.width(12.dp))
                                     }

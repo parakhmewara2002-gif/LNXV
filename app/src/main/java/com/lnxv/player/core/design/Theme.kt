@@ -115,7 +115,7 @@ fun LNXVTheme(
 
 /** iOS-like rounded shapes: dialogs use extraLarge, menus/sheets use large/medium. */
 private val IosShapes = Shapes(
-    extraSmall = RoundedCornerShape(10.dp),
+    extraSmall = RoundedCornerShape(14.dp),
     small = RoundedCornerShape(14.dp),
     medium = RoundedCornerShape(18.dp),
     large = RoundedCornerShape(24.dp),

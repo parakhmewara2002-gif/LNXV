@@ -1,5 +1,6 @@
 package com.lnxv.player.ui.home
 
+import com.lnxv.player.core.design.GlassDropdownMenu
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import com.lnxv.player.core.design.ambientBackground
@@ -220,7 +221,7 @@ fun VideoItemRow(
                         tint = appColors.textTertiary
                     )
                 }
-                DropdownMenu(
+                GlassDropdownMenu(
                     expanded = isMenuOpen,
                     onDismissRequest = { isMenuOpen = false }
                 ) {
@@ -269,7 +270,7 @@ fun FolderItemRow(
         modifier = Modifier
             .fillMaxWidth()
             .bouncyClickable { onClick() },
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(24.dp),
         backgroundColor = appColors.glassFill
     ) {
         Row(
@@ -282,7 +283,7 @@ fun FolderItemRow(
                 modifier = Modifier
                     .size(44.dp)
                     .liquidGlassSurface(
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(16.dp),
                         backgroundColor = appColors.accent.copy(alpha = 0.15f),
                         borderColor = appColors.accent.copy(alpha = 0.4f)
                     ),
@@ -320,7 +321,7 @@ fun FolderItemRow(
                         tint = appColors.textTertiary
                     )
                 }
-                DropdownMenu(
+                GlassDropdownMenu(
                     expanded = menuOpen,
                     onDismissRequest = { menuOpen = false }
                 ) {
@@ -552,7 +553,7 @@ fun VideoGridCard(
                             tint = appColors.textTertiary
                         )
                     }
-                    DropdownMenu(
+                    GlassDropdownMenu(
                         expanded = isMenuOpen,
                         onDismissRequest = { isMenuOpen = false }
                     ) {
