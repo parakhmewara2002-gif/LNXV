@@ -3,7 +3,6 @@ package com.lnxv.player.ui.vault
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.lnxv.player.LNXVApplication
 import com.lnxv.player.core.model.VideoItem
 import com.lnxv.player.core.security.PinHasher
 import com.lnxv.player.data.repository.VaultJobState
@@ -43,11 +42,12 @@ data class VaultUiState(
     val needsConfirmButton: Boolean get() = authState != VaultAuthState.ENTER_PIN
 }
 
-class VaultViewModel(application: Application) : AndroidViewModel(application) {
-
-    private val app = application as LNXVApplication
-    private val vaultRepo = app.vaultRepository
-    private val transfers = app.vaultTransfers
+class VaultViewModel(
+    application: Application,
+    private val vaultRepo: com.lnxv.player.data.repository.VaultRepository,
+    private val transfers: com.lnxv.player.data.repository.VaultTransferManager,
+    private val dataStore: com.lnxv.player.core.datastore.UserPreferencesDataStore
+) : AndroidViewModel(application) {
 
     private val _uiState = MutableStateFlow(VaultUiState())
     val uiState: StateFlow<VaultUiState> = _uiState.asStateFlow()
@@ -76,7 +76,7 @@ class VaultViewModel(application: Application) : AndroidViewModel(application) {
                 isSet -> VaultAuthState.ENTER_PIN
                 else -> VaultAuthState.SETUP_PIN
             }
-            val prefs = app.dataStore.userPreferencesFlow.first()
+            val prefs = dataStore.userPreferencesFlow.first()
             val bio = isSet && prefs.vaultBiometric && prefs.isEnabled(com.lnxv.player.core.flags.FeatureFlag.BIOMETRIC_UNLOCK)
             _uiState.value = _uiState.value.copy(authState = state, pinLength = len, biometricEnabled = bio)
             if (state == VaultAuthState.AUTHENTICATED) onAuthenticated()

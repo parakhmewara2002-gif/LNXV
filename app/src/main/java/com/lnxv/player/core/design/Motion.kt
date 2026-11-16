@@ -19,16 +19,16 @@ import androidx.compose.ui.graphics.graphicsLayer
  */
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
-fun Modifier.bouncyClickable(pressedScale: Float = 0.97f, onLongClick: (() -> Unit)? = null, onClick: () -> Unit): Modifier {
+fun Modifier.bouncyClickable(pressedScale: Float = 0.985f, onLongClick: (() -> Unit)? = null, onClick: () -> Unit): Modifier {
     val interactionSource = remember { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
         targetValue = if (pressed) pressedScale else 1f,
         animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMedium
+            dampingRatio = 0.92f,
+            stiffness = 520f
         ),
-        label = "bouncy_click_scale"
+        label = "precision_press_scale"
     )
     return this
         .graphicsLayer {

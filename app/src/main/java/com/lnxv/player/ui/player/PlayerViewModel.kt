@@ -54,7 +54,9 @@ class PlayerViewModel(
     application: Application,
     private val playerManager: com.lnxv.player.playback.engine.PlayerController,
     private val videoRepository: com.lnxv.player.data.repository.VideoRepository,
-    private val dataStore: com.lnxv.player.core.datastore.UserPreferencesDataStore
+    private val dataStore: com.lnxv.player.core.datastore.UserPreferencesDataStore,
+    private val vaultRepository: com.lnxv.player.data.repository.VaultRepository,
+    private val session: com.lnxv.player.core.session.SessionState
 ) : AndroidViewModel(application) {
     private var pendingSpeed = 1.0f
     private var closed = false
@@ -109,9 +111,8 @@ class PlayerViewModel(
     }
 
     private suspend fun buildQueue(video: VideoItem) {
-        val app = getApplication<Application>() as LNXVApplication
-        val override = app.queueOverride
-        app.queueOverride = null
+        val override = session.queueOverride
+        session.queueOverride = null
         val ids = when {
             override != null -> override
             video.isVault || video.id == LNXVApplication.TRANSIENT_VIDEO_ID -> emptyList()
@@ -164,8 +165,7 @@ class PlayerViewModel(
     fun loadVideo(videoId: Long) {
         if (_uiState.value.currentVideo?.id == videoId) return
         viewModelScope.launch {
-            val app = getApplication<Application>() as LNXVApplication
-            val video = (if (videoId == LNXVApplication.TRANSIENT_VIDEO_ID) app.transientVideo
+            val video = (if (videoId == LNXVApplication.TRANSIENT_VIDEO_ID) session.transientVideo
                 else videoRepository.getVideoById(videoId)) ?: return@launch
             begin(video, rebuildQueue = true)
         }
@@ -173,13 +173,12 @@ class PlayerViewModel(
 
     private suspend fun begin(video: VideoItem, rebuildQueue: Boolean) {
         run {
-            val app = getApplication<Application>() as LNXVApplication
-            if (video.isVault && !app.vaultRepository.isUnlocked) {
+            if (video.isVault && !vaultRepository.isUnlocked) {
                 _uiState.value = _uiState.value.copy(accessDenied = true)
                 return
             }
             if (rebuildQueue) buildQueue(video)
-            app.playingVaultItem = video.isVault
+            session.playingVaultItem = video.isVault
             playerManager.owner = this@PlayerViewModel
             val prefs = dataStore.userPreferencesFlow.first()
             val last = video.lastPositionMs
@@ -356,7 +355,7 @@ class PlayerViewModel(
         if (closed) return
         saveProgress()
         closed = true
-        (getApplication<Application>() as LNXVApplication).playingVaultItem = false
+        session.playingVaultItem = false
         if (playerManager.owner === this) {
             playerManager.owner = null
             playerManager.isVideoScreenActive = false

@@ -336,4 +336,9 @@ class UserPreferencesDataStore(private val context: Context) {
     suspend fun setFeatureFlag(flag: FeatureFlag, enabled: Boolean) {
         context.dataStore.edit { it[PreferencesKeys.flagKey(flag)] = enabled }
     }
+
+    /** Removes every stored feature-flag override so each flag returns to its default. Touches nothing else (PIN, vault, theme). */
+    suspend fun resetFeatureFlags() {
+        context.dataStore.edit { prefs -> FeatureFlag.values().forEach { prefs.remove(PreferencesKeys.flagKey(it)) } }
+    }
 }

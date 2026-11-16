@@ -3,7 +3,6 @@ package com.lnxv.player.ui.settings
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.lnxv.player.LNXVApplication
 import com.lnxv.player.core.datastore.UserPreferences
 import com.lnxv.player.core.update.AppUpdater
 import com.lnxv.player.core.update.UpdateInfo
@@ -15,9 +14,11 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-class SettingsViewModel(application: Application) : AndroidViewModel(application) {
+class SettingsViewModel(
+    application: Application,
+    private val dataStore: com.lnxv.player.core.datastore.UserPreferencesDataStore
+) : AndroidViewModel(application) {
 
-    private val dataStore = (application as LNXVApplication).dataStore
 
     val userPreferences: StateFlow<UserPreferences> = dataStore.userPreferencesFlow.stateIn(
         scope = viewModelScope,
@@ -162,6 +163,8 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun setFlag(flag: com.lnxv.player.core.flags.FeatureFlag, enabled: Boolean) {
         viewModelScope.launch { dataStore.setFeatureFlag(flag, enabled) }
     }
+
+    fun resetFlags() { viewModelScope.launch { dataStore.resetFeatureFlags() } }
 
     fun setUpdateWifiOnly(enabled: Boolean) {
         viewModelScope.launch { dataStore.updateUpdateWifiOnly(enabled) }

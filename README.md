@@ -102,3 +102,14 @@ No analytics, no tracking, no ads. Only network use: the update check (sideload)
 3. Create or specify your production KeyStore file and enter credentials.
 4. Select the **release** build variant and click **Finish**.
 5. The signed APK will be output to `app/build/outputs/apk/release/app-release.apk`.
+
+
+## Android compatibility (compatibility pass)
+
+- Minimum supported Android version is Android 6.0 (API 23).
+- Sideload builds no longer force `arm64-v8a`; Gradle packages the ABIs available from the app and its dependencies.
+- Android 13 (API 33), including TECNO Camon 19, remains within the declared OS range. This does not by itself diagnose or fix a launch crash on a particular device.
+- The project currently retains its existing `compileSdk = 34` and `targetSdk = 34` toolchain settings. Apps can run on newer Android releases, but adopting the newest platform behavior requires a separate compile/target SDK and Android Gradle Plugin upgrade plus testing.
+- Android 5.x and older are not supported by this configuration.
+
+See `docs/ANDROID_COMPATIBILITY.md` for the compatibility notes and verification checklist.

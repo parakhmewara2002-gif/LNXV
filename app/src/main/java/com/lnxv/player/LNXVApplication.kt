@@ -53,17 +53,26 @@ class LNXVApplication : Application(), ImageLoaderFactory {
         appScope.launch(Dispatchers.IO) { runCatching { com.lnxv.player.core.util.CacheCleaner.runDefault(cacheDir) } }
     }
 
+    /** Hand-off state between screens; injected into ViewModels through Koin. */
+    val session = com.lnxv.player.core.session.SessionState()
+
     /** Transient "Open with" video (never written to Room); played via route id [TRANSIENT_VIDEO_ID]. */
-    @Volatile var transientVideo: com.lnxv.player.core.model.VideoItem? = null
+    var transientVideo: com.lnxv.player.core.model.VideoItem?
+        get() = session.transientVideo
+        set(value) { session.transientVideo = value }
 
     /** Explicit play queue (e.g. a playlist) consumed once by the next player session; null = use the folder queue. */
-    @Volatile var queueOverride: List<Long>? = null
+    var queueOverride: List<Long>?
+        get() = session.queueOverride
+        set(value) { session.queueOverride = value }
 
     /** Set by MainActivity when a VIEW intent was accepted; consumed (set back to null) by the nav host. */
-    val pendingOpenVideoId = kotlinx.coroutines.flow.MutableStateFlow<Long?>(null)
+    val pendingOpenVideoId get() = session.pendingOpenVideoId
 
     /** True while a vault video is loaded in the shared player (drives FLAG_SECURE and lock handling). */
-    @Volatile var playingVaultItem: Boolean = false
+    var playingVaultItem: Boolean
+        get() = session.playingVaultItem
+        set(value) { session.playingVaultItem = value }
 
     private val _lockEvents = kotlinx.coroutines.flow.MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val lockEvents: kotlinx.coroutines.flow.SharedFlow<Unit> = _lockEvents

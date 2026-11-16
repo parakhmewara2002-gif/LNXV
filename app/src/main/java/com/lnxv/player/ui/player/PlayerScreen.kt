@@ -8,6 +8,8 @@ import androidx.annotation.OptIn
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.foundation.border
 import androidx.compose.animation.core.tween
@@ -119,6 +121,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import com.lnxv.player.LNXVApplication
+import com.lnxv.player.core.design.bouncyClickable
 import com.lnxv.player.core.design.GlassBadge
 import com.lnxv.player.core.design.GlassButton
 import com.lnxv.player.core.design.GlassIconButton
@@ -395,8 +398,8 @@ fun PlayerScreen(
             // Controls Overlay
             AnimatedVisibility(
                 visible = uiState.isControlsVisible || playbackState.isScreenLocked,
-                enter = fadeIn(tween(200)),
-                exit = fadeOut(tween(160))
+                enter = fadeIn(tween(200)) + slideInVertically(tween(220)) { it / 14 },
+                exit = fadeOut(tween(150)) + slideOutVertically(tween(180)) { it / 18 }
             ) {
                 if (playbackState.isScreenLocked) {
                     // Only display unlock button when locked
@@ -518,8 +521,8 @@ fun PlayerScreen(
                                 .align(Alignment.Center)
                                 .liquidGlassSurface(
                                     shape = RoundedCornerShape(32.dp),
-                                    backgroundColor = Color(0x331E293B),
-                                    borderColor = Color(0x33FFFFFF)
+                                    backgroundColor = Color(0x66303A4A),
+                                    borderColor = Color(0x55FFFFFF)
                                 )
                                 .padding(horizontal = 16.dp, vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically,
@@ -543,10 +546,11 @@ fun PlayerScreen(
                             // Main Play/Pause Button
                             Box(
                                 modifier = Modifier
-                                    .size(64.dp)
+                                    .size(68.dp)
                                     .clip(CircleShape)
-                                    .background(NeonCyan)
-                                    .clickable { viewModel.togglePlayPause() },
+                                    .background(Brush.linearGradient(listOf(Color(0xFFB5F4FF), NeonCyan, Color(0xFF67BFFF))))
+                                    .border(1.dp, Color.White.copy(alpha = 0.72f), CircleShape)
+                                    .bouncyClickable(pressedScale = 0.94f) { viewModel.togglePlayPause() },
                                 contentAlignment = Alignment.Center
                             ) {
                                 androidx.compose.animation.AnimatedContent(
@@ -633,7 +637,8 @@ fun PlayerScreen(
                                 val thumbScale by androidx.compose.animation.core.animateFloatAsState(
                                     targetValue = if (isScrubbing && !reduceEffects) 1.5f else 1f,
                                     animationSpec = androidx.compose.animation.core.spring(
-                                        dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy
+                                        dampingRatio = 0.9f,
+                                        stiffness = 520f
                                     ),
                                     label = "thumb_scale"
                                 )

@@ -11,7 +11,7 @@ android {
 
     defaultConfig {
         applicationId = "com.lnxv.player"
-        minSdk = 26
+        minSdk = 23 // Android 6.0 (Marshmallow) and newer
         targetSdk = 34
         val buildNum = System.getenv("VERSION_CODE")?.toIntOrNull() ?: 0
         versionCode = 1000 + buildNum
@@ -31,7 +31,8 @@ android {
     productFlavors {
         create("sideload") {
             dimension = "dist"
-            ndk { abiFilters += "arm64-v8a" }
+            // Do not restrict ABIs: package every ABI supplied by the app/dependencies.
+            // This allows 32-bit ARM devices as well as 64-bit ARM and x86 devices.
             resValue("bool", "updater_enabled", "true")
         }
         create("store") {
