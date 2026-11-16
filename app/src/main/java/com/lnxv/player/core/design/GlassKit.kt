@@ -282,3 +282,111 @@ fun IosTabBar(
         }
     }
 }
+
+/** iOS-style alert: centered frosted card with hairline border, title, body and a trailing action row. Drop-in for AlertDialog. */
+@Composable
+fun GlassDialog(
+    onDismissRequest: () -> Unit,
+    confirmButton: @Composable () -> Unit,
+    modifier: Modifier = Modifier,
+    dismissButton: (@Composable () -> Unit)? = null,
+    title: (@Composable () -> Unit)? = null,
+    text: (@Composable () -> Unit)? = null
+) {
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismissRequest) {
+        val shape = RoundedCornerShape(28.dp)
+        Column(
+            modifier = modifier
+                .fillMaxWidth()
+                .clip(shape)
+                .liquidGlassSurface(
+                    shape = shape,
+                    backgroundColor = appColors.barFill.copy(alpha = 0.96f),
+                    borderColor = appColors.glassBorder
+                )
+                .padding(start = 22.dp, end = 14.dp, top = 22.dp, bottom = 10.dp)
+        ) {
+            if (title != null) {
+                androidx.compose.runtime.CompositionLocalProvider(
+                    androidx.compose.material3.LocalContentColor provides appColors.textPrimary
+                ) {
+                    androidx.compose.material3.ProvideTextStyle(
+                        Typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+                    ) { Box(Modifier.padding(end = 8.dp)) { title() } }
+                }
+                Spacer(Modifier.height(10.dp))
+            }
+            if (text != null) {
+                androidx.compose.runtime.CompositionLocalProvider(
+                    androidx.compose.material3.LocalContentColor provides appColors.textSecondary
+                ) {
+                    androidx.compose.material3.ProvideTextStyle(Typography.bodyMedium) {
+                        Box(Modifier.padding(end = 8.dp)) { text() }
+                    }
+                }
+            }
+            Spacer(Modifier.height(10.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                dismissButton?.invoke()
+                confirmButton()
+            }
+        }
+    }
+}
+
+/** Rounded frosted dropdown menu with a hairline border. */
+@Composable
+fun GlassDropdownMenu(
+    expanded: Boolean,
+    onDismissRequest: () -> Unit,
+    modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    androidx.compose.material3.DropdownMenu(
+        expanded = expanded,
+        onDismissRequest = onDismissRequest,
+        modifier = modifier,
+        shape = RoundedCornerShape(20.dp),
+        containerColor = appColors.barFill.copy(alpha = 0.97f),
+        tonalElevation = 0.dp,
+        shadowElevation = 12.dp,
+        border = androidx.compose.foundation.BorderStroke(1.dp, appColors.glassBorder),
+        content = content
+    )
+}
+
+/** iOS-style switch: white thumb, accent track when on. */
+@Composable
+fun GlassSwitch(checked: Boolean, onCheckedChange: ((Boolean) -> Unit)?, modifier: Modifier = Modifier) {
+    androidx.compose.material3.Switch(
+        checked = checked,
+        onCheckedChange = onCheckedChange,
+        modifier = modifier,
+        colors = androidx.compose.material3.SwitchDefaults.colors(
+            checkedThumbColor = Color.White,
+            checkedTrackColor = appColors.accent,
+            checkedBorderColor = Color.Transparent,
+            uncheckedThumbColor = Color.White,
+            uncheckedTrackColor = appColors.glassBorder,
+            uncheckedBorderColor = Color.Transparent
+        )
+    )
+}
+
+/** Thin rounded progress bar. */
+@Composable
+fun GlassProgress(progress: () -> Float, modifier: Modifier = Modifier) {
+    androidx.compose.material3.LinearProgressIndicator(
+        progress = progress,
+        modifier = modifier.height(6.dp).clip(CircleShape),
+        color = appColors.accent,
+        trackColor = appColors.glassBorder,
+        strokeCap = androidx.compose.ui.graphics.StrokeCap.Round,
+        gapSize = 0.dp,
+        drawStopIndicator = {}
+    )
+}

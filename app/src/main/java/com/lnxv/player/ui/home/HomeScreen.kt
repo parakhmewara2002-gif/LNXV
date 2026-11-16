@@ -1,5 +1,7 @@
 package com.lnxv.player.ui.home
 
+import com.lnxv.player.core.design.GlassDropdownMenu
+import com.lnxv.player.core.design.GlassDialog
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import com.lnxv.player.core.design.ambientBackground
@@ -139,7 +141,7 @@ fun HomeScreen(
     val playlistTarget by viewModel.playlistTarget.collectAsState()
     playlistTarget?.let { target ->
         var newName by remember(target.id) { mutableStateOf("") }
-        androidx.compose.material3.AlertDialog(
+        GlassDialog(
             onDismissRequest = viewModel::dismissAddToPlaylist,
             title = { Text("Add to playlist") },
             text = {
@@ -170,7 +172,7 @@ fun HomeScreen(
     if (showStreamDialog) {
         var url by remember { mutableStateOf("") }
         var error by remember { mutableStateOf<String?>(null) }
-        androidx.compose.material3.AlertDialog(
+        GlassDialog(
             onDismissRequest = { showStreamDialog = false },
             title = { Text("Open network stream") },
             text = {
@@ -216,7 +218,7 @@ fun HomeScreen(
     BackHandler(enabled = uiState.openFolderPath != null && selection.isEmpty()) { viewModel.closeFolder() }
     val deletablePicked = selection.mapNotNull { id -> selectionPool.firstOrNull { it.id == id } }.filter { !it.isVault && it.id != com.lnxv.player.LNXVApplication.TRANSIENT_VIDEO_ID }
     if (confirmDeleteDevice) {
-        androidx.compose.material3.AlertDialog(
+        GlassDialog(
             onDismissRequest = { confirmDeleteDevice = false },
             title = { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.delete_device_title, deletablePicked.size)) },
             text = { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.delete_device_text)) },
@@ -236,7 +238,7 @@ fun HomeScreen(
         )
     }
     renameTarget?.let { target ->
-        androidx.compose.material3.AlertDialog(
+        GlassDialog(
             onDismissRequest = { renameTarget = null },
             title = { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.action_rename)) },
             text = {
@@ -266,7 +268,7 @@ fun HomeScreen(
         )
     }
     if (confirmRemove) {
-        androidx.compose.material3.AlertDialog(
+        GlassDialog(
             onDismissRequest = { confirmRemove = false },
             title = { Text("Remove ${selection.size} from library?") },
             text = { Text("This removes them from LNXV's library list. It does not delete the files from your device.") },
@@ -318,7 +320,7 @@ bottomBar = {
                         androidx.compose.material3.TextButton(onClick = { confirmRemove = true }) { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.action_remove)) }
                         Box {
                             androidx.compose.material3.TextButton(onClick = { showMoreActions = true }) { Text("⋮") }
-                            androidx.compose.material3.DropdownMenu(expanded = showMoreActions, onDismissRequest = { showMoreActions = false }) {
+                            GlassDropdownMenu(expanded = showMoreActions, onDismissRequest = { showMoreActions = false }) {
                                 androidx.compose.material3.DropdownMenuItem(
                                     text = { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.action_share)) },
                                     enabled = deletablePicked.isNotEmpty(),
@@ -489,7 +491,7 @@ topBar = {
                                         tint = appColors.accent
                                     )
                                 }
-                                DropdownMenu(
+                                GlassDropdownMenu(
                                     expanded = isSortMenuExpanded,
                                     onDismissRequest = { isSortMenuExpanded = false }
                                 ) {
@@ -640,7 +642,7 @@ topBar = {
                             var renaming by remember(openPl.id) { mutableStateOf(false) }
                             var newName by remember(openPl.id, openPl.name) { mutableStateOf(openPl.name) }
                             if (renaming) {
-                                androidx.compose.material3.AlertDialog(
+                                GlassDialog(
                                     onDismissRequest = { renaming = false },
                                     title = { Text("Rename playlist") },
                                     text = {
@@ -689,7 +691,7 @@ topBar = {
                         items(playlists, key = { it.id }) { pl ->
                             var confirmDelete by remember(pl.id) { mutableStateOf(false) }
                             if (confirmDelete) {
-                                androidx.compose.material3.AlertDialog(
+                                GlassDialog(
                                     onDismissRequest = { confirmDelete = false },
                                     title = { Text("Delete \"${pl.name}\"?") },
                                     text = { Text("The videos themselves are not deleted.") },
