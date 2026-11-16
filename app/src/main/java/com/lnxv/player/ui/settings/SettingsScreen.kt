@@ -126,7 +126,7 @@ fun SettingsScreen(
                 SectionHeader("Appearance & Glass Engine")
                 GlassPanel(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(22.dp),
+                    shape = RoundedCornerShape(24.dp),
                     backgroundColor = appColors.glassFill
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
@@ -186,7 +186,7 @@ fun SettingsScreen(
                 SectionHeader("Playback & Gestures")
                 GlassPanel(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(22.dp),
+                    shape = RoundedCornerShape(24.dp),
                     backgroundColor = appColors.glassFill
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
@@ -344,7 +344,7 @@ fun SettingsScreen(
                 SectionHeader("Updates")
                 GlassPanel(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(22.dp),
+                    shape = RoundedCornerShape(24.dp),
                     backgroundColor = appColors.glassFill
                 ) {
                     val st = updateState
@@ -431,7 +431,7 @@ fun SettingsScreen(
                 SectionHeader("Appearance & performance")
                 GlassPanel(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(22.dp),
+                    shape = RoundedCornerShape(24.dp),
                     backgroundColor = appColors.glassFill
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
@@ -471,7 +471,7 @@ fun SettingsScreen(
                 SectionHeader("Security")
                 GlassPanel(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(22.dp),
+                    shape = RoundedCornerShape(24.dp),
                     backgroundColor = appColors.glassFill
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
@@ -511,7 +511,7 @@ fun SettingsScreen(
                 SectionHeader("Advanced > Experimental")
                 GlassPanel(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(22.dp),
+                    shape = RoundedCornerShape(24.dp),
                     backgroundColor = appColors.glassFill
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
@@ -532,7 +532,7 @@ fun SettingsScreen(
                 SectionHeader("Storage")
                 GlassPanel(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(22.dp),
+                    shape = RoundedCornerShape(24.dp),
                     backgroundColor = appColors.glassFill
                 ) {
                     val ctx = androidx.compose.ui.platform.LocalContext.current
@@ -586,7 +586,7 @@ fun SettingsScreen(
                 SectionHeader("Privacy")
                 GlassPanel(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(22.dp),
+                    shape = RoundedCornerShape(24.dp),
                     backgroundColor = appColors.glassFill
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
@@ -623,7 +623,7 @@ fun SettingsScreen(
                 SectionHeader("About LNXV")
                 GlassPanel(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(22.dp),
+                    shape = RoundedCornerShape(24.dp),
                     backgroundColor = appColors.glassFill
                 ) {
                     Row(
@@ -707,31 +707,16 @@ private fun StepRow(title: String, value: String, onMinus: () -> Unit, onPlus: (
 
 @Composable
 fun SectionHeader(title: String) {
-    Row(
+    Text(
+        text = title.uppercase(),
+        color = appColors.textTertiary,
+        fontSize = 12.sp,
+        fontWeight = FontWeight.SemiBold,
+        letterSpacing = 0.6.sp,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 8.dp, bottom = 2.dp, start = 4.dp, end = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        Text(
-            text = title.uppercase(),
-            color = appColors.accent,
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = 1.35.sp
-        )
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .height(1.dp)
-                .background(
-                    androidx.compose.ui.graphics.Brush.horizontalGradient(
-                        listOf(appColors.glassBorder, Color.Transparent)
-                    )
-                )
-        )
-    }
+            .padding(top = 12.dp, bottom = 2.dp, start = 12.dp, end = 4.dp)
+    )
 }
 
 @Composable
