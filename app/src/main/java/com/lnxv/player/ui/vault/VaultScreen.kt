@@ -161,7 +161,13 @@ fun VaultScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 40.dp, bottom = 16.dp, start = 16.dp, end = 16.dp),
+                    .clip(RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp))
+                    .liquidGlassSurface(
+                        shape = RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp),
+                        backgroundColor = appColors.barFill.copy(alpha = 0.55f),
+                        borderColor = appColors.glassBorder
+                    )
+                    .padding(top = 44.dp, bottom = 14.dp, start = 16.dp, end = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 GlassIconButton(
@@ -173,7 +179,7 @@ fun VaultScreen(
                 Text(
                     text = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.vault_title),
                     color = appColors.textPrimary,
-                    style = Typography.titleLarge,
+                    style = Typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.weight(1f)
                 )

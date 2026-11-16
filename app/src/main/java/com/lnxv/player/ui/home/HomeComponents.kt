@@ -113,7 +113,7 @@ fun VideoItemRow(
             .fillMaxWidth()
             .bouncyClickable(onLongClick = onLongClick) { onClick() }
             .semantics { this.selected = selected },
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(24.dp),
         backgroundColor = if (selected) appColors.accent.copy(alpha = 0.22f) else appColors.glassFill,
         borderColor = if (selected) appColors.accent else appColors.glassBorder
     ) {
@@ -128,7 +128,7 @@ fun VideoItemRow(
                 modifier = Modifier
                     .videoSharedBounds(video.id)
                     .size(width = 112.dp, height = 74.dp)
-                    .clip(RoundedCornerShape(14.dp))
+                    .clip(RoundedCornerShape(16.dp))
                     .background(appColors.placeholder)
             ) {
                 AsyncImage(
@@ -156,9 +156,9 @@ fun VideoItemRow(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
                         .padding(4.dp)
-                        .clip(RoundedCornerShape(4.dp))
+                        .clip(CircleShape)
                         .background(Color(0xCC000000))
-                        .padding(horizontal = 4.dp, vertical = 2.dp)
+                        .padding(horizontal = 8.dp, vertical = 2.dp)
                 ) {
                     Text(
                         text = video.durationFormatted,
@@ -346,7 +346,7 @@ fun ContinueWatchingCard(
         modifier = Modifier
             .width(216.dp)
             .liquidGlassSurface(
-                shape = RoundedCornerShape(20.dp),
+                shape = RoundedCornerShape(24.dp),
                 backgroundColor = appColors.glassFill
             )
             .bouncyClickable(pressedScale = 0.975f) { onClick() }
@@ -483,7 +483,7 @@ fun VideoGridCard(
         modifier = modifier
             .bouncyClickable(onLongClick = onLongClick) { onClick() }
             .semantics { this.selected = selected },
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(24.dp),
         backgroundColor = if (selected) appColors.accent.copy(alpha = 0.22f) else appColors.glassFill,
         borderColor = if (selected) appColors.accent else appColors.glassBorder
     ) {
@@ -511,7 +511,7 @@ fun VideoGridCard(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
                         .padding(6.dp)
-                        .clip(RoundedCornerShape(4.dp))
+                        .clip(CircleShape)
                         .background(Color(0xCC000000))
                         .padding(horizontal = 4.dp, vertical = 2.dp)
                 ) {
