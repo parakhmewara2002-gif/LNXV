@@ -10,6 +10,10 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -23,6 +27,10 @@ import com.lnxv.player.ui.settings.SettingsScreen
 import com.lnxv.player.ui.settings.SettingsViewModel
 import com.lnxv.player.ui.vault.VaultScreen
 import com.lnxv.player.ui.vault.VaultViewModel
+
+private const val IOS_NAV_MS = 300
+private val IosNavEasing = FastOutSlowInEasing
+private fun isPlayerEntry(entry: NavBackStackEntry?): Boolean = entry?.destination?.route == Screen.Player.route
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
@@ -54,10 +62,30 @@ fun LNXVNavigationHost(navController: NavHostController) {
     NavHost(
         navController = navController,
         startDestination = Screen.Home.route,
-        enterTransition = { if (reduce) androidx.compose.animation.EnterTransition.None else fadeIn(tween(220)) + slideInHorizontally(tween(260)) { it / 8 } },
-        exitTransition = { if (reduce) androidx.compose.animation.ExitTransition.None else fadeOut(tween(160)) + slideOutHorizontally(tween(260)) { -it / 12 } },
-        popEnterTransition = { if (reduce) androidx.compose.animation.EnterTransition.None else fadeIn(tween(220)) + slideInHorizontally(tween(260)) { -it / 12 } },
-        popExitTransition = { if (reduce) androidx.compose.animation.ExitTransition.None else fadeOut(tween(160)) + slideOutHorizontally(tween(260)) { it / 8 } }
+        // iOS-style push/pop: new screen slides in from the right while the old one shifts ~30% left and dims;
+        // back reverses. Routes to/from the player fade and scale instead.
+        enterTransition = {
+            if (reduce) androidx.compose.animation.EnterTransition.None
+            else if (isPlayerEntry(targetState)) fadeIn(tween(260)) + scaleIn(tween(260, easing = IosNavEasing), initialScale = 0.96f)
+            else slideInHorizontally(tween(IOS_NAV_MS, easing = IosNavEasing)) { it }
+        },
+        exitTransition = {
+            if (reduce) androidx.compose.animation.ExitTransition.None
+            else if (isPlayerEntry(targetState)) fadeOut(tween(200))
+            else slideOutHorizontally(tween(IOS_NAV_MS, easing = IosNavEasing)) { -(it * 0.3f).toInt() } +
+                fadeOut(tween(IOS_NAV_MS, easing = IosNavEasing), targetAlpha = 0.6f)
+        },
+        popEnterTransition = {
+            if (reduce) androidx.compose.animation.EnterTransition.None
+            else if (isPlayerEntry(initialState)) fadeIn(tween(220))
+            else slideInHorizontally(tween(IOS_NAV_MS, easing = IosNavEasing)) { -(it * 0.3f).toInt() } +
+                fadeIn(tween(IOS_NAV_MS, easing = IosNavEasing), initialAlpha = 0.6f)
+        },
+        popExitTransition = {
+            if (reduce) androidx.compose.animation.ExitTransition.None
+            else if (isPlayerEntry(initialState)) fadeOut(tween(200)) + scaleOut(tween(220, easing = IosNavEasing), targetScale = 0.96f)
+            else slideOutHorizontally(tween(IOS_NAV_MS, easing = IosNavEasing)) { it }
+        }
     ) {
         composable(Screen.Home.route) {
           androidx.compose.runtime.CompositionLocalProvider(

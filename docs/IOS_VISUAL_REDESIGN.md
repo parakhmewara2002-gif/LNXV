@@ -49,3 +49,21 @@ Media3 playback engine, repositories, vault, playlists, preferences, or navigati
 
 This is a visual implementation pass, not a claim of exact native iOS rendering. Actual
 backdrop blur, refresh-rate behavior, and perceived smoothness must be validated on-device.
+
+
+## Remaining iOS/glass UI pass (LNXV_REMAINING_IOS_UI.md) - NOT DEVICE-TESTED, CI not yet run
+
+Changed (all behavior and callbacks preserved; crash reporter untouched; no material-icons-extended):
+- `GlassKit.kt`: `GlassSearchField` (search icon + clear), `GlassTextField`, `GlassDialogButton` (+ `DestructiveRed`), `GlassSegmented`, `GlassStepper`, `rememberTapHaptic`; haptics on switch toggle and tab change.
+- `Motion.kt`: long-press (`bouncyClickable(onLongClick)`) gives a LongPress haptic (selection mode).
+- `HomeScreen.kt`: GlassSearchField, GlassTextField in all dialogs, GlassDialogButton actions (destructive in red), icon + label selection bar, "Refresh library" empty-state action.
+- `HomeComponents.kt`: cards share 22dp radius / 16dp thumbnails / hairline border / 12dp padding, capsule resolution + duration badges (also on grid cards), new `EmptyStateView` (large faint icon, title, optional subtitle and `GlassButton`).
+- `LiquidGlass.kt`: `GlassBadge` is now a capsule.
+- `SettingsScreen.kt`: iOS grouped sections with hairline dividers, `GlassSegmented` theme chooser, `GlassStepper` capsules, value + chevron rows, whole-row switch toggle, restyled update card (`GlassProgress`, primary `GlassButton`, secondary text action), Storage/Developer actions restyled.
+- `VaultScreen.kt`: glass PIN fields, glass header pills, `GlassPanel` encrypt banner, bouncy glass keypad with haptics.
+- `PlayerExtras.kt`: Resume and Sleep-timer dialogs use `GlassDialog`; `ImmersiveDialogEffect()` is still called inside the dialog content so system bars stay hidden.
+- `LNXVNavigationHost.kt`: iOS push/pop (300 ms FastOutSlowIn, old screen shifts 30% and dims); routes to/from the player fade + scale; no animation when effects are reduced.
+- Splash: `windowSplashScreenAnimatedIcon` added (black background was already set; minSdk 23 compat path kept).
+- `Type.kt`: tighter letter spacing, SemiBold/Bold titles.
+
+Not done / left as is: a few plain `TextButton`s remain (playlist detail rows, recent-stream list, vault "Cancel", "Use biometrics", "Forgot PIN?"). Fully custom fonts were not added (not requested).

@@ -1,5 +1,9 @@
 package com.lnxv.player.ui.player
 
+import com.lnxv.player.core.design.GlassDialog
+import com.lnxv.player.core.design.GlassDialogButton
+import com.lnxv.player.core.design.DestructiveRed
+import com.lnxv.player.core.design.bouncyClickable
 import android.content.ContentValues
 import android.content.Context
 import android.graphics.Bitmap
@@ -97,22 +101,18 @@ fun ResumeDialog(
     onResume: () -> Unit,
     onStartOver: () -> Unit
 ) {
-    AlertDialog(
+    GlassDialog(
         onDismissRequest = onStartOver,
-        containerColor = Color(0xFF101622),
-        title = { Text("Resume playback?", color = Color.White) },
+        title = { Text("Resume playback?") },
         text = {
             ImmersiveDialogEffect()
-            Text(
-                "Continue from ${VideoItem.formatDuration(positionMs)}?",
-                color = Color(0xCCFFFFFF)
-            )
+            Text("Continue from ${VideoItem.formatDuration(positionMs)}?")
         },
         confirmButton = {
-            TextButton(onClick = onResume) { Text("Resume", color = NeonCyan) }
+            GlassDialogButton(text = "Resume", onClick = onResume, primary = true)
         },
         dismissButton = {
-            TextButton(onClick = onStartOver) { Text("Start over", color = Color(0xCCFFFFFF)) }
+            GlassDialogButton(text = "Start over", onClick = onStartOver)
         }
     )
 }
@@ -125,10 +125,9 @@ fun SleepTimerDialog(
     onCancelTimer: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    AlertDialog(
+    GlassDialog(
         onDismissRequest = onDismiss,
-        containerColor = Color(0xFF101622),
-        title = { Text("Sleep timer", color = Color.White) },
+        title = { Text("Sleep timer") },
         text = {
             ImmersiveDialogEffect()
             Column {
@@ -141,55 +140,42 @@ fun SleepTimerDialog(
                     )
                 }
                 listOf(15, 30, 45, 60, 90).forEach { minutes ->
-                    Text(
-                        text = "$minutes minutes",
-                        color = Color.White,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Medium,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                onSelect(minutes)
-                                onDismiss()
-                            }
-                            .padding(vertical = 10.dp)
-                    )
+                    SleepOption(text = "$minutes minutes") {
+                        onSelect(minutes)
+                        onDismiss()
+                    }
                 }
                 if (showEndOfVideo) {
-                    Text(
-                        text = "End of video",
-                        color = Color.White,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Medium,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                onSelect(com.lnxv.player.core.model.SleepFade.END_OF_VIDEO)
-                                onDismiss()
-                            }
-                            .padding(vertical = 10.dp)
-                    )
+                    SleepOption(text = "End of video") {
+                        onSelect(com.lnxv.player.core.model.SleepFade.END_OF_VIDEO)
+                        onDismiss()
+                    }
                 }
                 if (activeSeconds != null) {
-                    Text(
-                        text = "Turn off timer",
-                        color = Color(0xFFFF6E6E),
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Medium,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                onCancelTimer()
-                                onDismiss()
-                            }
-                            .padding(vertical = 10.dp)
-                    )
+                    SleepOption(text = "Turn off timer", color = DestructiveRed) {
+                        onCancelTimer()
+                        onDismiss()
+                    }
                 }
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) { Text("Close", color = NeonCyan) }
+            GlassDialogButton(text = "Close", onClick = onDismiss, primary = true)
         }
+    )
+}
+
+@Composable
+private fun SleepOption(text: String, color: Color = Color.White, onClick: () -> Unit) {
+    Text(
+        text = text,
+        color = color,
+        fontSize = 16.sp,
+        fontWeight = FontWeight.Medium,
+        modifier = Modifier
+            .fillMaxWidth()
+            .bouncyClickable(pressedScale = 0.98f) { onClick() }
+            .padding(vertical = 10.dp)
     )
 }
 

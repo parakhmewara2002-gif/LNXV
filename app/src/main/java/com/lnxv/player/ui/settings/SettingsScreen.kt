@@ -3,6 +3,13 @@ package com.lnxv.player.ui.settings
 import com.lnxv.player.core.design.GlassProgress
 import com.lnxv.player.core.design.GlassSwitch
 import com.lnxv.player.core.design.GlassDialog
+import com.lnxv.player.core.design.GlassDialogButton
+import com.lnxv.player.core.design.GlassButton
+import com.lnxv.player.core.design.GlassDivider
+import com.lnxv.player.core.design.GlassSegmented
+import com.lnxv.player.core.design.GlassStepper
+import com.lnxv.player.core.design.DestructiveRed
+import com.lnxv.player.core.design.bouncyClickable
 import androidx.compose.ui.draw.clip
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.animateColorAsState
@@ -82,10 +89,10 @@ fun SettingsScreen(
             title = { Text("Reset experimental flags?") },
             text = { Text("Every flag under Advanced returns to its default. Your PIN, vault and other settings are not touched.") },
             confirmButton = {
-                androidx.compose.material3.TextButton(onClick = { viewModel.resetFlags(); confirmResetFlags = false }) { Text("Reset") }
+                GlassDialogButton(text = "Reset", primary = true, destructive = true, onClick = { viewModel.resetFlags(); confirmResetFlags = false })
             },
             dismissButton = {
-                androidx.compose.material3.TextButton(onClick = { confirmResetFlags = false }) { Text("Cancel") }
+                GlassDialogButton(text = "Cancel", onClick = { confirmResetFlags = false })
             }
         )
     }
@@ -126,7 +133,7 @@ fun SettingsScreen(
                 SectionHeader("Appearance & Glass Engine")
                 GlassPanel(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(24.dp),
+                    shape = RoundedCornerShape(22.dp),
                     backgroundColor = appColors.glassFill
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
@@ -137,41 +144,13 @@ fun SettingsScreen(
                             fontWeight = FontWeight.Medium
                         )
                         Spacer(modifier = Modifier.height(10.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            listOf("SYSTEM" to "System", "LIGHT" to "Light", "DARK" to "Dark").forEach { (mode, label) ->
-                                val selected = prefs.themeMode == mode
-                                val chipBg by animateColorAsState(
-                                    targetValue = if (selected) appColors.accent.copy(alpha = 0.22f) else appColors.glassSubtle,
-                                    animationSpec = tween(200),
-                                    label = "theme_chip_bg"
-                                )
-                                Box(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .background(chipBg)
-                                        .border(
-                                            width = 1.dp,
-                                            color = if (selected) appColors.accent else appColors.glassBorder,
-                                            shape = RoundedCornerShape(12.dp)
-                                        )
-                                        .clickable { viewModel.setThemeMode(mode) }
-                                        .padding(vertical = 10.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = label,
-                                        color = if (selected) appColors.accent else appColors.textPrimary,
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                                }
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(14.dp))
+                        val themeModes = listOf("SYSTEM" to "System", "LIGHT" to "Light", "DARK" to "Dark")
+                        GlassSegmented(
+                            options = themeModes.map { it.second },
+                            selectedIndex = themeModes.indexOfFirst { it.first == prefs.themeMode }.coerceAtLeast(0),
+                            onSelect = { viewModel.setThemeMode(themeModes[it].first) }
+                        )
+                        GlassDivider()
                         SettingSwitchRow(
                             title = "AMOLED True Black",
                             subtitle = "Pure black background in Dark theme (saves battery on OLED screens)",
@@ -186,7 +165,7 @@ fun SettingsScreen(
                 SectionHeader("Playback & Gestures")
                 GlassPanel(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(24.dp),
+                    shape = RoundedCornerShape(22.dp),
                     backgroundColor = appColors.glassFill
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
@@ -196,119 +175,92 @@ fun SettingsScreen(
                             isChecked = prefs.isBackgroundPlayEnabled,
                             onCheckedChange = { viewModel.toggleBackgroundPlay(it) }
                         )
-                        Spacer(modifier = Modifier.height(14.dp))
+                        GlassDivider()
                         SettingSwitchRow(
                             title = "Auto Picture-in-Picture",
                             subtitle = "Switch to floating mini player upon pressing Home",
                             isChecked = prefs.isAutoPiPEnabled,
                             onCheckedChange = { viewModel.toggleAutoPiP(it) }
                         )
-                        Spacer(modifier = Modifier.height(14.dp))
+                        GlassDivider()
                         SettingSwitchRow(
                             title = "Brightness gesture",
                             subtitle = "Swipe vertically on the left side",
                             isChecked = prefs.isBrightnessGestureEnabled,
                             onCheckedChange = { viewModel.toggleBrightnessGesture(it) }
                         )
-                        Spacer(modifier = Modifier.height(14.dp))
+                        GlassDivider()
                         SettingSwitchRow(
                             title = "Volume gesture",
                             subtitle = "Swipe vertically on the right side",
                             isChecked = prefs.isVolumeGestureEnabled,
                             onCheckedChange = { viewModel.toggleVolumeGesture(it) }
                         )
-                        Spacer(modifier = Modifier.height(14.dp))
+                        GlassDivider()
                         SettingSwitchRow(
                             title = "Seek gesture",
                             subtitle = "Swipe horizontally to seek",
                             isChecked = prefs.isSeekGestureEnabled,
                             onCheckedChange = { viewModel.toggleSeekGesture(it) }
                         )
-                        Spacer(modifier = Modifier.height(14.dp))
+                        GlassDivider()
                         SettingSwitchRow(
                             title = "Long-press speed",
                             subtitle = "Hold to play at 2x",
                             isChecked = prefs.isLongPressSpeedEnabled,
                             onCheckedChange = { viewModel.toggleLongPressGesture(it) }
                         )
-                        Spacer(modifier = Modifier.height(14.dp))
+                        GlassDivider()
                         SettingSwitchRow(
                             title = "Remember Playback Speed",
                             subtitle = "Use the last speed you picked for every video",
                             isChecked = prefs.rememberSpeed,
                             onCheckedChange = { viewModel.setRememberSpeed(it) }
                         )
-                        Spacer(modifier = Modifier.height(14.dp))
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    val next = when (prefs.resumePlaybackMode) {
-                                        "ALWAYS" -> "ASK"
-                                        "ASK" -> "NEVER"
-                                        else -> "ALWAYS"
-                                    }
-                                    viewModel.setResumeMode(next)
-                                },
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(text = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.settings_resume), color = appColors.textPrimary, fontSize = 15.sp, fontWeight = FontWeight.Medium)
-                                Text(text = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.settings_tap_change), color = appColors.textSecondary, fontSize = 12.sp)
+                        GlassDivider()
+                        SettingValueRow(
+                            title = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.settings_resume),
+                            subtitle = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.settings_tap_change),
+                            value = when (prefs.resumePlaybackMode) {
+                                "ASK" -> "Ask me"
+                                "NEVER" -> "Start over"
+                                else -> "Always resume"
+                            },
+                            onClick = {
+                                val next = when (prefs.resumePlaybackMode) {
+                                    "ALWAYS" -> "ASK"
+                                    "ASK" -> "NEVER"
+                                    else -> "ALWAYS"
+                                }
+                                viewModel.setResumeMode(next)
                             }
-                            Text(
-                                text = when (prefs.resumePlaybackMode) {
-                                    "ASK" -> "Ask me"
-                                    "NEVER" -> "Start over"
-                                    else -> "Always resume"
-                                },
-                                color = appColors.accent,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(14.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(text = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.settings_sub_size), color = appColors.textPrimary, fontSize = 15.sp, fontWeight = FontWeight.Medium)
-                                Text(text = "${prefs.subtitleTextSize.toInt()} sp", color = appColors.textSecondary, fontSize = 12.sp)
-                            }
-                            Text(
-                                text = "  −  ",
-                                color = appColors.accent,
-                                fontSize = 22.sp,
-                                modifier = Modifier.clickable { viewModel.setSubtitleSize(prefs.subtitleTextSize - 2f) }
-                            )
-                            Text(
-                                text = "  +  ",
-                                color = appColors.accent,
-                                fontSize = 22.sp,
-                                modifier = Modifier.clickable { viewModel.setSubtitleSize(prefs.subtitleTextSize + 2f) }
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(14.dp))
+                        )
+                        GlassDivider()
+                        StepRow(
+                            androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.settings_sub_size),
+                            "${prefs.subtitleTextSize.toInt()} sp",
+                            { viewModel.setSubtitleSize(prefs.subtitleTextSize - 2f) },
+                            { viewModel.setSubtitleSize(prefs.subtitleTextSize + 2f) }
+                        )
+                        GlassDivider()
                         StepRow("Thumbnail size", "${prefs.thumbSizeDp}dp", { viewModel.setThumbSize(prefs.thumbSizeDp - 20) }, { viewModel.setThumbSize(prefs.thumbSizeDp + 20) })
                         if (prefs.isEnabled(com.lnxv.player.core.flags.FeatureFlag.GESTURE_SENSITIVITY)) {
-                            Spacer(modifier = Modifier.height(14.dp))
+                            GlassDivider()
                             StepRow("Gesture sensitivity", "${prefs.gestureSensitivityPct}%", { viewModel.setGestureSensitivity(prefs.gestureSensitivityPct - 10) }, { viewModel.setGestureSensitivity(prefs.gestureSensitivityPct + 10) })
                         }
                         if (prefs.isEnabled(com.lnxv.player.core.flags.FeatureFlag.SUBTITLE_STYLING)) {
-                            Spacer(modifier = Modifier.height(14.dp))
+                            GlassDivider()
                             StepRow("Subtitle background", "${prefs.subtitleBgOpacityPct}%", { viewModel.setSubtitleBg(prefs.subtitleBgOpacityPct - 10) }, { viewModel.setSubtitleBg(prefs.subtitleBgOpacityPct + 10) })
-                            Spacer(modifier = Modifier.height(14.dp))
+                            GlassDivider()
                             StepRow("Subtitle position (from bottom)", "${prefs.subtitleBottomPct}%", { viewModel.setSubtitleBottom(prefs.subtitleBottomPct - 2) }, { viewModel.setSubtitleBottom(prefs.subtitleBottomPct + 2) })
-                            Spacer(modifier = Modifier.height(14.dp))
+                            GlassDivider()
                             val fonts = listOf("DEFAULT", "SERIF", "MONO", "MEDIUM")
                             StepRow("Subtitle font", prefs.subtitleFont.lowercase(), { viewModel.setSubtitleFont(fonts[(fonts.indexOf(prefs.subtitleFont).coerceAtLeast(0) + fonts.size - 1) % fonts.size]) }, { viewModel.setSubtitleFont(fonts[(fonts.indexOf(prefs.subtitleFont).coerceAtLeast(0) + 1) % fonts.size]) })
-                            Spacer(modifier = Modifier.height(14.dp))
+                            GlassDivider()
                             val edges = listOf("OUTLINE", "SHADOW", "NONE")
                             StepRow("Subtitle edge", prefs.subtitleEdge.lowercase(), { viewModel.setSubtitleEdge(edges[(edges.indexOf(prefs.subtitleEdge).coerceAtLeast(0) + edges.size - 1) % edges.size]) }, { viewModel.setSubtitleEdge(edges[(edges.indexOf(prefs.subtitleEdge).coerceAtLeast(0) + 1) % edges.size]) })
                         }
-                        Spacer(modifier = Modifier.height(14.dp))
+                        GlassDivider()
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -344,7 +296,7 @@ fun SettingsScreen(
                 SectionHeader("Updates")
                 GlassPanel(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(24.dp),
+                    shape = RoundedCornerShape(22.dp),
                     backgroundColor = appColors.glassFill
                 ) {
                     val st = updateState
@@ -399,29 +351,23 @@ fun SettingsScreen(
                             onCheckedChange = { viewModel.setUpdateWifiOnly(it) }
                         )
                         if (st is UpdateState.Available) {
-                            androidx.compose.material3.TextButton(onClick = { viewModel.skipThisVersion(st.info) }) {
-                                Text("Skip this version", color = appColors.textTertiary)
-                            }
+                            GlassDialogButton(
+                                text = "Skip this version",
+                                onClick = { viewModel.skipThisVersion(st.info) },
+                                modifier = Modifier.align(Alignment.End)
+                            )
                         }
                         if (st !is UpdateState.Checking && st !is UpdateState.Downloading) {
                             Spacer(modifier = Modifier.height(12.dp))
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(appColors.accent.copy(alpha = 0.2f), RoundedCornerShape(12.dp))
-                                    .clickable {
-                                        if (st is UpdateState.Available) viewModel.downloadAndInstall(st.info)
-                                        else viewModel.checkForUpdate()
-                                    }
-                                    .padding(vertical = 10.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = if (st is UpdateState.Available) "Download & install" else "Check for updates",
-                                    color = appColors.accent,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            }
+                            GlassButton(
+                                text = if (st is UpdateState.Available) "Download & install" else "Check for updates",
+                                onClick = {
+                                    if (st is UpdateState.Available) viewModel.downloadAndInstall(st.info)
+                                    else viewModel.checkForUpdate()
+                                },
+                                isPrimary = true,
+                                modifier = Modifier.fillMaxWidth()
+                            )
                         }
                     }
                 }
@@ -431,7 +377,7 @@ fun SettingsScreen(
                 SectionHeader("Appearance & performance")
                 GlassPanel(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(24.dp),
+                    shape = RoundedCornerShape(22.dp),
                     backgroundColor = appColors.glassFill
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
@@ -442,27 +388,14 @@ fun SettingsScreen(
                                 isChecked = prefs.dynamicColor,
                                 onCheckedChange = { viewModel.setDynamicColor(it) }
                             )
-                            Spacer(modifier = Modifier.height(14.dp))
+                            GlassDivider()
                         }
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { viewModel.cycleEffectsMode(prefs.effectsMode) },
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text("Reduce effects", color = appColors.textPrimary, fontSize = 15.sp, fontWeight = FontWeight.Medium)
-                                Text(
-                                    "Turns off backdrop blur and heavy animations. Auto enables it on low-RAM / 60 Hz devices.",
-                                    color = appColors.textTertiary, fontSize = 12.sp
-                                )
-                            }
-                            Text(
-                                text = when (prefs.effectsMode) { "ON" -> "On"; "OFF" -> "Off"; else -> "Auto" },
-                                color = appColors.accent, fontSize = 13.sp
-                            )
-                        }
+                        SettingValueRow(
+                            title = "Reduce effects",
+                            subtitle = "Turns off backdrop blur and heavy animations. Auto enables it on low-RAM / 60 Hz devices.",
+                            value = when (prefs.effectsMode) { "ON" -> "On"; "OFF" -> "Off"; else -> "Auto" },
+                            onClick = { viewModel.cycleEffectsMode(prefs.effectsMode) }
+                        )
                     }
                 }
             }
@@ -471,7 +404,7 @@ fun SettingsScreen(
                 SectionHeader("Security")
                 GlassPanel(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(24.dp),
+                    shape = RoundedCornerShape(22.dp),
                     backgroundColor = appColors.glassFill
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
@@ -481,28 +414,18 @@ fun SettingsScreen(
                             isChecked = prefs.blockScreenshotsEverywhere,
                             onCheckedChange = { viewModel.setBlockScreenshots(it) }
                         )
-                        Spacer(modifier = Modifier.height(14.dp))
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { viewModel.cycleAutoLock(prefs.vaultAutoLockMs) },
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text("Vault auto-lock", color = appColors.textPrimary, fontSize = 15.sp, fontWeight = FontWeight.Medium)
-                                Text("Tap to change. Always locks when the screen turns off.", color = appColors.textTertiary, fontSize = 12.sp)
-                            }
-                            Text(
-                                text = when (prefs.vaultAutoLockMs) {
-                                    0L -> "Immediately"
-                                    30_000L -> "30 seconds"
-                                    60_000L -> "1 minute"
-                                    else -> "5 minutes"
-                                },
-                                color = appColors.accent, fontSize = 13.sp
-                            )
-                        }
+                        GlassDivider()
+                        SettingValueRow(
+                            title = "Vault auto-lock",
+                            subtitle = "Tap to change. Always locks when the screen turns off.",
+                            value = when (prefs.vaultAutoLockMs) {
+                                0L -> "Immediately"
+                                30_000L -> "30 seconds"
+                                60_000L -> "1 minute"
+                                else -> "5 minutes"
+                            },
+                            onClick = { viewModel.cycleAutoLock(prefs.vaultAutoLockMs) }
+                        )
                     }
                 }
             }
@@ -511,12 +434,12 @@ fun SettingsScreen(
                 SectionHeader("Advanced > Experimental")
                 GlassPanel(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(24.dp),
+                    shape = RoundedCornerShape(22.dp),
                     backgroundColor = appColors.glassFill
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         com.lnxv.player.core.flags.FeatureFlag.values().forEachIndexed { index, flag ->
-                            if (index > 0) Spacer(modifier = Modifier.height(14.dp))
+                            if (index > 0) GlassDivider()
                             SettingSwitchRow(
                                 title = flag.title,
                                 subtitle = flag.description,
@@ -532,7 +455,7 @@ fun SettingsScreen(
                 SectionHeader("Storage")
                 GlassPanel(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(24.dp),
+                    shape = RoundedCornerShape(22.dp),
                     backgroundColor = appColors.glassFill
                 ) {
                     val ctx = androidx.compose.ui.platform.LocalContext.current
@@ -552,31 +475,23 @@ fun SettingsScreen(
                         Text("Cache: ${if (cacheBytes < 0) "…" else com.lnxv.player.core.util.StorageUtil.format(cacheBytes)}", color = appColors.textPrimary, fontSize = 15.sp, fontWeight = FontWeight.Medium)
                         Text("App data (vault, database): ${if (dataBytes < 0) "…" else com.lnxv.player.core.util.StorageUtil.format(dataBytes)}", color = appColors.textSecondary, fontSize = 12.sp)
                         Spacer(modifier = Modifier.height(10.dp))
-                        Text(
-                            "Clear thumbnails",
-                            color = appColors.accent,
-                            fontSize = 15.sp,
-                            modifier = Modifier.fillMaxWidth().clickable {
-                                scope.launch(kotlinx.coroutines.Dispatchers.IO) {
-                                    val loader = coil.Coil.imageLoader(ctx)
-                                    loader.memoryCache?.clear()
-                                    loader.diskCache?.clear()
-                                    refresh()
-                                }
-                            }.padding(vertical = 10.dp)
-                        )
-                        Text(
-                            "Clear cache (thumbnails, downloaded updates, temp subtitles)",
-                            color = appColors.accent,
-                            fontSize = 15.sp,
-                            modifier = Modifier.fillMaxWidth().clickable {
-                                scope.launch(kotlinx.coroutines.Dispatchers.IO) {
-                                    coil.Coil.imageLoader(ctx).memoryCache?.clear()
-                                    com.lnxv.player.core.util.StorageUtil.clearContents(ctx.cacheDir)
-                                    refresh()
-                                }
-                            }.padding(vertical = 10.dp)
-                        )
+                        SettingActionRow("Clear thumbnails") {
+                            scope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                                val loader = coil.Coil.imageLoader(ctx)
+                                loader.memoryCache?.clear()
+                                loader.diskCache?.clear()
+                                refresh()
+                            }
+                        }
+                        GlassDivider()
+                        SettingActionRow("Clear cache (thumbnails, downloaded updates, temp subtitles)") {
+                            scope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                                coil.Coil.imageLoader(ctx).memoryCache?.clear()
+                                com.lnxv.player.core.util.StorageUtil.clearContents(ctx.cacheDir)
+                                refresh()
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
                         Text("Your videos and the encrypted vault are never touched by these actions.", color = appColors.textTertiary, fontSize = 11.sp)
                     }
                 }
@@ -586,7 +501,7 @@ fun SettingsScreen(
                 SectionHeader("Privacy")
                 GlassPanel(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(24.dp),
+                    shape = RoundedCornerShape(22.dp),
                     backgroundColor = appColors.glassFill
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
@@ -623,7 +538,7 @@ fun SettingsScreen(
                 SectionHeader("About LNXV")
                 GlassPanel(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(24.dp),
+                    shape = RoundedCornerShape(22.dp),
                     backgroundColor = appColors.glassFill
                 ) {
                     Row(
@@ -673,15 +588,13 @@ fun SettingsScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        androidx.compose.material3.TextButton(onClick = {
+                        GlassDialogButton(text = "Copy system info", primary = true, onClick = {
                             val info = "LNXV ${viewModel.currentVersion} | Android ${android.os.Build.VERSION.RELEASE} (API ${android.os.Build.VERSION.SDK_INT}) | " +
                                 "${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL} | ${android.os.Build.SUPPORTED_ABIS.firstOrNull() ?: "?"} | effects=${if (reduceEffects) "reduced" else "full"}"
                             val cm = settingsContext.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                             cm.setPrimaryClip(android.content.ClipData.newPlainText("LNXV system info", info))
-                        }) { Text("Copy system info", color = appColors.accent) }
-                        androidx.compose.material3.TextButton(onClick = { confirmResetFlags = true }) {
-                            Text("Reset flags", color = appColors.accent)
-                        }
+                        })
+                        GlassDialogButton(text = "Reset flags", destructive = true, onClick = { confirmResetFlags = true })
                     }
                 }
             }
@@ -700,9 +613,44 @@ private fun StepRow(title: String, value: String, onMinus: () -> Unit, onPlus: (
             Text(text = title, color = appColors.textPrimary, fontSize = 15.sp, fontWeight = FontWeight.Medium)
             Text(text = value, color = appColors.textSecondary, fontSize = 12.sp)
         }
-        Text(text = "  −  ", color = appColors.accent, fontSize = 22.sp, modifier = Modifier.clickable(onClick = onMinus))
-        Text(text = "  +  ", color = appColors.accent, fontSize = 22.sp, modifier = Modifier.clickable(onClick = onPlus))
+        GlassStepper(onMinus = onMinus, onPlus = onPlus)
     }
+}
+
+/** iOS row: title + optional subtitle on the left, current value and a chevron on the right; the whole row is tappable. */
+@Composable
+private fun SettingValueRow(title: String, subtitle: String, value: String, onClick: () -> Unit) {
+    val tap = com.lnxv.player.core.design.rememberTapHaptic()
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .bouncyClickable(pressedScale = 0.99f) { tap(); onClick() },
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = title, color = appColors.textPrimary, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(text = subtitle, color = appColors.textTertiary, fontSize = 12.sp)
+        }
+        Spacer(modifier = Modifier.width(12.dp))
+        Text(text = value, color = appColors.accent, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+        Text(text = "  ›", color = appColors.textTertiary, fontSize = 18.sp)
+    }
+}
+
+/** Tappable accent action row (no value). */
+@Composable
+private fun SettingActionRow(title: String, destructive: Boolean = false, onClick: () -> Unit) {
+    Text(
+        text = title,
+        color = if (destructive) DestructiveRed else appColors.accent,
+        fontSize = 15.sp,
+        modifier = Modifier
+            .fillMaxWidth()
+            .bouncyClickable(pressedScale = 0.99f) { onClick() }
+            .padding(vertical = 6.dp)
+    )
 }
 
 @Composable
@@ -726,8 +674,11 @@ fun SettingSwitchRow(
     isChecked: Boolean,
     onCheckedChange: (Boolean) -> Unit
 ) {
+    val tap = com.lnxv.player.core.design.rememberTapHaptic()
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { tap(); onCheckedChange(!isChecked) },
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {

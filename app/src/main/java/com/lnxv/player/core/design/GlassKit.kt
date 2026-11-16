@@ -1,6 +1,8 @@
 package com.lnxv.player.core.design
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.runtime.remember
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.runtime.getValue
@@ -26,6 +28,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.compositionLocalOf
@@ -145,7 +149,7 @@ fun GlassTopBar(
     }
 }
 
-/** Single-line glass text field with a placeholder (used for in-screen search). */
+/** iOS-style search field: rounded 18dp glass, search icon on the left, clear button on the right when text is non-empty. */
 @Composable
 fun GlassSearchField(
     value: String,
@@ -155,23 +159,106 @@ fun GlassSearchField(
 ) {
     GlassPanel(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(18.dp),
         backgroundColor = appColors.glassSubtle
     ) {
-        BasicTextField(
-            value = value,
-            onValueChange = onValueChange,
-            singleLine = true,
-            textStyle = TextStyle(color = appColors.textPrimary, fontSize = 15.sp),
-            cursorBrush = SolidColor(appColors.accent),
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
-            decorationBox = { inner ->
-                Box(contentAlignment = Alignment.CenterStart) {
-                    if (value.isEmpty()) Text(placeholder, color = appColors.textTertiary, fontSize = 15.sp)
-                    inner()
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(start = 14.dp, end = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.Search,
+                contentDescription = null,
+                tint = appColors.textTertiary,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+            BasicTextField(
+                value = value,
+                onValueChange = onValueChange,
+                singleLine = true,
+                textStyle = TextStyle(color = appColors.textPrimary, fontSize = 15.sp),
+                cursorBrush = SolidColor(appColors.accent),
+                modifier = Modifier.weight(1f).padding(vertical = 12.dp),
+                decorationBox = { inner ->
+                    Box(contentAlignment = Alignment.CenterStart) {
+                        if (value.isEmpty()) Text(placeholder, color = appColors.textTertiary, fontSize = 15.sp, maxLines = 1)
+                        inner()
+                    }
                 }
+            )
+            if (value.isNotEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .clickable { onValueChange("") },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Clear",
+                        tint = appColors.textTertiary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            } else {
+                Spacer(modifier = Modifier.width(8.dp))
             }
-        )
+        }
+    }
+}
+
+/**
+ * Glass text field for dialogs and forms: rounded 16dp, [glassSubtle] fill, hairline border, accent cursor,
+ * placeholder, optional error text, optional keyboard options / visual transformation (e.g. PIN).
+ */
+@Composable
+fun GlassTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    placeholder: String = "",
+    errorText: String? = null,
+    singleLine: Boolean = true,
+    keyboardOptions: androidx.compose.foundation.text.KeyboardOptions = androidx.compose.foundation.text.KeyboardOptions.Default,
+    visualTransformation: androidx.compose.ui.text.input.VisualTransformation = androidx.compose.ui.text.input.VisualTransformation.None
+) {
+    val error = errorText != null
+    val shape = RoundedCornerShape(16.dp)
+    Column(modifier = modifier.fillMaxWidth()) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .liquidGlassSurface(
+                    shape = shape,
+                    backgroundColor = appColors.glassSubtle,
+                    borderColor = if (error) DestructiveRed.copy(alpha = 0.7f) else appColors.glassBorder
+                )
+        ) {
+            BasicTextField(
+                value = value,
+                onValueChange = onValueChange,
+                singleLine = singleLine,
+                textStyle = TextStyle(color = appColors.textPrimary, fontSize = 15.sp),
+                cursorBrush = SolidColor(appColors.accent),
+                keyboardOptions = keyboardOptions,
+                visualTransformation = visualTransformation,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 13.dp),
+                decorationBox = { inner ->
+                    Box(contentAlignment = Alignment.CenterStart) {
+                        if (value.isEmpty() && placeholder.isNotEmpty()) {
+                            Text(placeholder, color = appColors.textTertiary, fontSize = 15.sp, maxLines = 1)
+                        }
+                        inner()
+                    }
+                }
+            )
+        }
+        if (errorText != null) {
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(errorText, color = DestructiveRed, fontSize = 12.sp, modifier = Modifier.padding(horizontal = 6.dp))
+        }
     }
 }
 
@@ -238,6 +325,7 @@ fun IosTabBar(
     hazeState: HazeState? = null
 ) {
     val blurred = hazeState != null && !LocalReduceEffects.current
+    val tap = rememberTapHaptic()
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -267,7 +355,7 @@ fun IosTabBar(
                     .weight(1f)
                     .clip(CircleShape)
                     .background(bg)
-                    .clickable { onSelect(index) }
+                    .clickable { if (!selected) tap(); onSelect(index) }
                     .padding(vertical = 10.dp),
                 contentAlignment = Alignment.Center
             ) {
@@ -280,6 +368,52 @@ fun IosTabBar(
                 )
             }
         }
+    }
+}
+
+/** iOS system red used for destructive dialog actions. */
+val DestructiveRed = Color(0xFFFF453A)
+
+/**
+ * Standard dialog action. Plain (default) = text only; [primary] = accent capsule; [destructive] = red
+ * (text, or red capsule when also [primary]). Use inside GlassDialog's confirmButton/dismissButton slots.
+ */
+@Composable
+fun GlassDialogButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    primary: Boolean = false,
+    destructive: Boolean = false
+) {
+    val base = if (destructive) DestructiveRed else appColors.accent
+    val fill = when {
+        !enabled -> Color.Transparent
+        primary -> base.copy(alpha = 0.22f)
+        else -> Color.Transparent
+    }
+    val fg = when {
+        !enabled -> appColors.textTertiary
+        primary || destructive -> base
+        else -> appColors.textSecondary
+    }
+    Box(
+        modifier = modifier
+            .padding(horizontal = 2.dp)
+            .clip(CircleShape)
+            .background(fill)
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = text,
+            color = fg,
+            fontSize = 14.sp,
+            fontWeight = if (primary) FontWeight.SemiBold else FontWeight.Medium,
+            maxLines = 1
+        )
     }
 }
 
@@ -338,6 +472,83 @@ fun GlassDialog(
     }
 }
 
+/** Light tap haptic (no-op friendly). Use for tab changes, switch toggles, keypad and selection. */
+@Composable
+fun rememberTapHaptic(): () -> Unit {
+    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+    return remember(haptic) {
+        { haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove) }
+    }
+}
+
+/** iOS segmented control: capsule track, selected segment gets an accent fill. */
+@Composable
+fun GlassSegmented(
+    options: List<String>,
+    selectedIndex: Int,
+    onSelect: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val tap = rememberTapHaptic()
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(CircleShape)
+            .background(appColors.glassSubtle)
+            .border(1.dp, appColors.glassBorder, CircleShape)
+            .padding(3.dp)
+    ) {
+        options.forEachIndexed { index, label ->
+            val selected = index == selectedIndex
+            val bg by animateColorAsState(
+                targetValue = if (selected) appColors.accent.copy(alpha = 0.28f) else Color.Transparent,
+                animationSpec = tween(200),
+                label = "segment_bg"
+            )
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(CircleShape)
+                    .background(bg)
+                    .clickable { if (!selected) tap(); onSelect(index) }
+                    .padding(vertical = 8.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = label,
+                    color = if (selected) appColors.accent else appColors.textSecondary,
+                    fontSize = 13.sp,
+                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                    maxLines = 1
+                )
+            }
+        }
+    }
+}
+
+/** Small capsule with two buttons ("−" and "+") used for numeric steppers. */
+@Composable
+fun GlassStepper(onMinus: () -> Unit, onPlus: () -> Unit, modifier: Modifier = Modifier) {
+    val tap = rememberTapHaptic()
+    Row(
+        modifier = modifier
+            .clip(CircleShape)
+            .background(appColors.glassSubtle)
+            .border(1.dp, appColors.glassBorder, CircleShape),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier.size(width = 44.dp, height = 34.dp).clickable { tap(); onMinus() },
+            contentAlignment = Alignment.Center
+        ) { Text("−", color = appColors.accent, fontSize = 20.sp, fontWeight = FontWeight.Medium) }
+        Box(modifier = Modifier.width(1.dp).height(18.dp).background(appColors.glassBorder))
+        Box(
+            modifier = Modifier.size(width = 44.dp, height = 34.dp).clickable { tap(); onPlus() },
+            contentAlignment = Alignment.Center
+        ) { Text("+", color = appColors.accent, fontSize = 20.sp, fontWeight = FontWeight.Medium) }
+    }
+}
+
 /** Rounded frosted dropdown menu with a hairline border. */
 @Composable
 fun GlassDropdownMenu(
@@ -362,9 +573,10 @@ fun GlassDropdownMenu(
 /** iOS-style switch: white thumb, accent track when on. */
 @Composable
 fun GlassSwitch(checked: Boolean, onCheckedChange: ((Boolean) -> Unit)?, modifier: Modifier = Modifier) {
+    val tap = rememberTapHaptic()
     androidx.compose.material3.Switch(
         checked = checked,
-        onCheckedChange = onCheckedChange,
+        onCheckedChange = onCheckedChange?.let { cb -> { v: Boolean -> tap(); cb(v) } },
         modifier = modifier,
         colors = androidx.compose.material3.SwitchDefaults.colors(
             checkedThumbColor = Color.White,

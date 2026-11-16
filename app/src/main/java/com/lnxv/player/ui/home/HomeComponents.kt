@@ -1,5 +1,7 @@
 package com.lnxv.player.ui.home
 
+import com.lnxv.player.core.design.GlassButton
+import com.lnxv.player.core.design.DestructiveRed
 import com.lnxv.player.core.design.GlassDropdownMenu
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -114,14 +116,14 @@ fun VideoItemRow(
             .fillMaxWidth()
             .bouncyClickable(onLongClick = onLongClick) { onClick() }
             .semantics { this.selected = selected },
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(22.dp),
         backgroundColor = if (selected) appColors.accent.copy(alpha = 0.22f) else appColors.glassFill,
         borderColor = if (selected) appColors.accent else appColors.glassBorder
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(10.dp),
+                .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Thumbnail with Duration & Resolution Badges
@@ -247,7 +249,7 @@ fun VideoItemRow(
                         }
                     )
                     DropdownMenuItem(
-                        text = { Text("Delete", color = Color.Red) },
+                        text = { Text("Delete", color = DestructiveRed) },
                         onClick = {
                             onDelete()
                             isMenuOpen = false
@@ -270,18 +272,18 @@ fun FolderItemRow(
         modifier = Modifier
             .fillMaxWidth()
             .bouncyClickable { onClick() },
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(22.dp),
         backgroundColor = appColors.glassFill
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(14.dp),
+                .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 modifier = Modifier
-                    .size(44.dp)
+                    .size(48.dp)
                     .liquidGlassSurface(
                         shape = RoundedCornerShape(16.dp),
                         backgroundColor = appColors.accent.copy(alpha = 0.15f),
@@ -346,18 +348,19 @@ fun ContinueWatchingCard(
     Box(
         modifier = Modifier
             .width(216.dp)
-            .liquidGlassSurface(
-                shape = RoundedCornerShape(24.dp),
-                backgroundColor = appColors.glassFill
-            )
             .bouncyClickable(pressedScale = 0.975f) { onClick() }
+            .liquidGlassSurface(
+                shape = RoundedCornerShape(22.dp),
+                backgroundColor = appColors.glassFill,
+                borderColor = appColors.glassBorder
+            )
     ) {
         Column {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(124.dp)
-                    .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
+                    .clip(RoundedCornerShape(topStart = 21.dp, topEnd = 21.dp))
             ) {
                 AsyncImage(
                     model = ImageRequest.Builder(LocalContext.current)
@@ -422,7 +425,14 @@ fun ContinueWatchingCard(
 }
 
 @Composable
-fun EmptyStateView(message: String) {
+fun EmptyStateView(
+    message: String,
+    modifier: Modifier = Modifier,
+    subtitle: String? = null,
+    icon: androidx.compose.ui.graphics.vector.ImageVector = Icons.Default.VideoLibrary,
+    actionLabel: String? = null,
+    onAction: (() -> Unit)? = null
+) {
     var shown by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { shown = true }
     val appear by animateFloatAsState(
@@ -431,40 +441,44 @@ fun EmptyStateView(message: String) {
         label = "empty_appear"
     )
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
-            .padding(40.dp)
+            .padding(horizontal = 32.dp, vertical = 48.dp)
             .graphicsLayer {
                 alpha = appear
                 translationY = (1f - appear) * 24f
             },
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Box(
-            modifier = Modifier
-                .size(72.dp)
-                .clip(CircleShape)
-                .background(appColors.glassSubtle)
-                .border(1.dp, appColors.glassBorder, CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Default.VideoLibrary,
-                contentDescription = null,
-                tint = appColors.accent.copy(alpha = 0.8f),
-                modifier = Modifier.size(32.dp)
-            )
-        }
-        Spacer(modifier = Modifier.height(16.dp))
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = appColors.textTertiary.copy(alpha = 0.45f),
+            modifier = Modifier.size(88.dp)
+        )
+        Spacer(modifier = Modifier.height(18.dp))
         Text(
             text = message,
-            color = appColors.textSecondary,
-            style = Typography.bodyMedium,
+            color = appColors.textPrimary,
+            style = Typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
             textAlign = TextAlign.Center
         )
+        if (subtitle != null) {
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = subtitle,
+                color = appColors.textSecondary,
+                style = Typography.bodyMedium,
+                textAlign = TextAlign.Center
+            )
+        }
+        if (actionLabel != null && onAction != null) {
+            Spacer(modifier = Modifier.height(20.dp))
+            GlassButton(text = actionLabel, onClick = onAction, isPrimary = true)
+        }
     }
 }
-
 
 @Composable
 fun VideoGridCard(
@@ -484,7 +498,7 @@ fun VideoGridCard(
         modifier = modifier
             .bouncyClickable(onLongClick = onLongClick) { onClick() }
             .semantics { this.selected = selected },
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(22.dp),
         backgroundColor = if (selected) appColors.accent.copy(alpha = 0.22f) else appColors.glassFill,
         borderColor = if (selected) appColors.accent else appColors.glassBorder
     ) {
@@ -494,7 +508,7 @@ fun VideoGridCard(
                     .fillMaxWidth()
                     .videoSharedBounds(video.id)
                     .height(116.dp)
-                    .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
+                    .clip(RoundedCornerShape(topStart = 21.dp, topEnd = 21.dp))
                     .background(appColors.placeholder)
             ) {
                 AsyncImage(
@@ -508,13 +522,19 @@ fun VideoGridCard(
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
                 )
+                GlassBadge(
+                    text = video.resolutionLabel,
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(6.dp)
+                )
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
                         .padding(6.dp)
                         .clip(CircleShape)
                         .background(Color(0xCC000000))
-                        .padding(horizontal = 4.dp, vertical = 2.dp)
+                        .padding(horizontal = 8.dp, vertical = 2.dp)
                 ) {
                     Text(
                         text = video.durationFormatted,
@@ -579,7 +599,7 @@ fun VideoGridCard(
                             }
                         )
                         DropdownMenuItem(
-                            text = { Text("Delete", color = Color.Red) },
+                            text = { Text("Delete", color = DestructiveRed) },
                             onClick = {
                                 onDelete()
                                 isMenuOpen = false

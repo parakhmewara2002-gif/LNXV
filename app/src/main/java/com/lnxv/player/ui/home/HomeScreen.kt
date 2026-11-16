@@ -2,6 +2,13 @@ package com.lnxv.player.ui.home
 
 import com.lnxv.player.core.design.GlassDropdownMenu
 import com.lnxv.player.core.design.GlassDialog
+import com.lnxv.player.core.design.GlassDialogButton
+import com.lnxv.player.core.design.GlassSearchField
+import com.lnxv.player.core.design.GlassTextField
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import com.lnxv.player.core.design.ambientBackground
@@ -151,21 +158,23 @@ fun HomeScreen(
                             Text("${pl.name} (${pl.itemCount})", maxLines = 1)
                         }
                     }
-                    androidx.compose.material3.OutlinedTextField(
+                    Spacer(modifier = Modifier.height(8.dp))
+                    GlassTextField(
                         value = newName,
                         onValueChange = { newName = it },
-                        label = { Text("New playlist name") },
-                        singleLine = true
+                        placeholder = "New playlist name"
                     )
                 }
             },
             confirmButton = {
-                androidx.compose.material3.TextButton(
+                GlassDialogButton(
+                    text = "Create",
                     onClick = { viewModel.createPlaylistAndAdd(newName) },
-                    enabled = newName.isNotBlank()
-                ) { Text("Create") }
+                    enabled = newName.isNotBlank(),
+                    primary = true
+                )
             },
-            dismissButton = { androidx.compose.material3.TextButton(onClick = viewModel::dismissAddToPlaylist) { Text("Cancel") } }
+            dismissButton = { GlassDialogButton(text = "Cancel", onClick = viewModel::dismissAddToPlaylist) }
         )
     }
     val recentStreams by viewModel.recentStreams.collectAsState()
@@ -177,13 +186,11 @@ fun HomeScreen(
             title = { Text("Open network stream") },
             text = {
                 Column {
-                    androidx.compose.material3.OutlinedTextField(
+                    GlassTextField(
                         value = url,
                         onValueChange = { url = it; error = null },
-                        label = { Text("https://, HLS (.m3u8), DASH (.mpd), rtsp://") },
-                        singleLine = true,
-                        isError = error != null,
-                        supportingText = error?.let { e -> { Text(e) } }
+                        placeholder = "https://, HLS (.m3u8), DASH (.mpd), rtsp://",
+                        errorText = error
                     )
                     if (recentStreams.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(8.dp))
@@ -200,13 +207,13 @@ fun HomeScreen(
                 }
             },
             confirmButton = {
-                androidx.compose.material3.TextButton(onClick = {
+                GlassDialogButton(text = "Play", primary = true, onClick = {
                     val err = viewModel.openStream(url)
                     if (err == null) showStreamDialog = false else error = err
-                }) { Text("Play") }
+                })
             },
             dismissButton = {
-                androidx.compose.material3.TextButton(onClick = { showStreamDialog = false }) { Text("Cancel") }
+                GlassDialogButton(text = "Cancel", onClick = { showStreamDialog = false })
             }
         )
     }
@@ -223,7 +230,11 @@ fun HomeScreen(
             title = { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.delete_device_title, deletablePicked.size)) },
             text = { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.delete_device_text)) },
             confirmButton = {
-                androidx.compose.material3.TextButton(onClick = {
+                GlassDialogButton(
+                    text = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.action_delete_device),
+                    primary = true,
+                    destructive = true,
+                    onClick = {
                     confirmDeleteDevice = false
                     val uris = deletablePicked.map { it.uri }
                     val sender = com.lnxv.player.data.mediastore.MediaActions.deleteRequest(actionCtx, uris)
@@ -232,9 +243,9 @@ fun HomeScreen(
                         pendingAfterGrant = finish
                         grantLauncher.launch(androidx.activity.result.IntentSenderRequest.Builder(sender).build())
                     } else if (com.lnxv.player.data.mediastore.MediaActions.deleteDirect(actionCtx, uris) > 0) finish() else toast(com.lnxv.player.R.string.action_failed)
-                }) { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.action_delete_device)) }
+                })
             },
-            dismissButton = { androidx.compose.material3.TextButton(onClick = { confirmDeleteDevice = false }) { Text("Cancel") } }
+            dismissButton = { GlassDialogButton(text = "Cancel", onClick = { confirmDeleteDevice = false }) }
         )
     }
     renameTarget?.let { target ->
@@ -242,16 +253,20 @@ fun HomeScreen(
             onDismissRequest = { renameTarget = null },
             title = { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.action_rename)) },
             text = {
-                androidx.compose.material3.OutlinedTextField(
-                    value = renameText, onValueChange = { renameText = it }, singleLine = true,
-                    label = { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.rename_hint)) }
+                GlassTextField(
+                    value = renameText,
+                    onValueChange = { renameText = it },
+                    placeholder = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.rename_hint)
                 )
             },
             confirmButton = {
-                androidx.compose.material3.TextButton(onClick = {
+                GlassDialogButton(
+                    text = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.rename_confirm),
+                    primary = true,
+                    onClick = renameClick@{
                     val newName = com.lnxv.player.data.mediastore.MediaActions.sanitizeName(renameText, target.path.substringAfterLast('/'))
                     renameTarget = null
-                    if (newName == null) { toast(com.lnxv.player.R.string.action_failed); return@TextButton }
+                    if (newName == null) { toast(com.lnxv.player.R.string.action_failed); return@renameClick }
                     val doRename = {
                         if (com.lnxv.player.data.mediastore.MediaActions.rename(actionCtx, target.uri, newName)) {
                             viewModel.clearSelection(); viewModel.refreshLibrary(); toast(com.lnxv.player.R.string.action_done)
@@ -262,9 +277,9 @@ fun HomeScreen(
                         pendingAfterGrant = doRename
                         grantLauncher.launch(androidx.activity.result.IntentSenderRequest.Builder(sender).build())
                     } else doRename()
-                }) { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.rename_confirm)) }
+                })
             },
-            dismissButton = { androidx.compose.material3.TextButton(onClick = { renameTarget = null }) { Text("Cancel") } }
+            dismissButton = { GlassDialogButton(text = "Cancel", onClick = { renameTarget = null }) }
         )
     }
     if (confirmRemove) {
@@ -273,12 +288,12 @@ fun HomeScreen(
             title = { Text("Remove ${selection.size} from library?") },
             text = { Text("This removes them from LNXV's library list. It does not delete the files from your device.") },
             confirmButton = {
-                androidx.compose.material3.TextButton(onClick = {
+                GlassDialogButton(text = "Remove", primary = true, destructive = true, onClick = {
                     viewModel.removeSelected(selectionPool)
                     confirmRemove = false
-                }) { Text("Remove") }
+                })
             },
-            dismissButton = { androidx.compose.material3.TextButton(onClick = { confirmRemove = false }) { Text("Cancel") } }
+            dismissButton = { GlassDialogButton(text = "Cancel", onClick = { confirmRemove = false }) }
         )
     }
 
@@ -307,45 +322,84 @@ bottomBar = {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                        .padding(horizontal = 8.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.selected_count, selection.size), color = appColors.textPrimary, fontSize = 14.sp, modifier = Modifier.padding(start = 8.dp))
-                    Row {
-                        androidx.compose.material3.TextButton(onClick = { viewModel.selectAll(selectionPool.filter { v -> v.id in (if (uiState.openFolderPath != null) uiState.folderVideos else uiState.videos).map { it.id } }) }) { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.action_all)) }
-                        androidx.compose.material3.TextButton(onClick = { viewModel.favoriteSelected(selectionPool) }) { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.action_fav)) }
-                        androidx.compose.material3.TextButton(onClick = { viewModel.requestAddSelectedToPlaylist(selectionPool) }) { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.action_playlist)) }
-                        androidx.compose.material3.TextButton(onClick = { viewModel.vaultSelected(selectionPool) }) { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.action_vault)) }
-                        androidx.compose.material3.TextButton(onClick = { confirmRemove = true }) { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.action_remove)) }
-                        Box {
-                            androidx.compose.material3.TextButton(onClick = { showMoreActions = true }) { Text("⋮") }
-                            GlassDropdownMenu(expanded = showMoreActions, onDismissRequest = { showMoreActions = false }) {
-                                androidx.compose.material3.DropdownMenuItem(
-                                    text = { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.action_share)) },
-                                    enabled = deletablePicked.isNotEmpty(),
-                                    onClick = {
-                                        showMoreActions = false
-                                        actionCtx.startActivity(com.lnxv.player.data.mediastore.MediaActions.shareIntent(deletablePicked.map { it.uri }))
-                                    }
-                                )
-                                if (deletablePicked.size == 1 && selection.size == 1) androidx.compose.material3.DropdownMenuItem(
-                                    text = { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.action_rename)) },
-                                    onClick = {
-                                        showMoreActions = false
-                                        renameText = deletablePicked[0].path.substringAfterLast('/').substringBeforeLast('.')
-                                        renameTarget = deletablePicked[0]
-                                    }
-                                )
-                                androidx.compose.material3.DropdownMenuItem(
-                                    text = { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.action_delete_device)) },
-                                    enabled = deletablePicked.isNotEmpty(),
-                                    onClick = { showMoreActions = false; confirmDeleteDevice = true }
-                                )
-                            }
+                    Text(
+                        text = selection.size.toString(),
+                        color = appColors.accent,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(start = 8.dp, end = 4.dp)
+                    )
+                    SelectionAction(
+                        icon = Icons.Default.Check,
+                        label = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.action_all),
+                        modifier = Modifier.weight(1f),
+                        onClick = { viewModel.selectAll(selectionPool.filter { v -> v.id in (if (uiState.openFolderPath != null) uiState.folderVideos else uiState.videos).map { it.id } }) }
+                    )
+                    SelectionAction(
+                        icon = Icons.Default.Favorite,
+                        label = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.action_fav),
+                        modifier = Modifier.weight(1f),
+                        onClick = { viewModel.favoriteSelected(selectionPool) }
+                    )
+                    SelectionAction(
+                        icon = Icons.Default.Add,
+                        label = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.action_playlist),
+                        modifier = Modifier.weight(1f),
+                        onClick = { viewModel.requestAddSelectedToPlaylist(selectionPool) }
+                    )
+                    SelectionAction(
+                        icon = Icons.Default.Lock,
+                        label = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.action_vault),
+                        modifier = Modifier.weight(1f),
+                        onClick = { viewModel.vaultSelected(selectionPool) }
+                    )
+                    SelectionAction(
+                        icon = Icons.Default.Delete,
+                        label = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.action_remove),
+                        modifier = Modifier.weight(1f),
+                        tint = com.lnxv.player.core.design.DestructiveRed,
+                        onClick = { confirmRemove = true }
+                    )
+                    Box {
+                        SelectionAction(
+                            icon = Icons.Default.MoreVert,
+                            label = "More",
+                            modifier = Modifier.width(52.dp),
+                            onClick = { showMoreActions = true }
+                        )
+                        GlassDropdownMenu(expanded = showMoreActions, onDismissRequest = { showMoreActions = false }) {
+                            androidx.compose.material3.DropdownMenuItem(
+                                text = { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.action_share)) },
+                                enabled = deletablePicked.isNotEmpty(),
+                                onClick = {
+                                    showMoreActions = false
+                                    actionCtx.startActivity(com.lnxv.player.data.mediastore.MediaActions.shareIntent(deletablePicked.map { it.uri }))
+                                }
+                            )
+                            if (deletablePicked.size == 1 && selection.size == 1) androidx.compose.material3.DropdownMenuItem(
+                                text = { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.action_rename)) },
+                                onClick = {
+                                    showMoreActions = false
+                                    renameText = deletablePicked[0].path.substringAfterLast('/').substringBeforeLast('.')
+                                    renameTarget = deletablePicked[0]
+                                }
+                            )
+                            androidx.compose.material3.DropdownMenuItem(
+                                text = { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.action_delete_device)) },
+                                enabled = deletablePicked.isNotEmpty(),
+                                onClick = { showMoreActions = false; confirmDeleteDevice = true }
+                            )
                         }
-                        androidx.compose.material3.TextButton(onClick = { viewModel.clearSelection() }) { Text("✕") }
                     }
+                    SelectionAction(
+                        icon = Icons.Default.Close,
+                        label = "Done",
+                        modifier = Modifier.width(52.dp),
+                        onClick = { viewModel.clearSelection() }
+                    )
                 }
                     }
                 } else {
@@ -402,22 +456,10 @@ topBar = {
                 }
                 if (isSearchExpanded) {
                     Spacer(modifier = Modifier.height(12.dp))
-                    TextField(
+                    GlassSearchField(
                         value = uiState.searchQuery,
                         onValueChange = { viewModel.updateSearchQuery(it) },
-                        placeholder = { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.search_hint_filters), color = appColors.textTertiary) },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .liquidGlassSurface(shape = RoundedCornerShape(18.dp)),
-                        colors = TextFieldDefaults.colors(
-                            focusedContainerColor = Color.Transparent,
-                            unfocusedContainerColor = Color.Transparent,
-                            focusedTextColor = appColors.textPrimary,
-                            unfocusedTextColor = appColors.textPrimary,
-                            focusedIndicatorColor = Color.Transparent,
-                            unfocusedIndicatorColor = Color.Transparent
-                        ),
-                        singleLine = true
+                        placeholder = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.search_hint_filters)
                     )
                 }
 
@@ -524,7 +566,13 @@ topBar = {
                         }
                     }
                     if (uiState.videos.isEmpty()) {
-                        item { EmptyStateView(message = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.empty_discovered)) }
+                        item {
+                            EmptyStateView(
+                                message = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.empty_discovered),
+                                actionLabel = "Refresh library",
+                                onAction = { viewModel.refreshLibrary() }
+                            )
+                        }
                     } else if (uiState.isGridView) {
                         items(uiState.videos.chunked(gridColumns), key = { row -> row.first().id }) { row ->
                             Row(
@@ -646,17 +694,21 @@ topBar = {
                                     onDismissRequest = { renaming = false },
                                     title = { Text("Rename playlist") },
                                     text = {
-                                        androidx.compose.material3.OutlinedTextField(
-                                            value = newName, onValueChange = { newName = it }, singleLine = true
+                                        GlassTextField(
+                                            value = newName,
+                                            onValueChange = { newName = it },
+                                            placeholder = "Playlist name"
                                         )
                                     },
                                     confirmButton = {
-                                        androidx.compose.material3.TextButton(
+                                        GlassDialogButton(
+                                            text = "Save",
+                                            primary = true,
                                             onClick = { viewModel.renamePlaylist(openPl.id, newName); renaming = false },
                                             enabled = newName.isNotBlank()
-                                        ) { Text("Save") }
+                                        )
                                     },
-                                    dismissButton = { androidx.compose.material3.TextButton(onClick = { renaming = false }) { Text("Cancel") } }
+                                    dismissButton = { GlassDialogButton(text = "Cancel", onClick = { renaming = false }) }
                                 )
                             }
                             BackHandler { viewModel.closePlaylist() }
@@ -681,7 +733,7 @@ topBar = {
                                     Text(video.title, color = appColors.textPrimary, fontSize = 14.sp, maxLines = 2, modifier = Modifier.weight(1f))
                                     androidx.compose.material3.TextButton(onClick = { viewModel.moveInPlaylist(openPl.id, video.id, -1) }) { Text("▲") }
                                     androidx.compose.material3.TextButton(onClick = { viewModel.moveInPlaylist(openPl.id, video.id, 1) }) { Text("▼") }
-                                    androidx.compose.material3.TextButton(onClick = { viewModel.removeFromPlaylist(openPl.id, video.id) }) { Text("✕", color = Color.Red) }
+                                    androidx.compose.material3.TextButton(onClick = { viewModel.removeFromPlaylist(openPl.id, video.id) }) { Text("✕", color = com.lnxv.player.core.design.DestructiveRed) }
                                 }
                             }
                         }
@@ -696,9 +748,9 @@ topBar = {
                                     title = { Text("Delete \"${pl.name}\"?") },
                                     text = { Text("The videos themselves are not deleted.") },
                                     confirmButton = {
-                                        androidx.compose.material3.TextButton(onClick = { viewModel.deletePlaylist(pl.id); confirmDelete = false }) { Text("Delete") }
+                                        GlassDialogButton(text = "Delete", primary = true, destructive = true, onClick = { viewModel.deletePlaylist(pl.id); confirmDelete = false })
                                     },
-                                    dismissButton = { androidx.compose.material3.TextButton(onClick = { confirmDelete = false }) { Text("Cancel") } }
+                                    dismissButton = { GlassDialogButton(text = "Cancel", onClick = { confirmDelete = false }) }
                                 )
                             }
                             Row(
@@ -714,7 +766,7 @@ topBar = {
                                 }
                                 androidx.compose.material3.TextButton(onClick = { viewModel.playPlaylist(pl.id) }) { Text("Play") }
                                 androidx.compose.material3.TextButton(onClick = { confirmDelete = true }) {
-                                    Text("Delete", color = Color.Red)
+                                    Text("Delete", color = com.lnxv.player.core.design.DestructiveRed)
                                 }
                             }
                         }
@@ -740,5 +792,31 @@ topBar = {
                 }
             }
         }
+    }
+}
+
+/** Icon + tiny label action used inside the glass selection bar. */
+@Composable
+private fun SelectionAction(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    tint: Color = appColors.textPrimary
+) {
+    Column(
+        modifier = modifier
+            .bouncyClickable(pressedScale = 0.9f) { onClick() }
+            .padding(vertical = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Icon(imageVector = icon, contentDescription = label, tint = tint, modifier = Modifier.size(20.dp))
+        Text(
+            text = label,
+            color = tint.copy(alpha = 0.85f),
+            fontSize = 10.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }

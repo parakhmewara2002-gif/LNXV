@@ -22,6 +22,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 fun Modifier.bouncyClickable(pressedScale: Float = 0.985f, onLongClick: (() -> Unit)? = null, onClick: () -> Unit): Modifier {
     val interactionSource = remember { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
+    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
     val scale by animateFloatAsState(
         targetValue = if (pressed) pressedScale else 1f,
         animationSpec = spring(
@@ -38,7 +39,12 @@ fun Modifier.bouncyClickable(pressedScale: Float = 0.985f, onLongClick: (() -> U
         .combinedClickable(
             interactionSource = interactionSource,
             indication = null,
-            onLongClick = onLongClick,
+            onLongClick = onLongClick?.let { cb ->
+                {
+                    haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                    cb()
+                }
+            },
             onClick = onClick
         )
 }

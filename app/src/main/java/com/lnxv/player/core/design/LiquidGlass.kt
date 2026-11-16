@@ -235,12 +235,12 @@ fun GlassBadge(
     Box(
         modifier = modifier
             .liquidGlassSurface(
-                shape = RoundedCornerShape(8.dp),
+                shape = CircleShape,
                 backgroundColor = color.copy(alpha = 0.2f),
                 borderColor = color.copy(alpha = 0.5f),
                 borderWidth = 1.dp
             )
-            .padding(horizontal = 8.dp, vertical = 3.dp),
+            .padding(horizontal = 9.dp, vertical = 3.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(

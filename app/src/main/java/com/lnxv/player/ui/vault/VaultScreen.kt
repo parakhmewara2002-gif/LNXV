@@ -2,6 +2,13 @@ package com.lnxv.player.ui.vault
 
 import com.lnxv.player.core.design.GlassProgress
 import com.lnxv.player.core.design.GlassDialog
+import com.lnxv.player.core.design.GlassDialogButton
+import com.lnxv.player.core.design.GlassButton
+import com.lnxv.player.core.design.bouncyClickable
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.contentDescription
+import com.lnxv.player.core.design.GlassTextField
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -105,22 +112,20 @@ fun VaultScreen(
             title = { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.pin_change_title)) },
             text = {
                 Column {
-                    androidx.compose.material3.OutlinedTextField(
+                    GlassTextField(
                         value = oldPin,
                         onValueChange = { oldPin = it.filter(Char::isDigit).take(8) },
-                        label = { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.pin_current)) },
-                        singleLine = true,
+                        placeholder = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.pin_current),
                         visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
                         keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
                             keyboardType = androidx.compose.ui.text.input.KeyboardType.NumberPassword
                         )
                     )
                     Spacer(Modifier.height(8.dp))
-                    androidx.compose.material3.OutlinedTextField(
+                    GlassTextField(
                         value = newPin,
                         onValueChange = { newPin = it.filter(Char::isDigit).take(8) },
-                        label = { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.pin_new)) },
-                        singleLine = true,
+                        placeholder = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.pin_new),
                         visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
                         keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
                             keyboardType = androidx.compose.ui.text.input.KeyboardType.NumberPassword
@@ -133,11 +138,19 @@ fun VaultScreen(
                 }
             },
             confirmButton = {
-                TextButton(onClick = { viewModel.changePin(oldPin, newPin) }, enabled = oldPin.length >= 4 && newPin.length >= 4) {
-                    Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.action_change))
-                }
+                GlassDialogButton(
+                    text = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.action_change),
+                    onClick = { viewModel.changePin(oldPin, newPin) },
+                    enabled = oldPin.length >= 4 && newPin.length >= 4,
+                    primary = true
+                )
             },
-            dismissButton = { TextButton(onClick = viewModel::closeChangePin) { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.action_cancel)) } }
+            dismissButton = {
+                GlassDialogButton(
+                    text = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.action_cancel),
+                    onClick = viewModel::closeChangePin
+                )
+            }
         )
     }
 
@@ -150,9 +163,14 @@ fun VaultScreen(
                     "ALL videos stored in the vault. This cannot be undone.")
             },
             confirmButton = {
-                TextButton(onClick = viewModel::confirmWipe) { Text("Delete vault & reset", color = CrimsonAlert) }
+                GlassDialogButton(text = "Delete vault & reset", onClick = viewModel::confirmWipe, primary = true, destructive = true)
             },
-            dismissButton = { TextButton(onClick = viewModel::dismissForgotPin) { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.action_cancel)) } }
+            dismissButton = {
+                GlassDialogButton(
+                    text = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.action_cancel),
+                    onClick = viewModel::dismissForgotPin
+                )
+            }
         )
     }
 
@@ -186,11 +204,12 @@ fun VaultScreen(
                     modifier = Modifier.weight(1f)
                 )
                 if (uiState.authState == VaultAuthState.AUTHENTICATED) {
-                    TextButton(onClick = viewModel::openChangePin) { Text("Change PIN", color = appColors.textTertiary) }
-                    TextButton(onClick = {
+                    VaultPill(text = "Change PIN", color = appColors.textSecondary, onClick = viewModel::openChangePin)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    VaultPill(text = "Lock", color = appColors.accent, onClick = {
                         viewModel.lock()
                         onBackClick()
-                    }) { Text("Lock", color = appColors.accent) }
+                    })
                 }
             }
         }
@@ -216,15 +235,20 @@ fun VaultScreen(
                     }
                 }
                 if (legacyCount > 0 && !job.isRunning) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    GlassPanel(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                        shape = RoundedCornerShape(20.dp)
                     ) {
-                        Text(
-                            text = "$legacyCount video(s) are hidden but not encrypted.",
-                            color = appColors.textTertiary, fontSize = 13.sp, modifier = Modifier.weight(1f)
-                        )
-                        TextButton(onClick = viewModel::encryptLegacyItems) { Text("Encrypt now", color = appColors.accent) }
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 10.dp, top = 10.dp, bottom = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "$legacyCount video(s) are hidden but not encrypted.",
+                                color = appColors.textSecondary, fontSize = 13.sp, modifier = Modifier.weight(1f).padding(end = 10.dp)
+                            )
+                            GlassButton(text = "Encrypt now", onClick = viewModel::encryptLegacyItems, isPrimary = true)
+                        }
                     }
                 }
                 if (vaultVideos.isEmpty()) {
@@ -403,9 +427,7 @@ fun VaultScreen(
                         )
                     }
                     if (uiState.needsConfirmButton) {
-                        TextButton(onClick = viewModel::submit, enabled = uiState.enteredPin.length >= 4) {
-                            Text("OK", color = appColors.accent)
-                        }
+                        GlassButton(text = "OK", onClick = viewModel::submit, isPrimary = true, enabled = uiState.enteredPin.length >= 4)
                     }
                     if (uiState.authState == VaultAuthState.ENTER_PIN && uiState.biometricEnabled && uiState.lockoutRemainingSec == 0L &&
                         com.lnxv.player.core.security.BiometricGate.canAuthenticate(androidx.compose.ui.platform.LocalContext.current)
@@ -424,6 +446,7 @@ fun VaultScreen(
 
                     Spacer(modifier = Modifier.height(36.dp))
 
+                    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
                     // Numeric Pad (1 to 9, 0, Backspace)
                     val keys = listOf(
                         listOf("1", "2", "3"),
@@ -448,8 +471,14 @@ fun VaultScreen(
                                         Box(
                                             modifier = Modifier
                                                 .size(68.dp)
-                                                .clip(CircleShape)
-                                                .clickable(role = androidx.compose.ui.semantics.Role.Button, onClickLabel = "Delete last digit") { viewModel.deleteDigit() },
+                                                .semantics {
+                                                    role = androidx.compose.ui.semantics.Role.Button
+                                                    contentDescription = "Delete last digit"
+                                                }
+                                                .bouncyClickable(pressedScale = 0.88f) {
+                                                    haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+                                                    viewModel.deleteDigit()
+                                                },
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Icon(
@@ -462,12 +491,19 @@ fun VaultScreen(
                                         Box(
                                             modifier = Modifier
                                                 .size(68.dp)
+                                                .semantics {
+                                                    role = androidx.compose.ui.semantics.Role.Button
+                                                    contentDescription = "Enter digit $key"
+                                                }
+                                                .bouncyClickable(pressedScale = 0.88f) {
+                                                    haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+                                                    viewModel.enterDigit(key)
+                                                }
                                                 .liquidGlassSurface(
                                                     shape = CircleShape,
                                                     backgroundColor = appColors.glassSubtle,
                                                     borderColor = appColors.glassBorder
-                                                )
-                                                .clickable(role = androidx.compose.ui.semantics.Role.Button, onClickLabel = "Enter digit $key") { viewModel.enterDigit(key) },
+                                                ),
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Text(
@@ -485,5 +521,23 @@ fun VaultScreen(
                 }
             }
         }
+    }
+}
+
+/** Small glass capsule used for the vault header actions (Change PIN / Lock). */
+@Composable
+private fun VaultPill(text: String, color: androidx.compose.ui.graphics.Color, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .bouncyClickable(pressedScale = 0.93f) { onClick() }
+            .liquidGlassSurface(
+                shape = CircleShape,
+                backgroundColor = appColors.glassFill,
+                borderColor = appColors.glassBorder
+            )
+            .padding(horizontal = 14.dp, vertical = 8.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(text = text, color = color, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
     }
 }
