@@ -7,6 +7,8 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
@@ -103,12 +105,30 @@ fun LNXVTheme(
         LocalHazeStyle provides hazeStyle
     ) {
         MaterialTheme(
-            colorScheme = colorScheme,
+            colorScheme = colorScheme.withGlassContainers(darkTheme),
             typography = Typography,
+            shapes = IosShapes,
             content = content
         )
     }
 }
+
+/** iOS-like rounded shapes: dialogs use extraLarge, menus/sheets use large/medium. */
+private val IosShapes = Shapes(
+    extraSmall = RoundedCornerShape(10.dp),
+    small = RoundedCornerShape(14.dp),
+    medium = RoundedCornerShape(18.dp),
+    large = RoundedCornerShape(24.dp),
+    extraLarge = RoundedCornerShape(30.dp)
+)
+
+/** Frosted dialog / menu / sheet surfaces (AlertDialog, DropdownMenu, ModalBottomSheet read the surfaceContainer roles). */
+private fun androidx.compose.material3.ColorScheme.withGlassContainers(dark: Boolean) = copy(
+    surfaceContainerLow = if (dark) Color(0xF01B1F26) else Color(0xF2F4F5F8),
+    surfaceContainer = if (dark) Color(0xF2222730) else Color(0xF2FFFFFF),
+    surfaceContainerHigh = if (dark) Color(0xF2272C36) else Color(0xF2FFFFFF),
+    surfaceContainerHighest = if (dark) Color(0xF22D333E) else Color(0xF2F2F3F7)
+)
 
 /** The video player is always dark (like most players), whatever theme the rest of the app uses. */
 @Composable
@@ -118,8 +138,9 @@ fun LNXVPlayerTheme(content: @Composable () -> Unit) {
         LocalHazeStyle provides HazeStyle(backgroundColor = Color.Black, tints = emptyList(), blurRadius = 24.dp, noiseFactor = 0.04f)
     ) {
         MaterialTheme(
-            colorScheme = DarkColorScheme.copy(background = Color.Black),
+            colorScheme = DarkColorScheme.copy(background = Color.Black).withGlassContainers(true),
             typography = Typography,
+            shapes = IosShapes,
             content = content
         )
     }

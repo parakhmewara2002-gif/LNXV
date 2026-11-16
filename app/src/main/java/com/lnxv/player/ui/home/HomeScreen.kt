@@ -89,6 +89,10 @@ import com.lnxv.player.core.design.GlassPanel
 import com.lnxv.player.core.design.NeonCyan
 import com.lnxv.player.core.design.SurfaceDark
 import com.lnxv.player.core.design.Typography
+import androidx.compose.foundation.layout.navigationBarsPadding
+import com.lnxv.player.core.design.IosTabBar
+import com.lnxv.player.core.design.IosPillIcon
+import com.lnxv.player.core.design.IosPill
 import com.lnxv.player.core.design.liquidGlassSurface
 import com.lnxv.player.core.model.FolderItem
 import com.lnxv.player.core.model.VideoItem
@@ -279,13 +283,29 @@ fun HomeScreen(
     Scaffold(
         modifier = Modifier.fillMaxSize().ambientBackground(),
         containerColor = Color.Transparent,
-        bottomBar = {
-            if (selection.isNotEmpty()) {
+bottomBar = {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(horizontal = 16.dp, vertical = 10.dp)
+            ) {
+                if (selection.isNotEmpty()) {
+                    val selShape = RoundedCornerShape(26.dp)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .then(if (reduceEffects) Modifier else Modifier.clip(selShape).hazeChild(state = hazeState))
+                            .liquidGlassSurface(
+                                shape = selShape,
+                                backgroundColor = if (reduceEffects) appColors.barFill else appColors.barFill.copy(alpha = 0.6f),
+                                borderColor = appColors.glassBorder
+                            )
+                    ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(appColors.barFill)
-                        .padding(horizontal = 8.dp, vertical = 8.dp),
+                        .padding(horizontal = 12.dp, vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
@@ -325,98 +345,59 @@ fun HomeScreen(
                         androidx.compose.material3.TextButton(onClick = { viewModel.clearSelection() }) { Text("✕") }
                     }
                 }
+                    }
+                } else {
+                    IosTabBar(
+                        labels = HomeTab.values().map { androidx.compose.ui.res.stringResource(it.labelRes) },
+                        selectedIndex = HomeTab.values().indexOf(uiState.selectedTab),
+                        onSelect = { viewModel.selectTab(HomeTab.values()[it]) },
+                        hazeState = if (reduceEffects) null else hazeState
+                    )
+                }
             }
         },
-        topBar = {
+topBar = {
+            val barShape = RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp)
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .then(
-                        if (reduceEffects) Modifier else Modifier
-                            .clip(RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp))
-                            .hazeChild(state = hazeState)
-                    )
+                    .then(if (reduceEffects) Modifier else Modifier.clip(barShape).hazeChild(state = hazeState))
                     .liquidGlassSurface(
-                        shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp),
-                        backgroundColor = if (reduceEffects) appColors.barFill else appColors.barFill.copy(alpha = 0.68f),
+                        shape = barShape,
+                        backgroundColor = if (reduceEffects) appColors.barFill else appColors.barFill.copy(alpha = 0.55f),
                         borderColor = appColors.glassBorder,
                         borderWidth = 1.dp
                     )
-                    .padding(top = 40.dp, bottom = 12.dp, start = 16.dp, end = 16.dp)
+                    .padding(top = 44.dp, bottom = 14.dp, start = 20.dp, end = 14.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .liquidGlassSurface(
-                                    shape = CircleShape,
-                                    backgroundColor = appColors.accent.copy(alpha = 0.2f),
-                                    borderColor = appColors.accent.copy(alpha = 0.6f)
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.PlayArrow,
-                                contentDescription = null,
-                                tint = appColors.accent,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(11.dp))
-                        Column(verticalArrangement = Arrangement.Center) {
-                            Text(
-                                text = "LNXV",
-                                color = appColors.textPrimary,
-                                style = Typography.titleLarge,
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 1.4.sp
-                            )
-                            Text(
-                                text = "YOUR PERSONAL CINEMA",
-                                color = appColors.textTertiary,
-                                fontSize = 8.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                letterSpacing = 1.25.sp
-                            )
-                        }
+                    Column {
+                        Text(
+                            text = "LNXV",
+                            color = appColors.textPrimary,
+                            style = Typography.headlineLarge,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = (-0.5).sp
+                        )
+                        Text(
+                            text = "YOUR PERSONAL CINEMA",
+                            color = appColors.textTertiary,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            letterSpacing = 1.4.sp
+                        )
                     }
-
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        GlassIconButton(
-                            icon = Icons.Default.Search,
-                            contentDescription = "Search",
-                            onClick = { isSearchExpanded = !isSearchExpanded },
-                            size = 38.dp
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        GlassIconButton(
-                            icon = Icons.Default.Link,
-                            contentDescription = "Open network stream",
-                            onClick = { showStreamDialog = true },
-                            size = 38.dp
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        GlassIconButton(
-                            icon = Icons.Default.Lock,
-                            contentDescription = "Private Vault",
-                            onClick = onVaultClick,
-                            size = 38.dp
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        GlassIconButton(
-                            icon = Icons.Default.Settings,
-                            contentDescription = "Settings",
-                            onClick = onSettingsClick,
-                            size = 38.dp
-                        )
+                    IosPill(hazeState = null) {
+                        IosPillIcon(Icons.Default.Search, "Search", { isSearchExpanded = !isSearchExpanded })
+                        IosPillIcon(Icons.Default.Link, "Open network stream", { showStreamDialog = true })
+                        IosPillIcon(Icons.Default.Lock, "Private Vault", onVaultClick)
+                        IosPillIcon(Icons.Default.Settings, "Settings", onSettingsClick)
                     }
                 }
-
                 if (isSearchExpanded) {
                     Spacer(modifier = Modifier.height(12.dp))
                     TextField(
@@ -425,7 +406,7 @@ fun HomeScreen(
                         placeholder = { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.search_hint_filters), color = appColors.textTertiary) },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .liquidGlassSurface(shape = RoundedCornerShape(14.dp)),
+                            .liquidGlassSurface(shape = RoundedCornerShape(18.dp)),
                         colors = TextFieldDefaults.colors(
                             focusedContainerColor = Color.Transparent,
                             unfocusedContainerColor = Color.Transparent,
@@ -438,57 +419,6 @@ fun HomeScreen(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(14.dp))
-
-                // Navigation Tabs Pill
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .liquidGlassSurface(
-                            shape = RoundedCornerShape(16.dp),
-                            backgroundColor = appColors.glassFill,
-                            borderColor = appColors.glassBorder
-                        )
-                        .padding(4.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    HomeTab.values().forEach { tab ->
-                        val isSelected = uiState.selectedTab == tab
-                        val selectAmount by animateFloatAsState(
-                            targetValue = if (isSelected) 1f else 0f,
-                            animationSpec = tween(220),
-                            label = "tab_select"
-                        )
-                        val tabTextColor by animateColorAsState(
-                            targetValue = if (isSelected) appColors.accent else appColors.textSecondary,
-                            animationSpec = tween(220),
-                            label = "tab_text"
-                        )
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(
-                                    Brush.horizontalGradient(
-                                        listOf(
-                                            appColors.accent.copy(alpha = 0.22f * selectAmount),
-                                            Color(0xFF7C4DFF).copy(alpha = 0.12f * selectAmount)
-                                        )
-                                    )
-                                )
-                                .clickable { viewModel.selectTab(tab) }
-                                .padding(vertical = 8.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = androidx.compose.ui.res.stringResource(tab.labelRes),
-                                color = tabTextColor,
-                                fontSize = 13.sp,
-                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
-                            )
-                        }
-                    }
-                }
             }
         }
     ) { paddingValues ->

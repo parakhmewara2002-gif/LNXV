@@ -1,6 +1,16 @@
 package com.lnxv.player.core.design
 
 import androidx.compose.foundation.background
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.runtime.getValue
+import androidx.compose.material3.Icon
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.clickable
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -175,5 +185,100 @@ fun GlassInfoRow(label: String, value: String) {
     ) {
         Text(label, color = appColors.textSecondary, fontSize = 13.sp, modifier = Modifier.padding(end = 12.dp))
         Text(value, color = appColors.textPrimary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+    }
+}
+
+/** Fully rounded translucent pill that groups icon buttons (iOS grouped-control look). Pass [hazeState] to blur what is behind it. */
+@Composable
+fun IosPill(
+    modifier: Modifier = Modifier,
+    hazeState: HazeState? = null,
+    content: @Composable RowScope.() -> Unit
+) {
+    val blurred = hazeState != null && !LocalReduceEffects.current
+    Row(
+        modifier = modifier
+            .glassBlur(hazeState, CircleShape)
+            .liquidGlassSurface(
+                shape = CircleShape,
+                backgroundColor = if (blurred) appColors.barFill.copy(alpha = 0.55f) else appColors.glassFill,
+                borderColor = appColors.glassBorder
+            ),
+        verticalAlignment = Alignment.CenterVertically,
+        content = content
+    )
+}
+
+/** Icon button meant to sit inside an [IosPill]. */
+@Composable
+fun IosPillIcon(
+    icon: ImageVector,
+    contentDescription: String,
+    onClick: () -> Unit,
+    size: Dp = 42.dp,
+    tint: Color = appColors.textPrimary
+) {
+    Box(
+        modifier = Modifier
+            .size(size)
+            .bouncyClickable(pressedScale = 0.88f) { onClick() },
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(icon, contentDescription, tint = tint, modifier = Modifier.size(size * 0.5f))
+    }
+}
+
+/** Floating glass tab bar (iOS style): equal-width labels, selected one gets an accent capsule. */
+@Composable
+fun IosTabBar(
+    labels: List<String>,
+    selectedIndex: Int,
+    onSelect: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+    hazeState: HazeState? = null
+) {
+    val blurred = hazeState != null && !LocalReduceEffects.current
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .glassBlur(hazeState, CircleShape)
+            .liquidGlassSurface(
+                shape = CircleShape,
+                backgroundColor = if (blurred) appColors.barFill.copy(alpha = 0.6f) else appColors.barFill,
+                borderColor = appColors.glassBorder
+            )
+            .padding(4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        labels.forEachIndexed { index, label ->
+            val selected = index == selectedIndex
+            val bg by animateColorAsState(
+                targetValue = if (selected) appColors.accent.copy(alpha = 0.22f) else Color.Transparent,
+                animationSpec = tween(200),
+                label = "tab_bg"
+            )
+            val fg by animateColorAsState(
+                targetValue = if (selected) appColors.accent else appColors.textSecondary,
+                animationSpec = tween(200),
+                label = "tab_fg"
+            )
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(CircleShape)
+                    .background(bg)
+                    .clickable { onSelect(index) }
+                    .padding(vertical = 10.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = label,
+                    color = fg,
+                    fontSize = 12.sp,
+                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                    maxLines = 1
+                )
+            }
+        }
     }
 }
