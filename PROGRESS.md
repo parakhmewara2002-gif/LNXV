@@ -89,3 +89,7 @@ Phases 3, 4, 5, 6 and the LOW RAM / LOW STORAGE rules (A–D).
 ## iOS-inspired visual redesign pass (2026-11-16)
 
 See [`docs/IOS_VISUAL_REDESIGN.md`](docs/IOS_VISUAL_REDESIGN.md) for exact changes, preserved systems, verification limits, and local build steps.
+
+## iOS-style player controls (PR: claude/ios-player-controls, NOT DEVICE-TESTED)
+- New `ui/player/PlayerControlsOverlay.kt` (`IosPlayerControls`): glass pill icons top-left (close | PiP, aspect, more), system-volume pill top-right, big centre rewind-10 / play-pause / forward-10 (+ prev/next when queued), bottom-left folder + title + thin progress bar (elapsed / remaining, scrub preview) + text chips (Info, Lock, Rotate, Sleep timer), bottom-right speed / audio / subtitle pill. PlayerScreen only calls it; all actions reuse the existing ViewModel methods.
+- Glass here is a translucent fill + border (no real backdrop blur): Haze cannot sample a SurfaceView video, so true blur of the moving video is not possible without a screenshot copy.
