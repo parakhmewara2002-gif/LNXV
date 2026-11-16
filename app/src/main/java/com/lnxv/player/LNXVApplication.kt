@@ -39,9 +39,16 @@ class LNXVApplication : Application(), ImageLoaderFactory {
     @Volatile var screenshotsBlockedGlobally: Boolean = false
     val isPlayerInitialized: Boolean get() = playerManagerDelegate.isInitialized()
 
+    override fun attachBaseContext(base: android.content.Context) {
+        super.attachBaseContext(base)
+        com.lnxv.player.core.crash.CrashReporter.install(this)
+    }
+
     override fun onCreate() {
         super.onCreate()
         instance = this
+        // The ":crash" process only shows CrashActivity; skip Koin/DB/player startup there.
+        if (com.lnxv.player.core.crash.CrashReporter.isCrashProcess(this)) return
         org.koin.core.context.startKoin {
             androidContext(this@LNXVApplication)
             modules(appModule)

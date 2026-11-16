@@ -41,6 +41,13 @@
         tools:targetApi="34">
 
         <profileable android:shell="true" tools:targetApi="29" />
+        <!-- Crash screen in its own process so it can open even if the main app crashes on launch. -->
+        <activity
+            android:name=".core.crash.CrashActivity"
+            android:exported="false"
+            android:process=":crash"
+            android:excludeFromRecents="true"
+            android:theme="@android:style/Theme.DeviceDefault.NoActionBar" />
         <activity
             android:name=".MainActivity"
             android:exported="true"
