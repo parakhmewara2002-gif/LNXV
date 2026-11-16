@@ -75,7 +75,7 @@ fun GlassGroup(
 ) {
     GlassPanel(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(22.dp),
         backgroundColor = appColors.glassFill
     ) {
         Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp), content = content)
@@ -120,7 +120,7 @@ fun GlassTopBar(
         if (onBack != null) {
             GlassIconButton(
                 icon = Icons.Default.ArrowBack,
-                contentDescription = "Back",
+                contentDescription = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.cd_back),
                 onClick = onBack
             )
             Spacer(modifier = Modifier.width(16.dp))
@@ -128,8 +128,9 @@ fun GlassTopBar(
         Text(
             text = title,
             color = appColors.textPrimary,
-            style = Typography.titleLarge,
-            fontWeight = FontWeight.Bold
+            style = Typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = (-0.35).sp
         )
     }
 }

@@ -338,7 +338,7 @@ fun HomeScreen(
                     )
                     .liquidGlassSurface(
                         shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp),
-                        backgroundColor = if (reduceEffects) appColors.barFill else appColors.barFill.copy(alpha = 0.45f),
+                        backgroundColor = if (reduceEffects) appColors.barFill else appColors.barFill.copy(alpha = 0.68f),
                         borderColor = appColors.glassBorder,
                         borderWidth = 1.dp
                     )
@@ -352,7 +352,7 @@ fun HomeScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(
                             modifier = Modifier
-                                .size(36.dp)
+                                .size(40.dp)
                                 .liquidGlassSurface(
                                     shape = CircleShape,
                                     backgroundColor = appColors.accent.copy(alpha = 0.2f),
@@ -367,14 +367,23 @@ fun HomeScreen(
                                 modifier = Modifier.size(20.dp)
                             )
                         }
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Text(
-                            text = "LNXV",
-                            color = appColors.textPrimary,
-                            style = Typography.headlineMedium,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 1.sp
-                        )
+                        Spacer(modifier = Modifier.width(11.dp))
+                        Column(verticalArrangement = Arrangement.Center) {
+                            Text(
+                                text = "LNXV",
+                                color = appColors.textPrimary,
+                                style = Typography.titleLarge,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 1.4.sp
+                            )
+                            Text(
+                                text = "YOUR PERSONAL CINEMA",
+                                color = appColors.textTertiary,
+                                fontSize = 8.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                letterSpacing = 1.25.sp
+                            )
+                        }
                     }
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -462,8 +471,8 @@ fun HomeScreen(
                                 .background(
                                     Brush.horizontalGradient(
                                         listOf(
-                                            appColors.accent.copy(alpha = 0.3f * selectAmount),
-                                            Color(0xFF7C4DFF).copy(alpha = 0.25f * selectAmount)
+                                            appColors.accent.copy(alpha = 0.22f * selectAmount),
+                                            Color(0xFF7C4DFF).copy(alpha = 0.12f * selectAmount)
                                         )
                                     )
                                 )

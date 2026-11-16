@@ -84,3 +84,8 @@ Phases 3, 4, 5, 6 and the LOW RAM / LOW STORAGE rules (A–D).
 - Settings: blurred glass top bar, in-screen search (filters sections), Developer section (system info + copy, reset experimental flags; PIN/vault/theme untouched).
 - Player: gesture HUD is now a glass pill with a progress bar (brightness/volume) and spring-in; controls overlay springs in (both skipped when effects are reduced).
 - Not done: glass applied to Home cards/Vault screens, PlayerScreen controls overlay still inline, PlayerViewModel unit test with a fake controller, Settings is still one scrolling list (no drill-down pages).
+
+
+## iOS-inspired visual redesign pass (2026-11-16)
+
+See [`docs/IOS_VISUAL_REDESIGN.md`](docs/IOS_VISUAL_REDESIGN.md) for exact changes, preserved systems, verification limits, and local build steps.

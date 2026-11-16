@@ -113,7 +113,7 @@ fun VideoItemRow(
             .fillMaxWidth()
             .bouncyClickable(onLongClick = onLongClick) { onClick() }
             .semantics { this.selected = selected },
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(20.dp),
         backgroundColor = if (selected) appColors.accent.copy(alpha = 0.22f) else appColors.glassFill,
         borderColor = if (selected) appColors.accent else appColors.glassBorder
     ) {
@@ -127,8 +127,8 @@ fun VideoItemRow(
             Box(
                 modifier = Modifier
                     .videoSharedBounds(video.id)
-                    .size(width = 110.dp, height = 70.dp)
-                    .clip(RoundedCornerShape(12.dp))
+                    .size(width = 112.dp, height = 74.dp)
+                    .clip(RoundedCornerShape(14.dp))
                     .background(appColors.placeholder)
             ) {
                 AsyncImage(
@@ -344,19 +344,19 @@ fun ContinueWatchingCard(
 ) {
     Box(
         modifier = Modifier
-            .width(200.dp)
+            .width(216.dp)
             .liquidGlassSurface(
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(20.dp),
                 backgroundColor = appColors.glassFill
             )
-            .clickable { onClick() }
+            .bouncyClickable(pressedScale = 0.975f) { onClick() }
     ) {
         Column {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(115.dp)
-                    .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
+                    .height(124.dp)
+                    .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
             ) {
                 AsyncImage(
                     model = ImageRequest.Builder(LocalContext.current)
@@ -394,7 +394,7 @@ fun ContinueWatchingCard(
                     )
                 }
             }
-            Column(modifier = Modifier.padding(10.dp)) {
+            Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 11.dp)) {
                 Text(
                     text = video.title,
                     color = appColors.textPrimary,
@@ -483,7 +483,7 @@ fun VideoGridCard(
         modifier = modifier
             .bouncyClickable(onLongClick = onLongClick) { onClick() }
             .semantics { this.selected = selected },
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(20.dp),
         backgroundColor = if (selected) appColors.accent.copy(alpha = 0.22f) else appColors.glassFill,
         borderColor = if (selected) appColors.accent else appColors.glassBorder
     ) {
@@ -492,8 +492,8 @@ fun VideoGridCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .videoSharedBounds(video.id)
-                    .height(100.dp)
-                    .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
+                    .height(116.dp)
+                    .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
                     .background(appColors.placeholder)
             ) {
                 AsyncImage(
@@ -526,7 +526,7 @@ fun VideoGridCard(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 10.dp, top = 6.dp, bottom = 6.dp),
+                    .padding(start = 12.dp, top = 9.dp, bottom = 9.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
