@@ -15,6 +15,9 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.unit.dp
+import dev.chrisbanes.haze.HazeStyle
+import dev.chrisbanes.haze.LocalHazeStyle
 import androidx.core.view.WindowCompat
 
 private val DarkColorScheme = darkColorScheme(
@@ -86,7 +89,19 @@ fun LNXVTheme(
         }
     }
 
-    CompositionLocalProvider(LocalLNXVColors provides palette, LocalReduceEffects provides reduceEffects) {
+    // Haze 1.0.x throws "backgroundColor not specified" while drawing any hazeChild without an explicit style,
+    // which crashed the app on launch. Provide one default style for every hazeChild in the app.
+    val hazeStyle = HazeStyle(
+        backgroundColor = palette.background,
+        tints = emptyList(),
+        blurRadius = 24.dp,
+        noiseFactor = 0.04f
+    )
+    CompositionLocalProvider(
+        LocalLNXVColors provides palette,
+        LocalReduceEffects provides reduceEffects,
+        LocalHazeStyle provides hazeStyle
+    ) {
         MaterialTheme(
             colorScheme = colorScheme,
             typography = Typography,
@@ -98,7 +113,10 @@ fun LNXVTheme(
 /** The video player is always dark (like most players), whatever theme the rest of the app uses. */
 @Composable
 fun LNXVPlayerTheme(content: @Composable () -> Unit) {
-    CompositionLocalProvider(LocalLNXVColors provides AmoledPalette) {
+    CompositionLocalProvider(
+        LocalLNXVColors provides AmoledPalette,
+        LocalHazeStyle provides HazeStyle(backgroundColor = Color.Black, tints = emptyList(), blurRadius = 24.dp, noiseFactor = 0.04f)
+    ) {
         MaterialTheme(
             colorScheme = DarkColorScheme.copy(background = Color.Black),
             typography = Typography,
