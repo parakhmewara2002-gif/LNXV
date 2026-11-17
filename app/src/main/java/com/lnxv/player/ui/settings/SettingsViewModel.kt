@@ -113,6 +113,8 @@ class SettingsViewModel(
             }
         })
     }
+    fun setDecoderMode(name: String) { viewModelScope.launch { dataStore.updateDecoderMode(name) } }
+    fun setExactSeek(on: Boolean) { viewModelScope.launch { dataStore.updateExactSeek(on) } }
     fun setSubtitleFont(f: String) { viewModelScope.launch { dataStore.updateSubtitleFont(f) } }
     fun setThumbSize(dp: Int) { viewModelScope.launch { dataStore.updateThumbSize(dp) } }
     fun setGestureSensitivity(pct: Int) { viewModelScope.launch { dataStore.updateGestureSensitivity(pct) } }

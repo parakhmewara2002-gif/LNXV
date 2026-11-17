@@ -236,6 +236,34 @@ fun SettingsScreen(
                             }
                         )
                         GlassDivider()
+                        val decoderMode = com.lnxv.player.core.model.DecoderMode.fromName(prefs.decoderMode)
+                        SettingValueRow(
+                            title = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.settings_decoder_title),
+                            subtitle = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.settings_decoder_summary),
+                            value = androidx.compose.ui.res.stringResource(
+                                when (decoderMode) {
+                                    com.lnxv.player.core.model.DecoderMode.AUTO -> com.lnxv.player.R.string.settings_decoder_auto
+                                    com.lnxv.player.core.model.DecoderMode.HARDWARE -> com.lnxv.player.R.string.settings_decoder_hw
+                                    com.lnxv.player.core.model.DecoderMode.SOFTWARE -> com.lnxv.player.R.string.settings_decoder_sw
+                                }
+                            ),
+                            onClick = {
+                                val next = when (decoderMode) {
+                                    com.lnxv.player.core.model.DecoderMode.AUTO -> com.lnxv.player.core.model.DecoderMode.HARDWARE
+                                    com.lnxv.player.core.model.DecoderMode.HARDWARE -> com.lnxv.player.core.model.DecoderMode.SOFTWARE
+                                    com.lnxv.player.core.model.DecoderMode.SOFTWARE -> com.lnxv.player.core.model.DecoderMode.AUTO
+                                }
+                                viewModel.setDecoderMode(next.name)
+                            }
+                        )
+                        GlassDivider()
+                        SettingSwitchRow(
+                            title = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.settings_exact_seek),
+                            subtitle = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.settings_exact_seek_summary),
+                            isChecked = prefs.exactSeek,
+                            onCheckedChange = { viewModel.setExactSeek(it) }
+                        )
+                        GlassDivider()
                         StepRow(
                             androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.settings_sub_size),
                             "${prefs.subtitleTextSize.toInt()} sp",

@@ -121,4 +121,20 @@
     <string name="settings_sub_size">सबटाइटल टेक्स्ट साइज़</string>
     <string name="settings_sub_color">सबटाइटल रंग</string>
     <string name="action_delete">हटाएँ</string>
+    <string name="settings_decoder_title">हार्डवेयर डिकोडिंग</string>
+    <string name="settings_decoder_summary">वीडियो के लिए डिकोडर। ज़्यादातर फ़ाइलों के लिए ऑटो सबसे अच्छा है।</string>
+    <string name="settings_decoder_auto">ऑटो</string>
+    <string name="settings_decoder_hw">केवल हार्डवेयर</string>
+    <string name="settings_decoder_sw">सॉफ़्टवेयर को प्राथमिकता</string>
+    <string name="settings_exact_seek">सटीक सीक</string>
+    <string name="settings_exact_seek_summary">ड्रैग के बाद सटीक फ़्रेम पर पहुँचें। बंद करने पर तेज़ है, पर कीफ़्रेम पर रुकता है।</string>
+    <string name="decoder_fallback_toast">इस वीडियो के लिए सॉफ़्टवेयर डिकोडिंग पर स्विच किया गया</string>
+    <string name="decoder_tap_cycle">इस वीडियो के लिए बदलने हेतु टैप करें</string>
+    <string name="audio_boost_warning">150% से ऊपर बूस्ट से आवाज़ बिगड़ सकती है और स्पीकर खराब हो सकते हैं</string>
+    <string name="menu_volume_boost">वॉल्यूम बूस्ट: %1$s (बदलने के लिए टैप करें)</string>
+    <string name="stats_header">तकनीकी आँकड़े</string>
+    <string name="stats_na">उपलब्ध नहीं</string>
+    <string name="stats_hw">HW</string>
+    <string name="stats_sw">SW</string>
+    <string name="stats_fallback_used">त्रुटियों के बाद सॉफ़्टवेयर पर स्विच किया गया</string>
 </resources>

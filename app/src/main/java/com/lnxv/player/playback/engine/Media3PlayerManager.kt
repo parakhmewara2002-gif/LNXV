@@ -21,7 +21,16 @@ import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import com.lnxv.player.core.model.ABRepeatState
 import com.lnxv.player.core.model.AspectRatioMode
 import com.lnxv.player.core.model.AudioTrackInfo
+import com.lnxv.player.core.model.BufferProfiles
+import com.lnxv.player.core.model.CodecQuirks
+import com.lnxv.player.core.model.DecoderFallbackPolicy
 import com.lnxv.player.core.model.DecoderMode
+import com.lnxv.player.core.model.DecoderNames
+import com.lnxv.player.core.model.DecoderSelection
+import com.lnxv.player.core.model.PlayerStats
+import com.lnxv.player.core.model.RememberedTracks
+import com.lnxv.player.core.model.SeekMode
+import com.lnxv.player.core.model.SeekPolicy
 import com.lnxv.player.core.model.PlaybackState
 import com.lnxv.player.core.model.SubtitleTrackInfo
 import com.lnxv.player.core.util.SeekMath
@@ -52,6 +61,23 @@ class Media3PlayerManager(private val context: Context) : PlayerController, Play
 
     private val audioDelayProcessor = AudioDelayProcessor()
 
+    // --- Decoder selection (Settings > Playback > Hardware decoding; per-video override) ---
+    @Volatile private var decoderModeValue = DecoderMode.AUTO
+    private val fallbackPolicy = DecoderFallbackPolicy()
+    /** decoder name -> isSoftware, filled by the selector so the stats panel can say HW / SW reliably. */
+    private val decoderIsSoftware = java.util.concurrent.ConcurrentHashMap<String, Boolean>()
+
+    private fun isHardwareDecoder(info: androidx.media3.exoplayer.mediacodec.MediaCodecInfo) =
+        info.hardwareAccelerated && !info.softwareOnly
+
+    private val codecSelector = androidx.media3.exoplayer.mediacodec.MediaCodecSelector { mimeType, secure, tunneling ->
+        val all = androidx.media3.exoplayer.mediacodec.MediaCodecSelector.DEFAULT.getDecoderInfos(mimeType, secure, tunneling)
+        all.forEach { decoderIsSoftware[it.name] = !isHardwareDecoder(it) }
+        val usable = all.filterNot { CodecQuirks.isBlocked(CodecQuirks.KNOWN, android.os.Build.HARDWARE, it.name, mimeType) }
+            .ifEmpty { all } // never block every decoder: a quirk table must not turn "plays badly" into "does not play"
+        DecoderSelection.order(decoderModeValue, usable) { isHardwareDecoder(it) }
+    }
+
     private val renderersFactory = object : DefaultRenderersFactory(context) {
         override fun buildAudioSink(
             context: Context,
@@ -66,6 +92,7 @@ class Media3PlayerManager(private val context: Context) : PlayerController, Play
     }.apply {
         setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
         setEnableDecoderFallback(true) // Software decoding fallback when hardware decoding fails
+        setMediaCodecSelector(codecSelector)
     }
 
     private val _audioDelayMs = MutableStateFlow(0L)
@@ -78,18 +105,23 @@ class Media3PlayerManager(private val context: Context) : PlayerController, Play
         _audioDelayMs.value = v
     }
 
-    // Rule C: small buffers (local files need little read-ahead); lower again on low-RAM devices.
-    private val loadControl = run {
-        val lowRam = (context.getSystemService(Context.ACTIVITY_SERVICE) as? android.app.ActivityManager)?.isLowRamDevice == true
-        androidx.media3.exoplayer.DefaultLoadControl.Builder()
-            .setBufferDurationsMs(
-                if (lowRam) 8_000 else 15_000,
-                if (lowRam) 20_000 else 40_000,
-                1_500, 3_000
-            )
-            .setTargetBufferBytes(if (lowRam) 16 * 1024 * 1024 else 32 * 1024 * 1024)
+    // Rule C: small buffers for local files (fast seek, low RAM), deeper buffers for network streams.
+    // ExoPlayer fixes its LoadControl at build time, so one switching proxy picks the profile per source.
+    private val lowRam = (context.getSystemService(Context.ACTIVITY_SERVICE) as? android.app.ActivityManager)?.isLowRamDevice == true
+    private fun buildLoadControl(network: Boolean): androidx.media3.exoplayer.DefaultLoadControl {
+        val p = BufferProfiles.forSource(network, lowRam)
+        return androidx.media3.exoplayer.DefaultLoadControl.Builder()
+            .setBufferDurationsMs(p.minBufferMs, p.maxBufferMs, p.playbackBufferMs, p.rebufferMs)
+            .setTargetBufferBytes(p.targetBytes)
             .build()
     }
+    private val localLoadControl = buildLoadControl(network = false)
+    private val networkLoadControl = buildLoadControl(network = true)
+    @Volatile private var networkSource = false
+    private val loadControl: androidx.media3.exoplayer.LoadControl =
+        SwitchingProxy.create(androidx.media3.exoplayer.LoadControl::class.java) {
+            if (networkSource) networkLoadControl else localLoadControl
+        }
 
     val exoPlayer: ExoPlayer = ExoPlayer.Builder(context, renderersFactory)
         .setLoadControl(loadControl)
@@ -203,6 +235,7 @@ class Media3PlayerManager(private val context: Context) : PlayerController, Play
     }
 
     override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+        if (handleDecoderFailure(error)) return
         _playbackError.value = when (error.errorCode) {
             androidx.media3.common.PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
             androidx.media3.common.PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT ->
@@ -293,6 +326,11 @@ class Media3PlayerManager(private val context: Context) : PlayerController, Play
     ) {
         externalSubtitleSource = null
         _playbackError.value = null
+        fallbackPolicy.reset()
+        diagnostics.resetPlaybackCounters()
+        pendingRemembered = null
+        pendingRememberedAttempts = 0
+        networkSource = BufferProfiles.isNetwork(uri.scheme)
         if (_audioOnly.value) setAudioOnly(false) // audio-only applies per video
         if (!_videoColor.value.isNeutral) setVideoColor(com.lnxv.player.core.model.VideoColor()) // colour tweaks apply per video
         _subtitleDelayMs.value = 0L
@@ -466,8 +504,55 @@ class Media3PlayerManager(private val context: Context) : PlayerController, Play
         _playbackState.update { it.copy(aspectRatio = mode) }
     }
 
-    override fun setDecoderMode(mode: DecoderMode) {
+    override fun presetDecoderMode(mode: DecoderMode) {
+        decoderModeValue = mode
         _playbackState.update { it.copy(decoderMode = mode) }
+    }
+
+    /** User changed the decoder mode: apply it to the playing video by re-preparing at the same position. */
+    override fun setDecoderMode(mode: DecoderMode) {
+        val changed = mode != decoderModeValue
+        presetDecoderMode(mode)
+        fallbackPolicy.reset()
+        if (changed && exoPlayer.currentMediaItem != null) reprepareInPlace()
+    }
+
+    private fun reprepareInPlace() {
+        val item = exoPlayer.currentMediaItem ?: return
+        val position = exoPlayer.currentPosition
+        val playWhenReady = exoPlayer.playWhenReady
+        exoPlayer.setMediaItem(item, position)
+        exoPlayer.prepare()
+        exoPlayer.playWhenReady = playWhenReady
+    }
+
+    override var onDecoderFallback: (() -> Unit)? = null
+
+    /** @return true when the error was a decoder problem that was handled by retrying (no error is shown). */
+    private fun handleDecoderFailure(error: androidx.media3.common.PlaybackException): Boolean {
+        val action = when (error.errorCode) {
+            androidx.media3.common.PlaybackException.ERROR_CODE_DECODER_INIT_FAILED,
+            androidx.media3.common.PlaybackException.ERROR_CODE_DECODING_FORMAT_EXCEEDS_CAPABILITIES ->
+                fallbackPolicy.onDecoderInitFailed(decoderModeValue)
+            androidx.media3.common.PlaybackException.ERROR_CODE_DECODING_FAILED ->
+                fallbackPolicy.onDecodeError(decoderModeValue, exoPlayer.currentPosition)
+            else -> return false
+        }
+        diagnostics.note("decoder failure ${error.errorCodeName} (mode=$decoderModeValue) -> $action")
+        return when (action) {
+            DecoderFallbackPolicy.Action.RETRY_SAME -> {
+                exoPlayer.prepare()
+                true
+            }
+            DecoderFallbackPolicy.Action.RETRY_SOFTWARE -> {
+                presetDecoderMode(DecoderMode.SOFTWARE)
+                exoPlayer.prepare()
+                android.widget.Toast.makeText(context, context.getString(com.lnxv.player.R.string.decoder_fallback_toast), android.widget.Toast.LENGTH_LONG).show()
+                onDecoderFallback?.invoke()
+                true
+            }
+            else -> false
+        }
     }
 
     override fun toggleScreenLock() {
@@ -548,6 +633,7 @@ class Media3PlayerManager(private val context: Context) : PlayerController, Play
 
     // --- Track Selection (Audio & Subtitle) ---
     override fun selectAudioTrack(track: AudioTrackInfo) {
+        if (!applyingRemembered) onAudioTrackChosen?.invoke(track.id)
         val currentTracks = exoPlayer.currentTracks
         for (group in currentTracks.groups) {
             if (group.type == C.TRACK_TYPE_AUDIO) {
@@ -567,6 +653,7 @@ class Media3PlayerManager(private val context: Context) : PlayerController, Play
     }
 
     override fun selectSubtitleTrack(track: SubtitleTrackInfo?) {
+        if (!applyingRemembered) onSubtitleChosen?.invoke(track?.id, track == null)
         if (track == null) {
             // Turn off subtitles
             trackSelector.setParameters(
@@ -619,6 +706,7 @@ class Media3PlayerManager(private val context: Context) : PlayerController, Play
 
     override fun onTracksChanged(tracks: Tracks) {
         updateTrackLists(tracks)
+        tryApplyRemembered()
     }
 
     private fun updateTrackLists(tracks: Tracks) {
@@ -692,6 +780,106 @@ class Media3PlayerManager(private val context: Context) : PlayerController, Play
                 delay(if (exoPlayer.isPlaying) 250L else 1000L)
             }
         }
+    }
+
+    // --- Seek quality: keyframe seeks while the user drags, exact seek on release (toggle in Settings) ---
+    @Volatile private var scrubbing = false
+    @Volatile private var exactSeekEnabled = true
+    private var lastScrubSeekMs = 0L
+
+    private fun applySeekParameters() {
+        exoPlayer.setSeekParameters(
+            when (SeekPolicy.modeFor(scrubbing, exactSeekEnabled)) {
+                SeekMode.CLOSEST_SYNC -> androidx.media3.exoplayer.SeekParameters.CLOSEST_SYNC
+                SeekMode.EXACT -> androidx.media3.exoplayer.SeekParameters.EXACT
+            }
+        )
+    }
+
+    override fun setExactSeek(enabled: Boolean) {
+        exactSeekEnabled = enabled
+        applySeekParameters()
+    }
+
+    override fun beginScrub() {
+        scrubbing = true
+        lastScrubSeekMs = 0L
+        applySeekParameters()
+    }
+
+    /** Live preview seek while dragging (throttled; silently ignored for unseekable files). */
+    override fun scrubTo(positionMs: Long) {
+        if (!scrubbing || !exoPlayer.isCurrentMediaItemSeekable) return
+        val now = android.os.SystemClock.elapsedRealtime()
+        if (now - lastScrubSeekMs < SCRUB_SEEK_INTERVAL_MS) return
+        lastScrubSeekMs = now
+        exoPlayer.seekTo(SeekMath.clamp(positionMs, exoPlayer.duration))
+    }
+
+    /** Call before the final [seekTo] so that seek uses the exact (or user-chosen) parameters. */
+    override fun endScrub() {
+        scrubbing = false
+        applySeekParameters()
+    }
+
+    // --- Remembered audio/subtitle choices (per video, stored by the ViewModel) ---
+    override var onAudioTrackChosen: ((String) -> Unit)? = null
+    override var onSubtitleChosen: ((String?, Boolean) -> Unit)? = null
+    private var pendingRemembered: RememberedTracks? = null
+    private var pendingRememberedAttempts = 0
+    private var applyingRemembered = false
+
+    override fun applyRememberedTracks(remembered: RememberedTracks?) {
+        pendingRemembered = remembered?.takeIf { !it.isEmpty }
+        pendingRememberedAttempts = 0
+        tryApplyRemembered()
+    }
+
+    private fun tryApplyRemembered() {
+        val r = pendingRemembered ?: return
+        val audio = _audioTracks.value
+        val subs = _subtitleTracks.value
+        if (audio.isEmpty() && subs.isEmpty()) return // tracks not loaded yet
+        applyingRemembered = true
+        try {
+            r.audioToApply(audio)?.let { selectAudioTrack(it) }
+            if (r.subtitlesOff) selectSubtitleTrack(null) else r.subtitleToApply(subs)?.let { selectSubtitleTrack(it) }
+        } finally {
+            applyingRemembered = false
+        }
+        if (r.isResolvable(audio, subs) || ++pendingRememberedAttempts >= MAX_REMEMBER_ATTEMPTS) pendingRemembered = null
+    }
+
+    // --- Stats for nerds ---
+    private fun isSoftwareDecoder(name: String): Boolean = decoderIsSoftware[name] ?: DecoderNames.looksSoftware(name)
+
+    override fun statsSnapshot(): PlayerStats {
+        val v = exoPlayer.videoFormat
+        val a = exoPlayer.audioFormat
+        val videoDecoder = diagnostics.videoDecoderName
+        val audioDecoder = diagnostics.audioDecoderName
+        return PlayerStats(
+            videoCodec = v?.sampleMimeType,
+            videoDecoder = videoDecoder,
+            videoIsSoftware = videoDecoder?.let { isSoftwareDecoder(it) },
+            width = v?.width?.coerceAtLeast(0) ?: 0,
+            height = v?.height?.coerceAtLeast(0) ?: 0,
+            frameRate = v?.frameRate?.takeIf { it > 0f } ?: 0f,
+            videoBitrateBps = v?.let { it.bitrate.takeIf { b -> b > 0 } ?: it.averageBitrate.takeIf { b -> b > 0 } } ?: 0,
+            droppedFrames = diagnostics.droppedFrameCount,
+            audioCodec = a?.sampleMimeType,
+            audioDecoder = audioDecoder,
+            audioIsSoftware = audioDecoder?.let { isSoftwareDecoder(it) },
+            audioBitrateBps = a?.let { it.bitrate.takeIf { b -> b > 0 } ?: it.averageBitrate.takeIf { b -> b > 0 } } ?: 0,
+            decoderMode = decoderModeValue,
+            softwareFallbackUsed = fallbackPolicy.softwareFallbackUsed,
+            bufferedAheadMs = (exoPlayer.bufferedPosition - exoPlayer.currentPosition).coerceAtLeast(0L)
+        )
+    }
+
+    private companion object {
+        const val SCRUB_SEEK_INTERVAL_MS = 90L
+        const val MAX_REMEMBER_ATTEMPTS = 3
     }
 
     fun release() {

@@ -210,6 +210,15 @@ fun BoxScope.PlayerSidePanels(
         )
     }
 
+    // Stats refresh once a second, but only while the panel is open.
+    var liveStats by remember { mutableStateOf(viewModel.stats()) }
+    androidx.compose.runtime.LaunchedEffect(uiState.showPropertiesDialog) {
+        while (uiState.showPropertiesDialog) {
+            liveStats = viewModel.stats()
+            kotlinx.coroutines.delay(1000L)
+        }
+    }
+
     PlayerSidePanel(
         visible = uiState.showPropertiesDialog,
         title = "Video Properties",
@@ -221,6 +230,8 @@ fun BoxScope.PlayerSidePanels(
             PropertiesBottomSheet(
                 video = video,
                 streamInfo = viewModel.describeStream(),
+                stats = liveStats,
+                onCycleDecoder = { viewModel.cycleDecoderMode() },
                 onCopyReport = {
                     reportScope.launch {
                         val report = viewModel.buildDiagnosticsReport()
