@@ -65,6 +65,18 @@ class DiagnosticsCollector(private val context: Context) {
     @Volatile private var droppedFrames = 0L
     @Volatile private var lastError: String? = null
 
+    val videoDecoderName: String? get() = videoDecoder
+    val audioDecoderName: String? get() = audioDecoder
+    val droppedFrameCount: Long get() = droppedFrames
+
+    /** Called when a new video starts, so decoder names and dropped frames describe the current video only. */
+    fun resetPlaybackCounters() {
+        videoDecoder = null
+        audioDecoder = null
+        droppedFrames = 0L
+        lastError = null
+    }
+
     fun note(message: String) {
         val t = (SystemClock.elapsedRealtime() - startMs) / 1000.0
         synchronized(log) {

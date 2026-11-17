@@ -125,4 +125,20 @@
     <string name="settings_sub_size">Subtitle Text Size</string>
     <string name="settings_sub_color">Subtitle Color</string>
     <string name="action_delete">Delete</string>
+    <string name="settings_decoder_title">Hardware decoding</string>
+    <string name="settings_decoder_summary">Decoder used for video. Auto is best for most files.</string>
+    <string name="settings_decoder_auto">Auto</string>
+    <string name="settings_decoder_hw">Hardware only</string>
+    <string name="settings_decoder_sw">Software preferred</string>
+    <string name="settings_exact_seek">Exact seek</string>
+    <string name="settings_exact_seek_summary">Land on the exact frame after dragging. Off is faster but snaps to keyframes.</string>
+    <string name="decoder_fallback_toast">Switched to software decoding for this video</string>
+    <string name="decoder_tap_cycle">Tap to change for this video</string>
+    <string name="audio_boost_warning">Boost above 150% can distort sound and damage speakers</string>
+    <string name="menu_volume_boost">Volume boost: %1$s (tap to change)</string>
+    <string name="stats_header">Stats for nerds</string>
+    <string name="stats_na">n/a</string>
+    <string name="stats_hw">HW</string>
+    <string name="stats_sw">SW</string>
+    <string name="stats_fallback_used">Switched to software after errors</string>
 </resources>

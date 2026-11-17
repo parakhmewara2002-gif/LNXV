@@ -71,7 +71,10 @@ fun PlayerMoreMenuItems(
             )
             val boost by viewModel.boostMb.collectAsState()
             PlayerMenuItem(
-                text = { Text("Volume boost: ${if (boost == 0) "off" else "+${boost / 100} dB"} (tap to change)") },
+                text = {
+                    val pct = viewModel.boostPercent(boost)
+                    Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.menu_volume_boost, if (pct <= 100) "off" else "$pct%"))
+                },
                 onClick = { viewModel.cycleBoost() }
             )
         }

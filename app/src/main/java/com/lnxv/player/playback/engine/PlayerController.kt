@@ -6,6 +6,8 @@ import com.lnxv.player.core.model.AudioTrackInfo
 import com.lnxv.player.core.model.DecoderMode
 import com.lnxv.player.core.model.EqPreset
 import com.lnxv.player.core.model.PlaybackState
+import com.lnxv.player.core.model.PlayerStats
+import com.lnxv.player.core.model.RememberedTracks
 import com.lnxv.player.core.model.SubtitleTrackInfo
 import com.lnxv.player.core.model.VideoItem
 import kotlinx.coroutines.flow.StateFlow
@@ -42,7 +44,24 @@ interface PlayerController {
     fun stopSpeedPreview()
     fun setSkipSilence(enabled: Boolean)
     fun setAspectRatio(mode: AspectRatioMode)
+    /** User changed the decoder mode while a video is loaded: re-prepares at the same position. */
     fun setDecoderMode(mode: DecoderMode)
+    /** Sets the mode for the NEXT [prepareAndPlay] without touching the current media. */
+    fun presetDecoderMode(mode: DecoderMode)
+    /** Called once when Auto mode fell back to software decoding for the current video. */
+    var onDecoderFallback: (() -> Unit)?
+
+    fun setExactSeek(enabled: Boolean)
+    fun beginScrub()
+    fun scrubTo(positionMs: Long)
+    fun endScrub()
+
+    var onAudioTrackChosen: ((String) -> Unit)?
+    /** (trackId, subtitlesOff): trackId is null when the user switched subtitles off. */
+    var onSubtitleChosen: ((String?, Boolean) -> Unit)?
+    fun applyRememberedTracks(remembered: RememberedTracks?)
+
+    fun statsSnapshot(): PlayerStats
     fun toggleScreenLock()
     fun setPointA()
     fun setPointB()

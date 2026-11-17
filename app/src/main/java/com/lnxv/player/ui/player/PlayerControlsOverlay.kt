@@ -305,8 +305,13 @@ private fun ScrubSection(
         ThinTrack(
             fraction = dragFraction ?: SeekMath.positionToFraction(positionMs, duration),
             enabled = duration > 0 && playbackState.isSeekable,
-            onChange = { dragFraction = it },
+            onChange = {
+                dragFraction = it
+                viewModel.scrubTo(SeekMath.fractionToPosition(it, duration)) // no-op unless a drag began (keyframe preview seek)
+            },
+            onScrubStart = { viewModel.beginScrub() },
             onFinished = {
+                viewModel.endScrub() // switch back to exact seek parameters before the final seek
                 dragFraction?.let { f -> viewModel.seekTo(SeekMath.fractionToPosition(f, duration)) }
                 dragFraction = null
             },
@@ -385,12 +390,14 @@ private fun ThinTrack(
     onChange: (Float) -> Unit,
     onFinished: () -> Unit,
     modifier: Modifier = Modifier,
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    onScrubStart: () -> Unit = {}
 ) {
     var dragging by remember { mutableStateOf(false) }
     val trackHeight by animateDpAsState(if (dragging) 10.dp else 5.dp, label = "track_height")
     val currentOnChange by rememberUpdatedState(onChange)
     val currentOnFinished by rememberUpdatedState(onFinished)
+    val currentOnScrubStart by rememberUpdatedState(onScrubStart)
     Box(
         modifier = modifier
             .height(32.dp)
@@ -406,6 +413,7 @@ private fun ThinTrack(
                 detectHorizontalDragGestures(
                     onDragStart = { start ->
                         dragging = true
+                        currentOnScrubStart()
                         currentOnChange((start.x / size.width).coerceIn(0f, 1f))
                     },
                     onDragEnd = {

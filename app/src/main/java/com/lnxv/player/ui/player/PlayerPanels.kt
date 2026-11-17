@@ -626,6 +626,8 @@ private fun DelayStepButton(label: String, onClick: () -> Unit) {
 fun PropertiesBottomSheet(
     video: VideoItem,
     streamInfo: List<Pair<String, String>>,
+    stats: com.lnxv.player.core.model.PlayerStats,
+    onCycleDecoder: () -> Unit,
     onCopyReport: () -> Unit,
     onShareReport: () -> Unit
 ) {
@@ -647,6 +649,44 @@ fun PropertiesBottomSheet(
         streamInfo.forEach { (label, value) -> PropertyRow(label = label, value = value) }
     }
     Spacer(modifier = Modifier.height(10.dp))
+    Text(
+        text = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.stats_header),
+        color = Color.White.copy(alpha = 0.6f),
+        fontSize = 12.sp,
+        modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
+    )
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(RowIdle)
+            .border(1.dp, RowIdleBorder, shape)
+            .padding(horizontal = 14.dp, vertical = 6.dp)
+    ) {
+        val na = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.stats_na)
+        val hw = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.stats_hw)
+        val sw = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.stats_sw)
+        fun kind(isSoftware: Boolean?) = when (isSoftware) { true -> sw; false -> hw; null -> na }
+        PropertyRow("Video decoder", (stats.videoDecoder ?: na) + " [" + kind(stats.videoIsSoftware) + "]")
+        PropertyRow("Video codec", stats.videoCodec ?: na)
+        PropertyRow("Resolution / fps", if (stats.width > 0) "${stats.width}x${stats.height}" + (if (stats.frameRate > 0f) " @ " + "%.2f".format(stats.frameRate) else "") else na)
+        PropertyRow("Video bitrate", if (stats.videoBitrateBps > 0) "%.2f Mbps".format(stats.videoBitrateBps / 1_000_000f) else na)
+        PropertyRow("Dropped frames", stats.droppedFrames.toString())
+        PropertyRow("Audio decoder", (stats.audioDecoder ?: na) + " [" + kind(stats.audioIsSoftware) + "]")
+        PropertyRow("Audio codec", stats.audioCodec ?: na)
+        PropertyRow("Buffered ahead", "%.1f s".format(stats.bufferedAheadMs / 1000f))
+        if (stats.softwareFallbackUsed) {
+            PropertyRow("Decoder fallback", androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.stats_fallback_used))
+        }
+    }
+    Spacer(modifier = Modifier.height(10.dp))
+    PanelOptionRow(
+        label = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.settings_decoder_title) + ": " + stats.decoderMode.displayName,
+        subtitle = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.decoder_tap_cycle),
+        selected = false,
+        icon = Icons.Default.Info,
+        onClick = onCycleDecoder
+    )
     PanelOptionRow(
         label = "Copy diagnostic report",
         subtitle = "Paste it in the chat to get help",

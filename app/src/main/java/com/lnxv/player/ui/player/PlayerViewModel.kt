@@ -56,9 +56,12 @@ class PlayerViewModel(
     private val videoRepository: com.lnxv.player.data.repository.VideoRepository,
     private val dataStore: com.lnxv.player.core.datastore.UserPreferencesDataStore,
     private val vaultRepository: com.lnxv.player.data.repository.VaultRepository,
-    private val session: com.lnxv.player.core.session.SessionState
+    private val session: com.lnxv.player.core.session.SessionState,
+    private val videoPrefs: com.lnxv.player.data.repository.VideoPrefsRepository
 ) : AndroidViewModel(application) {
     private var pendingSpeed = 1.0f
+    private var pendingDecoder = DecoderMode.AUTO
+    private var pendingTracks: com.lnxv.player.core.model.RememberedTracks? = null
     private var closed = false
 
     val userPrefs: StateFlow<UserPreferences> = dataStore.userPreferencesFlow.stateIn(
@@ -82,9 +85,19 @@ class PlayerViewModel(
     val videoColor: StateFlow<com.lnxv.player.core.model.VideoColor> = playerManager.videoColor
     fun setVideoColor(c: com.lnxv.player.core.model.VideoColor) = playerManager.setVideoColor(c)
     val boostMb: StateFlow<Int> = playerManager.boostMb
-    fun cycleBoost() = playerManager.setBoostMb(
-        when (playerManager.boostMb.value) { 0 -> 300; 300 -> 600; 600 -> 900; else -> 0 }
-    )
+    /** Boost in percent (100 = off) for the menu label. */
+    fun boostPercent(mb: Int): Int = com.lnxv.player.core.model.AudioBoost.mbToPercent(mb)
+    fun cycleBoost() {
+        val next = com.lnxv.player.core.model.AudioBoost.next(boostPercent(playerManager.boostMb.value))
+        playerManager.setBoostMb(com.lnxv.player.core.model.AudioBoost.percentToMb(next))
+        if (com.lnxv.player.core.model.AudioBoost.needsWarning(next)) {
+            android.widget.Toast.makeText(
+                getApplication<Application>(),
+                getApplication<Application>().getString(com.lnxv.player.R.string.audio_boost_warning),
+                android.widget.Toast.LENGTH_LONG
+            ).show()
+        }
+    }
     fun cycleEqPreset() = playerManager.setEqPreset(playerManager.eqPreset.value.next())
 
     fun resetAudioDelay() = playerManager.setAudioDelayMs(0L)
@@ -96,7 +109,26 @@ class PlayerViewModel(
     private val _queueUi = MutableStateFlow(QueueUi())
     val queueUi: StateFlow<QueueUi> = _queueUi.asStateFlow()
 
+    /** Vault, transient ("Open with") and network-stream videos are never remembered. */
+    private fun rememberableId(video: VideoItem?): Long? =
+        video?.takeIf { !it.isVault && it.id > 0L && it.folderPath != "Network Streams" }?.id
+
     init {
+        playerManager.onDecoderFallback = {
+            if (playerManager.owner === this) rememberableId(_uiState.value.currentVideo)?.let { id ->
+                viewModelScope.launch { videoPrefs.setDecoder(id, DecoderMode.SOFTWARE) }
+            }
+        }
+        playerManager.onAudioTrackChosen = { trackId ->
+            if (playerManager.owner === this) rememberableId(_uiState.value.currentVideo)?.let { id ->
+                viewModelScope.launch { videoPrefs.setAudioTrack(id, trackId) }
+            }
+        }
+        playerManager.onSubtitleChosen = { trackId, off ->
+            if (playerManager.owner === this) rememberableId(_uiState.value.currentVideo)?.let { id ->
+                viewModelScope.launch { videoPrefs.setSubtitle(id, trackId, off) }
+            }
+        }
         // Auto-play next: when the current item ends, advance the queue (repeat-one is handled by ExoPlayer itself).
         viewModelScope.launch {
             playerManager.playbackState.map { it.isEnded }.distinctUntilChanged().collect { ended ->
@@ -181,6 +213,10 @@ class PlayerViewModel(
             session.playingVaultItem = video.isVault
             playerManager.owner = this@PlayerViewModel
             val prefs = dataStore.userPreferencesFlow.first()
+            val remembered = rememberableId(video)?.let { videoPrefs.get(it) }
+            pendingDecoder = remembered?.decoderOverride ?: DecoderMode.fromName(prefs.decoderMode)
+            pendingTracks = remembered?.tracks
+            playerManager.setExactSeek(prefs.exactSeek)
             val last = video.lastPositionMs
             val canResume = last > 5_000L && (video.durationMs <= 0L || last < video.durationMs - 5_000L)
             val perVideo = if (prefs.isEnabled(com.lnxv.player.core.flags.FeatureFlag.PER_VIDEO_SPEED) && !video.isVault)
@@ -202,11 +238,13 @@ class PlayerViewModel(
 
     private fun startPlayback(video: VideoItem, positionMs: Long, speed: Float) {
         // Vault videos never expose their real title to notification / lock-screen / Bluetooth metadata.
+        playerManager.presetDecoderMode(pendingDecoder)
         playerManager.prepareAndPlay(
             uri = video.uri,
             startPositionMs = positionMs,
             title = if (video.isVault) "Private video" else video.title
         )
+        playerManager.applyRememberedTracks(pendingTracks)
         playerManager.setPlaybackSpeed(speed)
         playerManager.setSkipSilence(userPrefs.value.isEnabled(com.lnxv.player.core.flags.FeatureFlag.SKIP_SILENCE))
     }
@@ -241,6 +279,8 @@ class PlayerViewModel(
             folderName = "Network"
         )
         _uiState.value = _uiState.value.copy(currentVideo = dummyVideo)
+        playerManager.setExactSeek(userPrefs.value.exactSeek)
+        playerManager.presetDecoderMode(DecoderMode.fromName(userPrefs.value.decoderMode))
         playerManager.prepareAndPlay(uri, title = title)
     }
 
@@ -267,7 +307,26 @@ class PlayerViewModel(
 
     fun setAspectRatio(mode: AspectRatioMode) = playerManager.setAspectRatio(mode)
 
-    fun setDecoderMode(mode: DecoderMode) = playerManager.setDecoderMode(mode)
+    fun setDecoderMode(mode: DecoderMode) {
+        playerManager.setDecoderMode(mode)
+        rememberableId(_uiState.value.currentVideo)?.let { id -> viewModelScope.launch { videoPrefs.setDecoder(id, mode) } }
+    }
+
+    /** Auto -> Hardware only -> Software preferred -> Auto, for this video only. */
+    fun cycleDecoderMode() {
+        val next = when (playerManager.playbackState.value.decoderMode) {
+            DecoderMode.AUTO -> DecoderMode.HARDWARE
+            DecoderMode.HARDWARE -> DecoderMode.SOFTWARE
+            DecoderMode.SOFTWARE -> DecoderMode.AUTO
+        }
+        setDecoderMode(next)
+    }
+
+    fun stats(): com.lnxv.player.core.model.PlayerStats = playerManager.statsSnapshot()
+
+    fun beginScrub() = playerManager.beginScrub()
+    fun scrubTo(positionMs: Long) = playerManager.scrubTo(positionMs)
+    fun endScrub() = playerManager.endScrub()
 
     fun toggleScreenLock() = playerManager.toggleScreenLock()
 
@@ -376,6 +435,11 @@ class PlayerViewModel(
 
     override fun onCleared() {
         super.onCleared()
+        if (playerManager.owner === this) {
+            playerManager.onDecoderFallback = null
+            playerManager.onAudioTrackChosen = null
+            playerManager.onSubtitleChosen = null
+        }
         closePlayer()
     }
 }

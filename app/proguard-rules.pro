@@ -13,3 +13,6 @@
 # Kotlin Coroutines
 -keepnames class kotlinx.coroutines.internal.MainDispatcherFactory {}
 -keepnames class kotlinx.coroutines.CoroutineExceptionHandler {}
+
+# Per-source buffering: a java.lang.reflect.Proxy forwards calls on this interface (SwitchingProxy).
+-keep interface androidx.media3.exoplayer.LoadControl { *; }
