@@ -16,8 +16,14 @@ enum class AspectRatioMode(val displayName: String) {
 }
 
 enum class DecoderMode(val displayName: String) {
-    HARDWARE("Hardware (HW)"),
-    SOFTWARE("Software (SW)")
+    AUTO("Auto"),
+    HARDWARE("Hardware only"),
+    SOFTWARE("Software preferred");
+
+    companion object {
+        /** Tolerant parse for values read from DataStore / Room; unknown or null falls back to [AUTO]. */
+        fun fromName(name: String?): DecoderMode = values().firstOrNull { it.name == name } ?: AUTO
+    }
 }
 
 @Immutable
@@ -68,7 +74,7 @@ data class PlaybackState(
     val isEnded: Boolean = false,
     val volume: Float = 1.0f,
     val aspectRatio: AspectRatioMode = AspectRatioMode.FIT,
-    val decoderMode: DecoderMode = DecoderMode.HARDWARE,
+    val decoderMode: DecoderMode = DecoderMode.AUTO,
     val isScreenLocked: Boolean = false,
     val isSeekable: Boolean = true,
     val abRepeat: ABRepeatState = ABRepeatState(),
