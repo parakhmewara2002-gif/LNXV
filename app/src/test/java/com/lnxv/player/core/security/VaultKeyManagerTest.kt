@@ -46,4 +46,22 @@ class VaultKeyManagerTest {
         assertFalse(f.exists())
         assertFalse(m.isUnlocked)
     }
+
+    @Test fun unlockWithRawMatchesPinPathKeyAndCopiesInput() {
+        val (m, _) = newManager()
+        m.ensureKey()
+        m.unlock()
+        val key = m.requireKey()
+        m.lock()
+        val raw = key.copyOf()
+        m.unlockWithRaw(raw)
+        raw.fill(0) // caller zeroes its copy; the session key must be unaffected
+        assertArrayEquals(key, m.requireKey())
+    }
+
+    @Test fun unlockWithRawRejectsWrongSize() {
+        val (m, _) = newManager()
+        try { m.unlockWithRaw(ByteArray(16)); fail() } catch (_: IllegalArgumentException) {}
+        assertFalse(m.isUnlocked)
+    }
 }
