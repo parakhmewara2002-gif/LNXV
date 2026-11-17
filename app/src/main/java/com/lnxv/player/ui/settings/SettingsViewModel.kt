@@ -87,7 +87,32 @@ class SettingsViewModel(
         viewModelScope.launch { dataStore.updateSubtitleSize(size.coerceIn(10f, 32f)) }
     }
 
-    fun setVaultBiometric(on: Boolean) { viewModelScope.launch { dataStore.updateVaultBiometric(on) } }
+    private val vaultRepo get() = (app as com.lnxv.player.LNXVApplication).vaultRepository
+
+    fun setVaultBiometric(on: Boolean) {
+        viewModelScope.launch {
+            if (!on) vaultRepo.clearBiometric()
+            dataStore.updateVaultBiometric(on)
+        }
+    }
+
+    private fun toast(msg: String) = android.widget.Toast.makeText(app, msg, android.widget.Toast.LENGTH_LONG).show()
+
+    /** Enabling needs the vault unlocked with the PIN (to wrap the master key) and a real biometric via a Keystore CryptoObject. */
+    fun beginBiometricEnroll(activity: androidx.fragment.app.FragmentActivity) {
+        if (!vaultRepo.isUnlocked) {
+            toast("Unlock the vault with your PIN first, then enable biometrics.")
+            return
+        }
+        val cipher = runCatching { com.lnxv.player.core.security.BiometricVaultKey.newEncryptCipher() }.getOrNull()
+        if (cipher == null) { toast("Biometric unlock is not available on this device."); return }
+        com.lnxv.player.core.security.BiometricGate.promptCrypto(activity, cipher, "Enable biometric unlock", "Cancel", { c ->
+            viewModelScope.launch {
+                if (vaultRepo.enrollBiometric(c)) dataStore.updateVaultBiometric(true)
+                else toast("Could not enable biometric unlock.")
+            }
+        })
+    }
     fun setSubtitleFont(f: String) { viewModelScope.launch { dataStore.updateSubtitleFont(f) } }
     fun setThumbSize(dp: Int) { viewModelScope.launch { dataStore.updateThumbSize(dp) } }
     fun setGestureSensitivity(pct: Int) { viewModelScope.launch { dataStore.updateGestureSensitivity(pct) } }

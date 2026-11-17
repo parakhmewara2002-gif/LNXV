@@ -57,6 +57,8 @@ data class UserPreferences(
     val vaultPinLength: Int = 6,
     val vaultFailedAttempts: Int = 0,
     val vaultLockedUntilMs: Long = 0L,
+    val vaultLockedUntilElapsedMs: Long = 0L,
+    val vaultBootCount: Int = 0,
     /** 0 = immediately when the app leaves the foreground, otherwise grace period in ms. */
     val vaultAutoLockMs: Long = 0L,
     val blockScreenshotsEverywhere: Boolean = false,
@@ -72,7 +74,7 @@ data class UserPreferences(
     val featureFlags: Map<FeatureFlag, Boolean> = FeatureFlag.defaults()
 ) {
     val hasVaultCredential: Boolean get() = vaultPinDerived.isNotEmpty() || vaultPinHash.isNotEmpty()
-    val lockoutState: LockoutState get() = LockoutState(vaultFailedAttempts, vaultLockedUntilMs)
+    val lockoutState: LockoutState get() = LockoutState(vaultFailedAttempts, vaultLockedUntilMs, vaultLockedUntilElapsedMs, vaultBootCount)
     fun isEnabled(flag: FeatureFlag): Boolean = featureFlags[flag] ?: flag.defaultEnabled
 }
 
@@ -114,6 +116,8 @@ class UserPreferencesDataStore(private val context: Context) {
         val VAULT_PIN_LEN = intPreferencesKey("vault_pin_len")
         val VAULT_FAILED = intPreferencesKey("vault_failed_attempts")
         val VAULT_LOCKED_UNTIL = longPreferencesKey("vault_locked_until")
+        val VAULT_LOCKED_ELAPSED = longPreferencesKey("vault_locked_until_elapsed")
+        val VAULT_BOOT_COUNT = intPreferencesKey("vault_boot_count")
         val VAULT_AUTOLOCK = longPreferencesKey("vault_autolock_ms")
         val BLOCK_SCREENSHOTS = booleanPreferencesKey("block_screenshots")
         val RECENT_STREAMS = stringPreferencesKey("recent_streams")
@@ -163,6 +167,8 @@ class UserPreferencesDataStore(private val context: Context) {
             vaultPinLength = prefs[PreferencesKeys.VAULT_PIN_LEN] ?: 6,
             vaultFailedAttempts = prefs[PreferencesKeys.VAULT_FAILED] ?: 0,
             vaultLockedUntilMs = prefs[PreferencesKeys.VAULT_LOCKED_UNTIL] ?: 0L,
+            vaultLockedUntilElapsedMs = prefs[PreferencesKeys.VAULT_LOCKED_ELAPSED] ?: 0L,
+            vaultBootCount = prefs[PreferencesKeys.VAULT_BOOT_COUNT] ?: 0,
             vaultAutoLockMs = prefs[PreferencesKeys.VAULT_AUTOLOCK] ?: 0L,
             blockScreenshotsEverywhere = prefs[PreferencesKeys.BLOCK_SCREENSHOTS] ?: false,
             updateWifiOnly = prefs[PreferencesKeys.UPDATE_WIFI_ONLY] ?: false,
@@ -293,6 +299,8 @@ class UserPreferencesDataStore(private val context: Context) {
         context.dataStore.edit {
             it[PreferencesKeys.VAULT_FAILED] = state.failedAttempts
             it[PreferencesKeys.VAULT_LOCKED_UNTIL] = state.lockedUntilMs
+            it[PreferencesKeys.VAULT_LOCKED_ELAPSED] = state.lockedUntilElapsedMs
+            it[PreferencesKeys.VAULT_BOOT_COUNT] = state.bootCount
         }
     }
 

@@ -283,9 +283,13 @@ private fun PanelSurface(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f)
                 )
-                IconButton(onClick = onDismiss) {
-                    Icon(imageVector = Icons.Default.Close, contentDescription = "Close", tint = Color(0xCCFFFFFF))
-                }
+                com.lnxv.player.core.design.GlassIconButton(
+                    icon = Icons.Default.Close,
+                    contentDescription = "Close",
+                    onClick = onDismiss,
+                    tint = Color(0xCCFFFFFF),
+                    size = 40.dp
+                )
             }
             Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color(0x1FFFFFFF)))
             Column(

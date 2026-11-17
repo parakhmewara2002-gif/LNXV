@@ -96,6 +96,14 @@ class VaultKeyManager(private val keyFile: File, private val wrapper: KeyWrapper
         sessionKey = wrapper.unwrap(keyFile.readBytes())
     }
 
+    /** Unlocks with an already unwrapped 32-byte master key (biometric path). The array is copied, callers should zero theirs. */
+    @Synchronized
+    fun unlockWithRaw(raw: ByteArray) {
+        if (sessionKey != null) return
+        require(raw.size == 32) { "bad key size" }
+        sessionKey = raw.copyOf()
+    }
+
     /** Copy of the session key; callers must not keep it. Throws if locked. */
     fun requireKey(): ByteArray = sessionKey?.copyOf() ?: throw java.io.IOException("Vault is locked")
 
