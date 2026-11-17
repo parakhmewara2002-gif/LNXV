@@ -206,24 +206,23 @@ fun VideoItemRow(
                 val watched = com.lnxv.player.core.model.SmartCollection.watchedFraction(video)
                 if (watched > 0f && !video.isVault) {
                     Spacer(modifier = Modifier.height(4.dp))
-                    LinearProgressIndicator(
+                    com.lnxv.player.core.design.GlassProgress(
                         progress = { watched },
-                        modifier = Modifier.fillMaxWidth().height(2.dp),
-                        color = appColors.accent,
-                        trackColor = appColors.textTertiary.copy(alpha = 0.3f)
+                        modifier = Modifier.fillMaxWidth(),
+                        height = 3.dp
                     )
                 }
             }
 
             // Options Menu
             Box {
-                IconButton(onClick = { isMenuOpen = true }) {
-                    Icon(
-                        imageVector = Icons.Default.MoreVert,
-                        contentDescription = "Options",
-                        tint = appColors.textTertiary
-                    )
-                }
+                com.lnxv.player.core.design.GlassIconButton(
+                    icon = Icons.Default.MoreVert,
+                    contentDescription = "Options",
+                    onClick = { isMenuOpen = true },
+                    tint = appColors.textSecondary,
+                    size = 40.dp
+                )
                 GlassDropdownMenu(
                     expanded = isMenuOpen,
                     onDismissRequest = { isMenuOpen = false }
@@ -318,13 +317,13 @@ fun FolderItemRow(
                 )
             }
             Box {
-                IconButton(onClick = { menuOpen = true }) {
-                    Icon(
-                        imageVector = Icons.Default.MoreVert,
-                        contentDescription = "Folder options",
-                        tint = appColors.textTertiary
-                    )
-                }
+                com.lnxv.player.core.design.GlassIconButton(
+                    icon = Icons.Default.MoreVert,
+                    contentDescription = "Folder options",
+                    onClick = { menuOpen = true },
+                    tint = appColors.textSecondary,
+                    size = 40.dp
+                )
                 GlassDropdownMenu(
                     expanded = menuOpen,
                     onDismissRequest = { menuOpen = false }
@@ -412,14 +411,10 @@ fun ContinueWatchingCard(
                 val progress = if (video.durationMs > 0) {
                     (video.lastPositionMs.toFloat() / video.durationMs.toFloat()).coerceIn(0f, 1f)
                 } else 0f
-                LinearProgressIndicator(
+                com.lnxv.player.core.design.GlassProgress(
                     progress = { progress },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(3.dp)
-                        .clip(CircleShape),
-                    color = appColors.accent,
-                    trackColor = appColors.glassBorder
+                    modifier = Modifier.fillMaxWidth(),
+                    height = 3.dp
                 )
             }
         }
@@ -568,13 +563,13 @@ fun VideoGridCard(
                     )
                 }
                 Box {
-                    IconButton(onClick = { isMenuOpen = true }) {
-                        Icon(
-                            imageVector = Icons.Default.MoreVert,
-                            contentDescription = "Options",
-                            tint = appColors.textTertiary
-                        )
-                    }
+                    com.lnxv.player.core.design.GlassIconButton(
+                    icon = Icons.Default.MoreVert,
+                    contentDescription = "Options",
+                    onClick = { isMenuOpen = true },
+                    tint = appColors.textSecondary,
+                    size = 40.dp
+                )
                     GlassDropdownMenu(
                         expanded = isMenuOpen,
                         onDismissRequest = { isMenuOpen = false }

@@ -529,21 +529,21 @@ topBar = {
                                 fontWeight = FontWeight.SemiBold
                             )
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                            IconButton(onClick = { viewModel.toggleViewMode() }) {
-                                Icon(
-                                    imageVector = if (uiState.isGridView) Icons.Default.ViewAgenda else Icons.Default.GridView,
-                                    contentDescription = "Toggle grid/list",
-                                    tint = appColors.accent
-                                )
-                            }
+                            com.lnxv.player.core.design.GlassIconButton(
+                                icon = if (uiState.isGridView) Icons.Default.ViewAgenda else Icons.Default.GridView,
+                                contentDescription = "Toggle grid/list",
+                                onClick = { viewModel.toggleViewMode() },
+                                tint = appColors.accent,
+                                size = 40.dp
+                            )
                             Box {
-                                IconButton(onClick = { isSortMenuExpanded = true }) {
-                                    Icon(
-                                        imageVector = Icons.Default.Sort,
-                                        contentDescription = "Sort",
-                                        tint = appColors.accent
-                                    )
-                                }
+                                com.lnxv.player.core.design.GlassIconButton(
+                                    icon = Icons.Default.Sort,
+                                    contentDescription = "Sort",
+                                    onClick = { isSortMenuExpanded = true },
+                                    tint = appColors.accent,
+                                    size = 40.dp
+                                )
                                 GlassDropdownMenu(
                                     expanded = isSortMenuExpanded,
                                     onDismissRequest = { isSortMenuExpanded = false }
@@ -568,10 +568,10 @@ topBar = {
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             items(com.lnxv.player.core.model.SmartCollection.values().toList()) { c ->
-                                androidx.compose.material3.FilterChip(
+                                com.lnxv.player.core.design.GlassFilterChip(
                                     selected = uiState.collection == c,
-                                    onClick = { viewModel.selectCollection(c) },
-                                    label = { Text(androidx.compose.ui.res.stringResource(c.labelRes)) }
+                                    label = androidx.compose.ui.res.stringResource(c.labelRes),
+                                    onClick = { viewModel.selectCollection(c) }
                                 )
                             }
                         }

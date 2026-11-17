@@ -3,6 +3,8 @@ package com.lnxv.player.core.design
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.runtime.remember
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.selected
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.animation.core.animateFloatAsState
@@ -610,14 +612,42 @@ fun GlassSwitch(checked: Boolean, onCheckedChange: ((Boolean) -> Unit)?, modifie
 
 /** Thin rounded progress bar. */
 @Composable
-fun GlassProgress(progress: () -> Float, modifier: Modifier = Modifier) {
+fun GlassProgress(progress: () -> Float, modifier: Modifier = Modifier, height: androidx.compose.ui.unit.Dp = 6.dp) {
     androidx.compose.material3.LinearProgressIndicator(
         progress = progress,
-        modifier = modifier.height(6.dp).clip(CircleShape),
+        modifier = modifier.height(height).clip(CircleShape),
         color = appColors.accent,
         trackColor = appColors.glassBorder,
         strokeCap = androidx.compose.ui.graphics.StrokeCap.Round,
         gapSize = 0.dp,
         drawStopIndicator = {}
     )
+}
+
+/** Glass capsule filter chip (replaces Material FilterChip): animated tint, spring press, selected semantics. */
+@Composable
+fun GlassFilterChip(selected: Boolean, label: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val bg by animateColorAsState(
+        targetValue = if (selected) appColors.accent.copy(alpha = 0.28f) else appColors.glassFill,
+        animationSpec = tween(200),
+        label = "chip_bg"
+    )
+    Box(
+        modifier = modifier
+            .bouncyClickable(pressedScale = 0.94f) { onClick() }
+            .liquidGlassSurface(
+                shape = CircleShape,
+                backgroundColor = bg,
+                borderColor = if (selected) appColors.accent else appColors.glassBorder
+            )
+            .padding(horizontal = 14.dp, vertical = 8.dp)
+            .semantics { this.selected = selected },
+        contentAlignment = Alignment.Center
+    ) {
+        androidx.compose.material3.Text(
+            text = label,
+            color = if (selected) appColors.accent else appColors.textPrimary,
+            style = Typography.labelLarge
+        )
+    }
 }
