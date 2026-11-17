@@ -69,6 +69,10 @@ data class UserPreferences(
     /** Newline-separated recent stream URLs (credentials stripped). */
     val recentStreams: String = "",
     val perVideoSpeeds: String = "",
+    /** Global default decoder mode (DecoderMode name); a per-video override wins. */
+    val decoderMode: String = "AUTO",
+    /** true = exact seek on release (default); false = always snap to the nearest keyframe (faster). */
+    val exactSeek: Boolean = true,
     val onboardingDone: Boolean = false,
     val skippedUpdateBuild: Int = 0,
     val featureFlags: Map<FeatureFlag, Boolean> = FeatureFlag.defaults()
@@ -122,6 +126,8 @@ class UserPreferencesDataStore(private val context: Context) {
         val BLOCK_SCREENSHOTS = booleanPreferencesKey("block_screenshots")
         val RECENT_STREAMS = stringPreferencesKey("recent_streams")
         val PER_VIDEO_SPEEDS = stringPreferencesKey("per_video_speeds")
+        val DECODER_MODE = stringPreferencesKey("decoder_mode")
+        val EXACT_SEEK = booleanPreferencesKey("exact_seek")
         val ONBOARDING_DONE = booleanPreferencesKey("onboarding_done")
         val DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
         val EFFECTS_MODE = stringPreferencesKey("effects_mode")
@@ -176,6 +182,8 @@ class UserPreferencesDataStore(private val context: Context) {
             effectsMode = prefs[PreferencesKeys.EFFECTS_MODE] ?: "AUTO",
             recentStreams = prefs[PreferencesKeys.RECENT_STREAMS] ?: "",
             perVideoSpeeds = prefs[PreferencesKeys.PER_VIDEO_SPEEDS] ?: "",
+            decoderMode = prefs[PreferencesKeys.DECODER_MODE] ?: "AUTO",
+            exactSeek = prefs[PreferencesKeys.EXACT_SEEK] ?: true,
             onboardingDone = prefs[PreferencesKeys.ONBOARDING_DONE] ?: false,
             skippedUpdateBuild = prefs[PreferencesKeys.UPDATE_SKIPPED] ?: 0,
             featureFlags = FeatureFlag.values().associateWith { f ->
@@ -315,6 +323,14 @@ class UserPreferencesDataStore(private val context: Context) {
             it[PreferencesKeys.PER_VIDEO_SPEEDS] =
                 com.lnxv.player.core.model.PerVideoSpeed.with(it[PreferencesKeys.PER_VIDEO_SPEEDS] ?: "", videoId, speed)
         }
+    }
+
+    suspend fun updateDecoderMode(mode: String) {
+        context.dataStore.edit { it[PreferencesKeys.DECODER_MODE] = mode }
+    }
+
+    suspend fun updateExactSeek(enabled: Boolean) {
+        context.dataStore.edit { it[PreferencesKeys.EXACT_SEEK] = enabled }
     }
 
     suspend fun saveRecentStreams(encoded: String) {

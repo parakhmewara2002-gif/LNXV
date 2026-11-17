@@ -24,9 +24,10 @@ val appModule = module {
     single { app().vaultRepository }
     single { app().vaultTransfers }
     single { app().playlistDao }
+    single { app().videoPrefsRepository }
     single { app().session }
 
-    viewModel { PlayerViewModel(androidApplication(), get(), get(), get(), get(), get()) }
+    viewModel { PlayerViewModel(androidApplication(), get(), get(), get(), get(), get(), get()) }
     viewModel { HomeViewModel(androidApplication(), get(), get(), get(), get(), get(), get()) }
     viewModel { VaultViewModel(androidApplication(), get(), get(), get()) }
     viewModel { SettingsViewModel(androidApplication(), get()) }
