@@ -32,7 +32,11 @@ class EncryptedDataSource(
         try {
             val r = ChunkedAead.Reader(ChunkedAead.FileSource(fileResolver(dataSpec.uri)), key)
             reader = r
-            if (dataSpec.position > r.plainSize) throw IOException("Position out of range")
+            if (dataSpec.position >= r.plainSize) {
+                position = dataSpec.position
+                bytesRemaining = 0L
+                return 0L
+            }
             position = dataSpec.position
             val available = r.plainSize - position
             bytesRemaining = if (dataSpec.length == C.LENGTH_UNSET.toLong()) available

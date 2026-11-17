@@ -167,7 +167,7 @@ class VaultRepository(
                 val input = context.contentResolver.openInputStream(source) ?: throw IOException("Cannot open video")
                 input.use { inp ->
                     part.outputStream().buffered(CHUNK).use { fileOut ->
-                        ChunkedAead.Encryptor(fileOut, key).use { enc ->
+                        ChunkedAead.Encryptor(fileOut, key, 256 * 1024).use { enc ->
                             val buf = ByteArray(CHUNK)
                             var done = 0L
                             while (true) {
@@ -377,9 +377,16 @@ class VaultRepository(
     /** Deletes interrupted copies and encrypted files with no Room row. Safe to call at any time. */
     suspend fun cleanupOrphans() = withContext(Dispatchers.IO) {
         val referenced = videoDao.getAllVaultFileNames().toHashSet()
+        val now = System.currentTimeMillis()
+        val safetyThresholdMs = 2 * 60 * 60 * 1000L // 2 hours safety window for in-flight/interrupted moves
         vaultDir.listFiles()?.forEach { f ->
             if (f.name == ".nomedia") return@forEach
-            if (f.name.endsWith(VaultFiles.PART_EXT) || f.name !in referenced) f.delete()
+            val isRecent = (now - f.lastModified()) < safetyThresholdMs
+            if (f.name.endsWith(VaultFiles.PART_EXT)) {
+                if (!isRecent) f.delete()
+            } else if (f.name !in referenced && !isRecent) {
+                f.delete()
+            }
         }
     }
 
@@ -410,7 +417,7 @@ class VaultRepository(
     private fun b64(b: ByteArray) = Base64.encodeToString(b, Base64.NO_WRAP)
 
     private companion object {
-        const val CHUNK = 256 * 1024
+        const val CHUNK = 512 * 1024
         const val SAFETY_MARGIN = 32L * 1024 * 1024
     }
 }

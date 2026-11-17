@@ -183,8 +183,19 @@ fun PlayerGestureDetector(
                                     }
                                     if (allowed) mode = candidate else ignored = true
                                     startPos = latestPosition()
-                                    val b = activity?.window?.attributes?.screenBrightness ?: -1f
-                                    startBrightness = if (b < 0f) 0.5f else b
+                                    val winB = activity?.window?.attributes?.screenBrightness ?: -1f
+                                    startBrightness = if (winB in 0.01f..1.0f) {
+                                        winB
+                                    } else {
+                                        // Read system setting as baseline (0-255)
+                                        val sysB = try {
+                                            android.provider.Settings.System.getInt(
+                                                context.contentResolver,
+                                                android.provider.Settings.System.SCREEN_BRIGHTNESS
+                                            ) / 255f
+                                        } catch (e: Exception) { 0.5f }
+                                        sysB.coerceIn(0.05f, 1.0f)
+                                    }
                                     val maxVol = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
                                     startVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC).toFloat() / maxVol
                                 }

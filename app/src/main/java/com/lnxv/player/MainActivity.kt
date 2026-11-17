@@ -131,10 +131,8 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
                     "SYSTEM" -> systemDark
                     else -> true
                 }
-                val reduce = com.lnxv.player.core.design.DeviceTier.resolveReduceEffects(
-                    com.lnxv.player.core.design.EffectsMode.parse(p.effectsMode), lowEndDevice
-                ) || systemAnimationsDisabled()
-                LNXVTheme(darkTheme = darkTheme, amoled = p.isAmoled, dynamicColor = p.dynamicColor, reduceEffects = reduce) {
+                // Maximum iOS-style Liquid Glass & rich physics animations everywhere
+                LNXVTheme(darkTheme = darkTheme, amoled = p.isAmoled, dynamicColor = p.dynamicColor, reduceEffects = false) {
                     val navController = rememberNavController()
                     LNXVNavigationHost(navController = navController)
                 }

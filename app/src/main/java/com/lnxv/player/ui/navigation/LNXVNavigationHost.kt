@@ -65,26 +65,35 @@ fun LNXVNavigationHost(navController: NavHostController) {
         // iOS-style push/pop: new screen slides in from the right while the old one shifts ~30% left and dims;
         // back reverses. Routes to/from the player fade and scale instead.
         enterTransition = {
-            if (reduce) androidx.compose.animation.EnterTransition.None
-            else if (isPlayerEntry(targetState)) fadeIn(tween(260)) + scaleIn(tween(260, easing = IosNavEasing), initialScale = 0.96f)
-            else slideInHorizontally(tween(IOS_NAV_MS, easing = IosNavEasing)) { it }
+            if (isPlayerEntry(targetState)) {
+                fadeIn(tween(280)) + scaleIn(tween(320, easing = androidx.compose.animation.core.CubicBezierEasing(0.32f, 0.72f, 0.0f, 1.0f)), initialScale = 0.92f)
+            } else {
+                slideInHorizontally(tween(380, easing = androidx.compose.animation.core.CubicBezierEasing(0.32f, 0.72f, 0.0f, 1.0f))) { it } +
+                fadeIn(tween(220))
+            }
         },
         exitTransition = {
-            if (reduce) androidx.compose.animation.ExitTransition.None
-            else if (isPlayerEntry(targetState)) fadeOut(tween(200))
-            else slideOutHorizontally(tween(IOS_NAV_MS, easing = IosNavEasing)) { -(it * 0.3f).toInt() } +
-                fadeOut(tween(IOS_NAV_MS, easing = IosNavEasing), targetAlpha = 0.6f)
+            if (isPlayerEntry(targetState)) {
+                fadeOut(tween(200))
+            } else {
+                slideOutHorizontally(tween(380, easing = androidx.compose.animation.core.CubicBezierEasing(0.32f, 0.72f, 0.0f, 1.0f))) { -(it * 0.32f).toInt() } +
+                fadeOut(tween(380), targetAlpha = 0.6f)
+            }
         },
         popEnterTransition = {
-            if (reduce) androidx.compose.animation.EnterTransition.None
-            else if (isPlayerEntry(initialState)) fadeIn(tween(220))
-            else slideInHorizontally(tween(IOS_NAV_MS, easing = IosNavEasing)) { -(it * 0.3f).toInt() } +
-                fadeIn(tween(IOS_NAV_MS, easing = IosNavEasing), initialAlpha = 0.6f)
+            if (isPlayerEntry(initialState)) {
+                fadeIn(tween(240))
+            } else {
+                slideInHorizontally(tween(380, easing = androidx.compose.animation.core.CubicBezierEasing(0.32f, 0.72f, 0.0f, 1.0f))) { -(it * 0.32f).toInt() } +
+                fadeIn(tween(380), initialAlpha = 0.6f)
+            }
         },
         popExitTransition = {
-            if (reduce) androidx.compose.animation.ExitTransition.None
-            else if (isPlayerEntry(initialState)) fadeOut(tween(200)) + scaleOut(tween(220, easing = IosNavEasing), targetScale = 0.96f)
-            else slideOutHorizontally(tween(IOS_NAV_MS, easing = IosNavEasing)) { it }
+            if (isPlayerEntry(initialState)) {
+                fadeOut(tween(200)) + scaleOut(tween(280, easing = androidx.compose.animation.core.CubicBezierEasing(0.32f, 0.72f, 0.0f, 1.0f)), targetScale = 0.92f)
+            } else {
+                slideOutHorizontally(tween(380, easing = androidx.compose.animation.core.CubicBezierEasing(0.32f, 0.72f, 0.0f, 1.0f))) { it }
+            }
         }
     ) {
         composable(Screen.Home.route) {

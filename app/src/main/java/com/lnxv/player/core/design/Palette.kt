@@ -40,21 +40,21 @@ val AmoledPalette = LNXVColors(
     textPrimary = Color.White,
     textSecondary = Color(0x99FFFFFF),
     textTertiary = Color(0x80FFFFFF),
-    glassFill = Color(0x261E293B),
-    glassBorder = Color(0x26FFFFFF),
-    glassSubtle = Color(0x14FFFFFF),
-    barFill = Color(0xCC000000),
+    glassFill = Color(0x331C1C1E),
+    glassBorder = Color(0x38FFFFFF),
+    glassSubtle = Color(0x20FFFFFF),
+    barFill = Color(0xE00A0C10),
     placeholder = Color(0xFF0F141C),
-    accent = NeonCyan
+    accent = Color(0xFF0A84FF)
 )
 
 /** Dark (not pure black): soft charcoal with a faint colour glow so the glass has something to refract. */
 val DarkPalette = AmoledPalette.copy(
-    background = Color(0xFF14181F),
+    background = Color(0xFF000000),
     hasGlow = true,
     glowA = NeonCyan.copy(alpha = 0.14f),
     glowB = ElectricViolet.copy(alpha = 0.16f),
-    barFill = Color(0xCC14181F),
+    barFill = Color(0xE60A0C10),
     glassFill = Color(0x331E293B)
 )
 
