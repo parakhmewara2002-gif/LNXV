@@ -53,6 +53,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import com.lnxv.player.core.design.icons.ContentCopy
 import com.lnxv.player.core.design.icons.FolderOpen
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Share
 import com.lnxv.player.core.design.icons.Subtitles
 import androidx.compose.material3.Icon
