@@ -307,7 +307,17 @@ bottomBar = {
                     .navigationBarsPadding()
                     .padding(horizontal = 16.dp, vertical = 10.dp)
             ) {
-                if (selection.isNotEmpty()) {
+                androidx.compose.animation.AnimatedContent(
+                    targetState = selection.isNotEmpty(),
+                    transitionSpec = {
+                        androidx.compose.animation.ContentTransform(
+                            targetContentEnter = androidx.compose.animation.slideInVertically(tween(280)) { it / 2 } + androidx.compose.animation.fadeIn(tween(220)),
+                            initialContentExit = androidx.compose.animation.slideOutVertically(tween(200)) { it / 2 } + androidx.compose.animation.fadeOut(tween(160))
+                        )
+                    },
+                    label = "bottom_bar"
+                ) { isSelecting ->
+                if (isSelecting) {
                     val selShape = RoundedCornerShape(26.dp)
                     Box(
                         modifier = Modifier
@@ -409,6 +419,7 @@ bottomBar = {
                         onSelect = { viewModel.selectTab(HomeTab.values()[it]) },
                         hazeState = if (reduceEffects) null else hazeState
                     )
+                }
                 }
             }
         },
@@ -576,7 +587,7 @@ topBar = {
                     } else if (uiState.isGridView) {
                         items(uiState.videos.chunked(gridColumns), key = { row -> row.first().id }) { row ->
                             Row(
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier.fillMaxWidth().animateItem(),
                                 horizontalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
                                 row.forEach { video ->
@@ -598,6 +609,7 @@ topBar = {
                     } else {
                         items(uiState.videos, key = { it.id }) { video ->
                             VideoItemRow(
+                                modifier = Modifier.animateItem(),
                                 video = video,
                                 onClick = { if (selection.isNotEmpty()) viewModel.toggleSelect(video.id) else onVideoClick(video) },
                                 selected = video.id in selection,
@@ -641,6 +653,7 @@ topBar = {
                         } else {
                             items(uiState.folderVideos, key = { it.id }) { video ->
                                 VideoItemRow(
+                                    modifier = Modifier.animateItem(),
                                     video = video,
                                     onClick = { if (selection.isNotEmpty()) viewModel.toggleSelect(video.id) else onVideoClick(video) },
                                 selected = video.id in selection,
@@ -657,6 +670,7 @@ topBar = {
                     } else {
                         items(uiState.folders, key = { it.path }) { folder ->
                             FolderItemRow(
+                                modifier = Modifier.animateItem(),
                                 folder = folder,
                                 onClick = { onFolderClick(folder) },
                                 onToggleHidden = { viewModel.setFolderHidden(folder.path, !folder.isHidden) }
@@ -670,6 +684,7 @@ topBar = {
                     } else {
                         items(uiState.recentlyPlayed, key = { it.id }) { video ->
                             VideoItemRow(
+                                modifier = Modifier.animateItem(),
                                 video = video,
                                 onClick = { if (selection.isNotEmpty()) viewModel.toggleSelect(video.id) else onVideoClick(video) },
                                 selected = video.id in selection,
@@ -778,6 +793,7 @@ topBar = {
                     } else {
                         items(uiState.favorites, key = { it.id }) { video ->
                             VideoItemRow(
+                                modifier = Modifier.animateItem(),
                                 video = video,
                                 onClick = { if (selection.isNotEmpty()) viewModel.toggleSelect(video.id) else onVideoClick(video) },
                                 selected = video.id in selection,

@@ -107,12 +107,13 @@ fun VideoItemRow(
     onAddToPlaylist: () -> Unit = {},
     onDelete: () -> Unit,
     selected: Boolean = false,
-    onLongClick: (() -> Unit)? = null
+    onLongClick: (() -> Unit)? = null,
+    modifier: Modifier = Modifier
 ) {
     var isMenuOpen by remember { mutableStateOf(false) }
 
     GlassPanel(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .bouncyClickable(onLongClick = onLongClick) { onClick() }
             .semantics { this.selected = selected },
@@ -265,11 +266,12 @@ fun VideoItemRow(
 fun FolderItemRow(
     folder: FolderItem,
     onClick: () -> Unit,
-    onToggleHidden: () -> Unit
+    onToggleHidden: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     var menuOpen by remember { mutableStateOf(false) }
     GlassPanel(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .bouncyClickable { onClick() },
         shape = RoundedCornerShape(22.dp),

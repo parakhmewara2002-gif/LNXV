@@ -152,6 +152,11 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
         if (intent?.action != Intent.ACTION_VIEW) return
         val uri = intent.data ?: return
         if (!IncomingIntentValidator.isAllowedViewData(uri.scheme, intent.type)) return
+        if (uri.scheme == "file") { // never open files from our own private storage (database, vault key, vault files)
+            val target = runCatching { java.io.File(uri.path.orEmpty()).canonicalPath }.getOrNull() ?: return
+            val privateRoots = listOf(filesDir, cacheDir, dataDir).map { it.canonicalPath }
+            if (privateRoots.any { target == it || target.startsWith(it + java.io.File.separator) }) return
+        }
         val app = application as LNXVApplication
         lifecycleScope.launch {
             val prefs = app.dataStore.userPreferencesFlow.first()
@@ -255,11 +260,15 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             permissions.add(Manifest.permission.READ_MEDIA_VIDEO)
             permissions.add(Manifest.permission.READ_MEDIA_AUDIO)
+            if (Build.VERSION.SDK_INT >= 34) permissions.add("android.permission.READ_MEDIA_VISUAL_USER_SELECTED")
         } else {
             permissions.add(Manifest.permission.READ_EXTERNAL_STORAGE)
         }
 
-        val needed = permissions.filter {
+        // Android 14 "Select photos and videos": partial access is enough, do not ask again on every launch.
+        val partialAccess = Build.VERSION.SDK_INT >= 34 &&
+            ContextCompat.checkSelfPermission(this, "android.permission.READ_MEDIA_VISUAL_USER_SELECTED") == PackageManager.PERMISSION_GRANTED
+        val needed = if (partialAccess) emptyList() else permissions.filter {
             ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
         }
 

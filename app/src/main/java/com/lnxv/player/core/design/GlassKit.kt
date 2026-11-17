@@ -3,6 +3,11 @@ package com.lnxv.player.core.design
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.runtime.getValue
@@ -429,9 +434,23 @@ fun GlassDialog(
 ) {
     androidx.compose.ui.window.Dialog(onDismissRequest = onDismissRequest) {
         val shape = RoundedCornerShape(28.dp)
+        val shown = remember { mutableStateOf(false) }
+        LaunchedEffect(Unit) { shown.value = true }
+        val reduceFx = LocalReduceEffects.current
+        val enter by animateFloatAsState(
+            targetValue = if (shown.value || reduceFx) 1f else 0f,
+            animationSpec = spring(dampingRatio = 0.75f, stiffness = 420f),
+            label = "dialog_enter"
+        )
         Column(
             modifier = modifier
                 .fillMaxWidth()
+                .graphicsLayer {
+                    val sc = 0.9f + 0.1f * enter
+                    scaleX = sc
+                    scaleY = sc
+                    alpha = enter.coerceIn(0f, 1f)
+                }
                 .clip(shape)
                 .liquidGlassSurface(
                     shape = shape,
