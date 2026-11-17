@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "com.lnxv.player"
-    compileSdk = 34
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.lnxv.player"
