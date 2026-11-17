@@ -131,8 +131,10 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
                     "SYSTEM" -> systemDark
                     else -> true
                 }
-                // Maximum iOS-style Liquid Glass & rich physics animations everywhere
-                LNXVTheme(darkTheme = darkTheme, amoled = p.isAmoled, dynamicColor = p.dynamicColor, reduceEffects = false) {
+                val reduce = com.lnxv.player.core.design.DeviceTier.resolveReduceEffects(
+                    com.lnxv.player.core.design.EffectsMode.parse(p.effectsMode), lowEndDevice
+                ) || systemAnimationsDisabled()
+                LNXVTheme(darkTheme = darkTheme, amoled = p.isAmoled, dynamicColor = p.dynamicColor, reduceEffects = reduce) {
                     val navController = rememberNavController()
                     LNXVNavigationHost(navController = navController)
                 }
@@ -155,7 +157,7 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
         if (uri.scheme == "file") { // never open files from our own private storage (database, vault key, vault files)
             val target = runCatching { java.io.File(uri.path.orEmpty()).canonicalPath }.getOrNull() ?: return
             val privateRoots = listOf(filesDir, cacheDir, dataDir).map { it.canonicalPath }
-            if (privateRoots.any { target == it || target.startsWith(it + java.io.File.separator) }) return
+            if (IncomingIntentValidator.isUnderAny(target, privateRoots)) return
         }
         val app = application as LNXVApplication
         lifecycleScope.launch {

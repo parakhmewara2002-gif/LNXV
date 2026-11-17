@@ -77,7 +77,7 @@ class VaultViewModel(
                 else -> VaultAuthState.SETUP_PIN
             }
             val prefs = dataStore.userPreferencesFlow.first()
-            val bio = isSet && prefs.vaultBiometric && prefs.isEnabled(com.lnxv.player.core.flags.FeatureFlag.BIOMETRIC_UNLOCK)
+            val bio = isSet && prefs.vaultBiometric && prefs.isEnabled(com.lnxv.player.core.flags.FeatureFlag.BIOMETRIC_UNLOCK) && vaultRepo.isBiometricEnrolled()
             _uiState.value = _uiState.value.copy(authState = state, pinLength = len, biometricEnabled = bio)
             if (state == VaultAuthState.AUTHENTICATED) onAuthenticated()
             else startLockoutCountdownIfNeeded()
@@ -177,9 +177,12 @@ class VaultViewModel(
         }
     }
 
-    fun unlockWithBiometric() {
+    /** DECRYPT cipher for BiometricPrompt, or null when biometrics are not (or no longer) set up. */
+    fun biometricCipher(): javax.crypto.Cipher? = vaultRepo.biometricDecryptCipher()
+
+    fun unlockWithBiometric(cipher: javax.crypto.Cipher) {
         viewModelScope.launch {
-            if (vaultRepo.unlockWithBiometric()) {
+            if (vaultRepo.unlockWithBiometric(cipher)) {
                 _uiState.value = _uiState.value.copy(authState = VaultAuthState.AUTHENTICATED, enteredPin = "", errorMessage = null)
                 onAuthenticated()
             }

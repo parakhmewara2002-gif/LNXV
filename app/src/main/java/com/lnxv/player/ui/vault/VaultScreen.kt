@@ -331,13 +331,13 @@ fun VaultScreen(
                                             fontSize = 12.sp
                                         )
                                     }
-                                    IconButton(onClick = { viewModel.restoreFromVault(video) }) {
-                                        Icon(
-                                            imageVector = Icons.Default.Restore,
-                                            contentDescription = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.vault_restore),
-                                            tint = appColors.accent
-                                        )
-                                    }
+                                    GlassIconButton(
+                                        icon = Icons.Default.Restore,
+                                        contentDescription = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.vault_restore),
+                                        onClick = { viewModel.restoreFromVault(video) },
+                                        tint = appColors.accent,
+                                        size = 40.dp
+                                    )
                                 }
                             }
                         }
@@ -435,7 +435,10 @@ fun VaultScreen(
                     ) {
                         TextButton(onClick = {
                             (activity as? androidx.fragment.app.FragmentActivity)?.let { a ->
-                                com.lnxv.player.core.security.BiometricGate.prompt(a, "Unlock vault", "Use PIN", { viewModel.unlockWithBiometric() })
+                                val cipher = viewModel.biometricCipher()
+                                if (cipher != null) {
+                                    com.lnxv.player.core.security.BiometricGate.promptCrypto(a, cipher, "Unlock vault", "Use PIN", { c -> viewModel.unlockWithBiometric(c) })
+                                }
                             }
                         }) { Text("Use biometrics", color = appColors.accent, fontSize = 13.sp) }
                     }

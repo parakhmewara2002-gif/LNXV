@@ -126,6 +126,7 @@ fun HomeScreen(
         (uiState.videos + uiState.folderVideos + uiState.favorites + uiState.recentlyPlayed).distinctBy { it.id }
     }
     var confirmRemove by remember { mutableStateOf(false) }
+    var vaultConfirm by remember { mutableStateOf<(() -> Unit)?>(null) }
     var confirmDeleteDevice by remember { mutableStateOf(false) }
     var showMoreActions by remember { mutableStateOf(false) }
     var renameTarget by remember { mutableStateOf<VideoItem?>(null) }
@@ -282,6 +283,15 @@ fun HomeScreen(
             dismissButton = { GlassDialogButton(text = "Cancel", onClick = { renameTarget = null }) }
         )
     }
+    vaultConfirm?.let { action ->
+        GlassDialog(
+            onDismissRequest = { vaultConfirm = null },
+            title = { Text("Move to Private Vault?") },
+            text = { Text("The video is encrypted into the vault and the original is removed from your gallery. You can restore it from the vault later.") },
+            confirmButton = { GlassDialogButton(text = "Move", onClick = { vaultConfirm = null; action() }, primary = true) },
+            dismissButton = { GlassDialogButton(text = "Cancel", onClick = { vaultConfirm = null }) }
+        )
+    }
     if (confirmRemove) {
         GlassDialog(
             onDismissRequest = { confirmRemove = false },
@@ -364,7 +374,7 @@ bottomBar = {
                         icon = Icons.Default.Lock,
                         label = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.action_vault),
                         modifier = Modifier.weight(1f),
-                        onClick = { viewModel.vaultSelected(selectionPool) }
+                        onClick = { vaultConfirm = { viewModel.vaultSelected(selectionPool) } }
                     )
                     SelectionAction(
                         icon = Icons.Default.Delete,
@@ -598,7 +608,7 @@ topBar = {
                                 selected = video.id in selection,
                                 onLongClick = { viewModel.toggleSelect(video.id) },
                                         onFavoriteToggle = { viewModel.toggleFavorite(video) },
-                                        onVaultMove = { viewModel.moveToVault(video) },
+                                        onVaultMove = { vaultConfirm = { viewModel.moveToVault(video) } },
                                 onAddToPlaylist = { viewModel.requestAddToPlaylist(video) },
                                         onDelete = { viewModel.deleteVideo(video) }
                                     )
@@ -615,7 +625,7 @@ topBar = {
                                 selected = video.id in selection,
                                 onLongClick = { viewModel.toggleSelect(video.id) },
                                 onFavoriteToggle = { viewModel.toggleFavorite(video) },
-                                onVaultMove = { viewModel.moveToVault(video) },
+                                onVaultMove = { vaultConfirm = { viewModel.moveToVault(video) } },
                                 onAddToPlaylist = { viewModel.requestAddToPlaylist(video) },
                                 onDelete = { viewModel.deleteVideo(video) }
                             )
@@ -659,7 +669,7 @@ topBar = {
                                 selected = video.id in selection,
                                 onLongClick = { viewModel.toggleSelect(video.id) },
                                     onFavoriteToggle = { viewModel.toggleFavorite(video) },
-                                    onVaultMove = { viewModel.moveToVault(video) },
+                                    onVaultMove = { vaultConfirm = { viewModel.moveToVault(video) } },
                                 onAddToPlaylist = { viewModel.requestAddToPlaylist(video) },
                                     onDelete = { viewModel.deleteVideo(video) }
                                 )
@@ -690,7 +700,7 @@ topBar = {
                                 selected = video.id in selection,
                                 onLongClick = { viewModel.toggleSelect(video.id) },
                                 onFavoriteToggle = { viewModel.toggleFavorite(video) },
-                                onVaultMove = { viewModel.moveToVault(video) },
+                                onVaultMove = { vaultConfirm = { viewModel.moveToVault(video) } },
                                 onAddToPlaylist = { viewModel.requestAddToPlaylist(video) },
                                 onDelete = { viewModel.deleteVideo(video) }
                             )
@@ -799,7 +809,7 @@ topBar = {
                                 selected = video.id in selection,
                                 onLongClick = { viewModel.toggleSelect(video.id) },
                                 onFavoriteToggle = { viewModel.toggleFavorite(video) },
-                                onVaultMove = { viewModel.moveToVault(video) },
+                                onVaultMove = { vaultConfirm = { viewModel.moveToVault(video) } },
                                 onAddToPlaylist = { viewModel.requestAddToPlaylist(video) },
                                 onDelete = { viewModel.deleteVideo(video) }
                             )

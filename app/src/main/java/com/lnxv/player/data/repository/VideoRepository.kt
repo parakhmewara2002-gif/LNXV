@@ -56,8 +56,9 @@ class VideoRepository(
         val scannedIds = scanned.mapTo(HashSet()) { it.id }
         // Safeguard against transient MediaStore scanner drops / partial unmounts:
         // Only prune missing videos if scanner returned a substantial portion (>50% of existing library)
-        if (scannedIds.size >= existing.size * 0.5f) {
-            existing.values.filter { !it.isVault && it.id !in scannedIds }
+        val candidates = existing.values.filter { !it.isVault }
+        if (com.lnxv.player.core.model.LibrarySyncPolicy.shouldPrune(scannedIds.size, candidates.size)) {
+            candidates.filter { it.id !in scannedIds }
                 .map { it.id }
                 .chunked(500)
                 .forEach { videoDao.deleteVideosByIds(it) }

@@ -18,6 +18,8 @@ import com.lnxv.player.core.database.VideoEntity
 import com.lnxv.player.core.datastore.UserPreferencesDataStore
 import com.lnxv.player.core.model.VideoItem
 import com.lnxv.player.core.security.ChunkedAead
+import com.lnxv.player.core.security.BiometricVaultKey
+import com.lnxv.player.core.security.LockoutClock
 import com.lnxv.player.core.security.LockoutPolicy
 import com.lnxv.player.core.security.PinHasher
 import com.lnxv.player.core.security.VaultKeyManager
@@ -72,7 +74,15 @@ class VaultRepository(
     suspend fun pinLength(): Int = dataStore.userPreferencesFlow.first().vaultPinLength
 
     suspend fun lockoutRemainingMs(): Long =
-        LockoutPolicy.remainingMs(dataStore.userPreferencesFlow.first().lockoutState, System.currentTimeMillis())
+        LockoutPolicy.remainingMs(dataStore.userPreferencesFlow.first().lockoutState, lockClock())
+
+    /** Wall + monotonic clock + boot count, so a changed system clock cannot shorten a lockout within one boot. */
+    private fun lockClock(): LockoutClock {
+        val boot = if (android.os.Build.VERSION.SDK_INT >= 24) {
+            runCatching { android.provider.Settings.Global.getInt(context.contentResolver, android.provider.Settings.Global.BOOT_COUNT) }.getOrDefault(0)
+        } else 0
+        return LockoutClock(System.currentTimeMillis(), android.os.SystemClock.elapsedRealtime(), boot)
+    }
 
     suspend fun setPin(pin: String) = withContext(Dispatchers.Default) {
         require(PinHasher.isValidPin(pin)) { "PIN must be 4-8 digits" }
@@ -86,7 +96,7 @@ class VaultRepository(
 
     suspend fun verifyPin(entered: String): VerifyResult = withContext(Dispatchers.Default) {
         val prefs = dataStore.userPreferencesFlow.first()
-        val now = System.currentTimeMillis()
+        val now = lockClock()
         val remaining = LockoutPolicy.remainingMs(prefs.lockoutState, now)
         if (remaining > 0) return@withContext VerifyResult.Locked(remaining)
 
@@ -112,13 +122,53 @@ class VaultRepository(
         }
     }
 
-    /** Unlocks after a successful BiometricPrompt. Refused while the PIN lockout is active or biometrics are not enabled. */
-    suspend fun unlockWithBiometric(): Boolean = withContext(Dispatchers.Default) {
+    // ---------------------------------------------------------------- biometric (Keystore CryptoObject)
+
+    private val bioFile: File get() = VaultFiles.keyFile(context).let { File(it.parentFile, it.name + ".bio") }
+
+    fun isBiometricEnrolled(): Boolean = bioFile.length() > 12
+
+    /** DECRYPT cipher to hand to BiometricPrompt, or null when not enrolled / invalidated (enrollment is then cleared). */
+    fun biometricDecryptCipher(): javax.crypto.Cipher? {
+        if (!isBiometricEnrolled()) return null
+        return try {
+            BiometricVaultKey.decryptCipher(bioFile.readBytes().copyOfRange(0, 12))
+        } catch (e: android.security.keystore.KeyPermanentlyInvalidatedException) {
+            clearBiometric(); null
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    /** Stores a copy of the master key wrapped by the biometric-bound key. Needs the vault unlocked with the PIN first. */
+    suspend fun enrollBiometric(cipher: javax.crypto.Cipher): Boolean = withContext(Dispatchers.Default) {
+        if (!keys.isUnlocked) return@withContext false
+        val key = keys.requireKey()
+        try {
+            val ct = cipher.doFinal(key)
+            bioFile.writeBytes(cipher.iv + ct)
+            true
+        } catch (e: Exception) {
+            clearBiometric(); false
+        } finally {
+            key.fill(0)
+        }
+    }
+
+    fun clearBiometric() {
+        bioFile.delete()
+        BiometricVaultKey.deleteKey()
+    }
+
+    /** Unlocks with the cipher authenticated by BiometricPrompt. Refused while the PIN lockout is active or biometrics are off. */
+    suspend fun unlockWithBiometric(cipher: javax.crypto.Cipher): Boolean = withContext(Dispatchers.Default) {
         val prefs = dataStore.userPreferencesFlow.first()
         if (!prefs.isEnabled(com.lnxv.player.core.flags.FeatureFlag.BIOMETRIC_UNLOCK) || !prefs.vaultBiometric) return@withContext false
-        if (prefs.vaultPinDerived.isEmpty()) return@withContext false
-        if (LockoutPolicy.remainingMs(prefs.lockoutState, System.currentTimeMillis()) > 0) return@withContext false
-        keys.ensureKey(); keys.unlock()
+        if (prefs.vaultPinDerived.isEmpty() || !isBiometricEnrolled()) return@withContext false
+        if (LockoutPolicy.remainingMs(prefs.lockoutState, lockClock()) > 0) return@withContext false
+        val data = bioFile.readBytes()
+        val raw = try { cipher.doFinal(data, 12, data.size - 12) } catch (e: Exception) { return@withContext false }
+        try { keys.unlockWithRaw(raw) } finally { raw.fill(0) }
         true
     }
 
@@ -138,6 +188,7 @@ class VaultRepository(
 
     /** Forgot PIN: irreversibly deletes the key, all encrypted files, thumbnails and vault rows. */
     suspend fun wipe() = withContext(Dispatchers.IO) {
+        clearBiometric()
         keys.destroy()
         vaultDir.listFiles()?.forEach { if (it.name != ".nomedia") it.delete() }
         videoDao.clearThumbs()

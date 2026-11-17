@@ -27,4 +27,29 @@ object BiometricGate {
             .build()
         BiometricPrompt(activity, ContextCompat.getMainExecutor(activity), cb).authenticate(info)
     }
+
+    /** Prompt bound to a Keystore [cipher]: [onSuccess] receives the cipher that biometric authentication unlocked. */
+    fun promptCrypto(
+        activity: FragmentActivity,
+        cipher: javax.crypto.Cipher,
+        title: String,
+        negative: String,
+        onSuccess: (javax.crypto.Cipher) -> Unit,
+        onFailure: () -> Unit = {}
+    ) {
+        val cb = object : BiometricPrompt.AuthenticationCallback() {
+            override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                val c = result.cryptoObject?.cipher
+                if (c != null) onSuccess(c) else onFailure()
+            }
+            override fun onAuthenticationError(errorCode: Int, errString: CharSequence) = onFailure()
+        }
+        val info = BiometricPrompt.PromptInfo.Builder()
+            .setTitle(title)
+            .setNegativeButtonText(negative)
+            .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG)
+            .build()
+        BiometricPrompt(activity, ContextCompat.getMainExecutor(activity), cb)
+            .authenticate(info, BiometricPrompt.CryptoObject(cipher))
+    }
 }

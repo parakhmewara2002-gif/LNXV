@@ -514,8 +514,7 @@ fun SettingsScreen(
                                     onCheckedChange = { want ->
                                         if (!want) viewModel.setVaultBiometric(false)
                                         else (bioCtx as? androidx.fragment.app.FragmentActivity)?.let { a ->
-                                            // Enabling needs a successful biometric confirmation first.
-                                            com.lnxv.player.core.security.BiometricGate.prompt(a, "Enable biometric unlock", "Cancel", { viewModel.setVaultBiometric(true) })
+                                            viewModel.beginBiometricEnroll(a)
                                         }
                                     }
                                 )
