@@ -18,6 +18,8 @@ import com.lnxv.player.core.database.VideoEntity
 import com.lnxv.player.core.datastore.UserPreferencesDataStore
 import com.lnxv.player.core.model.VideoItem
 import com.lnxv.player.core.security.ChunkedAead
+import com.lnxv.player.core.security.BiometricVaultKey
+import com.lnxv.player.core.security.LockoutClock
 import com.lnxv.player.core.security.LockoutPolicy
 import com.lnxv.player.core.security.PinHasher
 import com.lnxv.player.core.security.VaultKeyManager
