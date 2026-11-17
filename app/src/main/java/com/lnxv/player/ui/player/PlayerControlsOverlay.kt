@@ -231,60 +231,7 @@ fun IosPlayerControls(
             )
             Spacer(modifier = Modifier.height(4.dp))
 
-            val positionMs by viewModel.positionMs.collectAsState()
-            var dragFraction by remember { mutableStateOf<Float?>(null) }
-            val duration = playbackState.durationMs
-            val shownMs = dragFraction?.let { SeekMath.fractionToPosition(it, duration) } ?: positionMs
-
-            // Thumbnail preview while scrubbing (local content:// / file:// videos only; never vault/network).
-            val previewFraction = dragFraction
-            if (previewFraction != null && !reduceEffects && video != null && !video.isVault &&
-                (video.uri.scheme == "content" || video.uri.scheme == "file")
-            ) {
-                val previewMs = (SeekMath.fractionToPosition(previewFraction, duration) / 1000L) * 1000L
-                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    coil.compose.AsyncImage(
-                        model = coil.request.ImageRequest.Builder(LocalContext.current)
-                            .data(video.uri)
-                            .videoFrameMillis(previewMs)
-                            .size(coil.size.Size(320, 180))
-                            .build(),
-                        contentDescription = null,
-                        contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-                        modifier = Modifier
-                            .size(width = 160.dp, height = 90.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(Color(0x66000000))
-                    )
-                }
-                Spacer(modifier = Modifier.height(6.dp))
-            }
-
-            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(VideoItem.formatDuration(shownMs), color = SoftWhite, fontSize = 12.sp, fontWeight = FontWeight.Medium)
-                ThinTrack(
-                    fraction = dragFraction ?: SeekMath.positionToFraction(positionMs, duration),
-                    enabled = duration > 0 && playbackState.isSeekable,
-                    onChange = { dragFraction = it },
-                    onFinished = {
-                        dragFraction?.let { f -> viewModel.seekTo(SeekMath.fractionToPosition(f, duration)) }
-                        dragFraction = null
-                    },
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(horizontal = 12.dp)
-                        .semantics {
-                            contentDescription = "Seek bar"
-                            stateDescription = "${VideoItem.formatDuration(positionMs)} of ${VideoItem.formatDuration(duration)}"
-                        }
-                )
-                Text(
-                    text = "-" + VideoItem.formatDuration((duration - shownMs).coerceAtLeast(0L)),
-                    color = SoftWhite,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium
-                )
-            }
+            ScrubSection(viewModel, playbackState, video, reduceEffects)
 
             Spacer(modifier = Modifier.height(6.dp))
 
@@ -313,6 +260,70 @@ fun IosPlayerControls(
                 }
             }
         }
+    }
+}
+
+/** Reads the 250 ms playback position here only, so just the seek row recomposes (not the whole control overlay). */
+@Composable
+private fun ScrubSection(
+    viewModel: PlayerViewModel,
+    playbackState: PlaybackState,
+    video: VideoItem?,
+    reduceEffects: Boolean
+) {
+    val positionMs by viewModel.positionMs.collectAsState()
+    var dragFraction by remember { mutableStateOf<Float?>(null) }
+    val duration = playbackState.durationMs
+    val shownMs = dragFraction?.let { SeekMath.fractionToPosition(it, duration) } ?: positionMs
+
+    // Thumbnail preview while scrubbing (local content:// / file:// videos only; never vault/network).
+    val previewFraction = dragFraction
+    if (previewFraction != null && !reduceEffects && video != null && !video.isVault &&
+        (video.uri.scheme == "content" || video.uri.scheme == "file")
+    ) {
+        val previewMs = (SeekMath.fractionToPosition(previewFraction, duration) / 1000L) * 1000L
+        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            coil.compose.AsyncImage(
+                model = coil.request.ImageRequest.Builder(LocalContext.current)
+                    .data(video.uri)
+                    .videoFrameMillis(previewMs)
+                    .size(coil.size.Size(320, 180))
+                    .build(),
+                contentDescription = null,
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                modifier = Modifier
+                    .size(width = 160.dp, height = 90.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color(0x66000000))
+            )
+        }
+        Spacer(modifier = Modifier.height(6.dp))
+    }
+
+    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(VideoItem.formatDuration(shownMs), color = SoftWhite, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+        ThinTrack(
+            fraction = dragFraction ?: SeekMath.positionToFraction(positionMs, duration),
+            enabled = duration > 0 && playbackState.isSeekable,
+            onChange = { dragFraction = it },
+            onFinished = {
+                dragFraction?.let { f -> viewModel.seekTo(SeekMath.fractionToPosition(f, duration)) }
+                dragFraction = null
+            },
+            modifier = Modifier
+                .weight(1f)
+                .padding(horizontal = 12.dp)
+                .semantics {
+                    contentDescription = "Seek bar"
+                    stateDescription = "${VideoItem.formatDuration(positionMs)} of ${VideoItem.formatDuration(duration)}"
+                }
+        )
+        Text(
+            text = "-" + VideoItem.formatDuration((duration - shownMs).coerceAtLeast(0L)),
+            color = SoftWhite,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Medium
+        )
     }
 }
 

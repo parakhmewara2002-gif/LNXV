@@ -289,6 +289,7 @@ fun VaultScreen(
                         items(vaultVideos, key = { it.id }) { video ->
                             GlassPanel(
                                 modifier = Modifier
+                                    .animateItem()
                                     .fillMaxWidth()
                                     .clickable { onVideoClick(video) },
                                 shape = RoundedCornerShape(24.dp),

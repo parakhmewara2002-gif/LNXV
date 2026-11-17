@@ -3,6 +3,13 @@ package com.lnxv.player.core.design
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.runtime.remember
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.selected
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.runtime.getValue
@@ -429,9 +436,23 @@ fun GlassDialog(
 ) {
     androidx.compose.ui.window.Dialog(onDismissRequest = onDismissRequest) {
         val shape = RoundedCornerShape(28.dp)
+        val shown = remember { mutableStateOf(false) }
+        LaunchedEffect(Unit) { shown.value = true }
+        val reduceFx = LocalReduceEffects.current
+        val enter by animateFloatAsState(
+            targetValue = if (shown.value || reduceFx) 1f else 0f,
+            animationSpec = spring(dampingRatio = 0.75f, stiffness = 420f),
+            label = "dialog_enter"
+        )
         Column(
             modifier = modifier
                 .fillMaxWidth()
+                .graphicsLayer {
+                    val sc = 0.9f + 0.1f * enter
+                    scaleX = sc
+                    scaleY = sc
+                    alpha = enter.coerceIn(0f, 1f)
+                }
                 .clip(shape)
                 .liquidGlassSurface(
                     shape = shape,
@@ -591,14 +612,42 @@ fun GlassSwitch(checked: Boolean, onCheckedChange: ((Boolean) -> Unit)?, modifie
 
 /** Thin rounded progress bar. */
 @Composable
-fun GlassProgress(progress: () -> Float, modifier: Modifier = Modifier) {
+fun GlassProgress(progress: () -> Float, modifier: Modifier = Modifier, height: androidx.compose.ui.unit.Dp = 6.dp) {
     androidx.compose.material3.LinearProgressIndicator(
         progress = progress,
-        modifier = modifier.height(6.dp).clip(CircleShape),
+        modifier = modifier.height(height).clip(CircleShape),
         color = appColors.accent,
         trackColor = appColors.glassBorder,
         strokeCap = androidx.compose.ui.graphics.StrokeCap.Round,
         gapSize = 0.dp,
         drawStopIndicator = {}
     )
+}
+
+/** Glass capsule filter chip (replaces Material FilterChip): animated tint, spring press, selected semantics. */
+@Composable
+fun GlassFilterChip(selected: Boolean, label: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val bg by animateColorAsState(
+        targetValue = if (selected) appColors.accent.copy(alpha = 0.28f) else appColors.glassFill,
+        animationSpec = tween(200),
+        label = "chip_bg"
+    )
+    Box(
+        modifier = modifier
+            .bouncyClickable(pressedScale = 0.94f) { onClick() }
+            .liquidGlassSurface(
+                shape = CircleShape,
+                backgroundColor = bg,
+                borderColor = if (selected) appColors.accent else appColors.glassBorder
+            )
+            .padding(horizontal = 14.dp, vertical = 8.dp)
+            .semantics { this.selected = selected },
+        contentAlignment = Alignment.Center
+    ) {
+        androidx.compose.material3.Text(
+            text = label,
+            color = if (selected) appColors.accent else appColors.textPrimary,
+            style = Typography.labelLarge
+        )
+    }
 }

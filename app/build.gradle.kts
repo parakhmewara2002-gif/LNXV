@@ -106,7 +106,6 @@ android {
 
 dependencies {
     testImplementation("junit:junit:4.13.2")
-    implementation("androidx.profileinstaller:profileinstaller:1.3.1")
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.core.splashscreen)
     // Real backdrop blur (RenderEffect on Android 12+, translucent fallback below). Used on one bar only.
