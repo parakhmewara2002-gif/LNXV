@@ -66,26 +66,26 @@ fun Modifier.liquidGlassSurface(
         shape = shape
     )
     .drawWithContent {
-        // Draw the glass tint below content so labels and icons remain crisp.
+        // Authentic Apple iOS Liquid Glass specular inner gradient
         drawRect(
             brush = Brush.verticalGradient(
-                0f to Color.White.copy(alpha = 0.075f),
-                0.16f to Color.White.copy(alpha = 0.025f),
-                0.52f to Color.Transparent,
+                0f to Color.White.copy(alpha = 0.14f),
+                0.25f to Color.White.copy(alpha = 0.05f),
+                0.60f to Color.Transparent,
                 1f to Color.Transparent
             )
         )
         drawContent()
-        // A fine specular edge catches light without washing out controls.
+        // iOS Razor-sharp specular highlight on the top inner rim
         drawLine(
             brush = Brush.horizontalGradient(
-                0f to Color.White.copy(alpha = 0.18f),
-                0.5f to Color.White.copy(alpha = 0.035f),
-                1f to Color.Transparent
+                0f to Color.White.copy(alpha = 0.45f),
+                0.5f to Color.White.copy(alpha = 0.12f),
+                1f to Color.White.copy(alpha = 0.02f)
             ),
-            start = Offset(12.dp.toPx(), 0.7.dp.toPx()),
-            end = Offset(size.width - 12.dp.toPx(), 0.7.dp.toPx()),
-            strokeWidth = 0.7.dp.toPx()
+            start = Offset(10.dp.toPx(), 0.8.dp.toPx()),
+            end = Offset(size.width - 10.dp.toPx(), 0.8.dp.toPx()),
+            strokeWidth = 1.0.dp.toPx()
         )
     }
 
@@ -121,10 +121,10 @@ fun GlassButton(
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.975f else 1.0f,
+        targetValue = if (isPressed) 0.92f else 1.0f,
         animationSpec = spring(
-            dampingRatio = 0.9f,
-            stiffness = 560f
+            dampingRatio = 0.70f,
+            stiffness = 380f
         ),
         label = "glass_button_precision_scale"
     )
@@ -193,10 +193,10 @@ fun GlassIconButton(
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.94f else 1.0f,
+        targetValue = if (isPressed) 0.88f else 1.0f,
         animationSpec = spring(
-            dampingRatio = 0.9f,
-            stiffness = 560f
+            dampingRatio = 0.70f,
+            stiffness = 400f
         ),
         label = "glass_icon_precision_scale"
     )

@@ -54,10 +54,14 @@ class VideoRepository(
         if (changed.isNotEmpty()) videoDao.insertVideos(changed)
         // Remove videos that no longer exist on the device (vault items are kept)
         val scannedIds = scanned.mapTo(HashSet()) { it.id }
-        existing.values.filter { !it.isVault && it.id !in scannedIds }
-            .map { it.id }
-            .chunked(500)
-            .forEach { videoDao.deleteVideosByIds(it) }
+        // Safeguard against transient MediaStore scanner drops / partial unmounts:
+        // Only prune missing videos if scanner returned a substantial portion (>50% of existing library)
+        if (scannedIds.size >= existing.size * 0.5f) {
+            existing.values.filter { !it.isVault && it.id !in scannedIds }
+                .map { it.id }
+                .chunked(500)
+                .forEach { videoDao.deleteVideosByIds(it) }
+        }
     }
 
     fun getVideosInFolder(folderPath: String): Flow<List<VideoItem>> {

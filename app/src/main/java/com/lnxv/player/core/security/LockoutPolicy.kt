@@ -19,9 +19,10 @@ object LockoutPolicy {
     }
 
     fun remainingMs(state: LockoutState, nowMs: Long): Long {
+        if (state.lockedUntilMs <= 0L) return 0L
         val remaining = state.lockedUntilMs - nowMs
-        // A lock further in the future than the maximum delay means the clock moved back: cap it.
-        return remaining.coerceIn(0L, STEPS_MS.last())
+        // Anti-rollback protection: if clock moved backwards (remaining > max step), enforce maximum delay
+        return if (remaining > STEPS_MS.last()) STEPS_MS.last() else remaining.coerceAtLeast(0L)
     }
 
     fun isLocked(state: LockoutState, nowMs: Long): Boolean = remainingMs(state, nowMs) > 0L

@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -176,7 +177,7 @@ fun IosPlayerControls(
             Box(
                 modifier = Modifier
                     .size(84.dp)
-                    .bouncyClickable(pressedScale = 0.92f) { viewModel.togglePlayPause() },
+                    .bouncyClickable(pressedScale = 0.86f) { viewModel.togglePlayPause() },
                 contentAlignment = Alignment.Center
             ) {
                 AnimatedContent(
@@ -212,7 +213,8 @@ fun IosPlayerControls(
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
                 .windowInsetsPadding(WindowInsets.displayCutout)
-                .padding(horizontal = 24.dp, vertical = 14.dp)
+                .navigationBarsPadding()
+                .padding(horizontal = 20.dp, vertical = 12.dp)
         ) {
             val video = uiState.currentVideo
             val folder = video?.folderName
@@ -340,7 +342,7 @@ private fun PillIcon(icon: ImageVector, contentDescription: String, onClick: () 
 private fun GlassCircle(icon: ImageVector, contentDescription: String, size: Dp, label: String? = null, onClick: () -> Unit) {
     Box(
         modifier = Modifier
-            .bouncyClickable(pressedScale = 0.92f) { onClick() }
+            .bouncyClickable(pressedScale = 0.86f) { onClick() }
             .size(size)
             .liquidGlassSurface(shape = CircleShape, backgroundColor = PillFill, borderColor = PillBorder),
         contentAlignment = Alignment.Center
