@@ -141,4 +141,14 @@
     <string name="stats_hw">HW</string>
     <string name="stats_sw">SW</string>
     <string name="stats_fallback_used">Switched to software after errors</string>
+
+    <!-- Native decoders (Phase 1B) -->
+    <string name="av1_software_too_demanding">This AV1 video (%1$s) is too demanding for software decoding on this device (limit: %2$s), and no hardware AV1 decoder can play it. Try a lower-resolution copy.</string>
+    <string name="settings_open_source_licenses">Open-source licenses</string>
+    <string name="settings_open_source_licenses_summary">Libraries LNXV is built with</string>
+    <string name="licenses_title">Open-source licenses</string>
+    <string name="licenses_intro">LNXV is built with the open-source libraries below. Tap an entry to read its license.</string>
+    <string name="licenses_ffmpeg_note">FFmpeg is used under the LGPL 2.1 or later, for audio decoding only, as separate shared libraries (libavcodec.so, libavutil.so, libswresample.so) that can be replaced. The build script and exact source version are in the LNXV repository (decoders/).</string>
+    <string name="licenses_version">Version %1$s</string>
+    <string name="licenses_license_missing">License text could not be loaded.</string>
 </resources>

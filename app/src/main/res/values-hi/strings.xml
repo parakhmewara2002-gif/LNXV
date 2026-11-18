@@ -137,4 +137,14 @@
     <string name="stats_hw">HW</string>
     <string name="stats_sw">SW</string>
     <string name="stats_fallback_used">त्रुटियों के बाद सॉफ़्टवेयर पर स्विच किया गया</string>
+
+    <!-- Native decoders (Phase 1B) -->
+    <string name="av1_software_too_demanding">यह AV1 वीडियो (%1$s) इस डिवाइस पर सॉफ़्टवेयर डिकोडिंग के लिए बहुत भारी है (सीमा: %2$s), और कोई हार्डवेयर AV1 डिकोडर इसे नहीं चला सकता। कम रिज़ॉल्यूशन वाली प्रति आज़माएँ।</string>
+    <string name="settings_open_source_licenses">ओपन-सोर्स लाइसेंस</string>
+    <string name="settings_open_source_licenses_summary">वे लाइब्रेरी जिनसे LNXV बना है</string>
+    <string name="licenses_title">ओपन-सोर्स लाइसेंस</string>
+    <string name="licenses_intro">LNXV नीचे दी गई ओपन-सोर्स लाइब्रेरी से बना है। लाइसेंस पढ़ने के लिए किसी प्रविष्टि पर टैप करें।</string>
+    <string name="licenses_ffmpeg_note">FFmpeg का उपयोग LGPL 2.1 या उसके बाद के संस्करण के अंतर्गत, केवल ऑडियो डिकोडिंग के लिए, अलग साझा लाइब्रेरी (libavcodec.so, libavutil.so, libswresample.so) के रूप में किया गया है जिन्हें बदला जा सकता है। बिल्ड स्क्रिप्ट और सटीक सोर्स संस्करण LNXV रिपॉज़िटरी (decoders/) में हैं।</string>
+    <string name="licenses_version">संस्करण %1$s</string>
+    <string name="licenses_license_missing">लाइसेंस टेक्स्ट लोड नहीं हो सका।</string>
 </resources>
