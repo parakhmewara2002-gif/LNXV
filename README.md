@@ -24,7 +24,7 @@ LNXV is an advanced, production-ready Android video player built with **Jetpack 
 * **Aspect Ratio Modes**: Fit to Screen, Original 100%, Fill (Crop), Stretch, 16:9, 4:3, 21:9, 18:9, 2.35:1.
 * **Playback Speed**: Discrete presets and continuous slider (0.25x to 4.0x) with long-press 2x preview.
 * **Multi-Track Audio**: Switch between embedded alternate audio streams.
-* **Subtitles**: Embedded tracks and external `.srt`, `.ass`, `.ssa`, and `.vtt` subtitles with styling and delay synchronization.
+* **Subtitles**: Embedded tracks and external `.srt`, `.vtt`, `.ass`/`.ssa` and `.ttml` subtitles, text-encoding auto-detect with manual override, styling, delay sync in 0.1 s steps, and optional online search via OpenSubtitles (sideload build, your own API key).
 * **AB Repeat**: Enforce custom looping between marker point A and marker point B.
 * **Sleep Timer**: Coroutine countdown timer with auto-pause.
 * **Multitasking**: Native Picture-in-Picture (PiP) and background audio playback.
@@ -60,7 +60,7 @@ LNXV is an advanced, production-ready Android video player built with **Jetpack 
 Settings > Appearance & performance: effects mode Auto/Full/Reduced. Reduced (auto-selected on low-RAM devices or when system animations are off) disables backdrop blur, shared-element and navigation transitions and scrub previews. Image caches are capped (memory 12%, disk 50 MB); Settings > Storage shows sizes and clears caches.
 
 ### Privacy
-No analytics, no tracking, no ads. Only network use: the update check (sideload) and streams you open.
+No analytics, no tracking, no ads. Only network use: the update check (sideload), streams you open, and, in the sideload build only, OpenSubtitles when you tap Search or Download for subtitles (your own API key; the file hash and name are sent only at that moment).
 
 ---
 

@@ -38,6 +38,9 @@ import com.lnxv.player.core.model.SubtitleTrackInfo
 import com.lnxv.player.core.util.SeekMath
 import com.lnxv.player.playback.diag.DiagnosticsCollector
 import com.lnxv.player.core.util.SubtitleShifter
+import com.lnxv.player.core.subtitle.AssShifter
+import com.lnxv.player.core.subtitle.SubtitleEncoding
+import com.lnxv.player.core.subtitle.SubtitleFormat
 import java.io.File
 import kotlinx.coroutines.withContext
 import kotlin.math.roundToLong
@@ -287,8 +290,20 @@ class Media3PlayerManager(private val context: Context) : PlayerController, Play
         return ok
     }
 
+    private val _subtitleEncoding = MutableStateFlow("AUTO")
+    /** "AUTO" or a charset name from [SubtitleEncoding.CHOICES]. Applies to the loaded external subtitle file. */
+    override val subtitleEncoding: StateFlow<String> = _subtitleEncoding.asStateFlow()
+
+    override suspend fun setSubtitleEncoding(name: String) {
+        _subtitleEncoding.value = name
+        if (externalSubtitleSource != null) applyExternalSubtitle()
+    }
+
+    private var externalFormat: SubtitleFormat? = null
+
     override suspend fun adjustSubtitleDelay(deltaMs: Long) {
         if (externalSubtitleSource == null) return
+        if (externalFormat?.supportsDelay == false) return
         _subtitleDelayMs.value = (_subtitleDelayMs.value + deltaMs).coerceIn(-60_000L, 60_000L)
         applyExternalSubtitle()
     }
@@ -296,19 +311,24 @@ class Media3PlayerManager(private val context: Context) : PlayerController, Play
     private suspend fun applyExternalSubtitle(): Boolean {
         val source = externalSubtitleSource ?: return false
         val delay = _subtitleDelayMs.value
-        val prepared: Pair<Uri, Boolean> = withContext(Dispatchers.IO) {
+        val prepared: Pair<Uri, SubtitleFormat> = withContext(Dispatchers.IO) {
             try {
                 val bytes = context.contentResolver.openInputStream(source)?.use { it.readBytes() }
                     ?: return@withContext null
-                var text = bytes.toString(Charsets.UTF_8)
-                if (text.contains('\uFFFD')) text = bytes.toString(Charsets.ISO_8859_1)
-                if (!SubtitleShifter.looksLikeSubtitle(text)) return@withContext null
-                val isVtt = text.trimStart('\uFEFF', ' ', '\n', '\r').startsWith("WEBVTT")
+                if (bytes.size > MAX_SUBTITLE_BYTES) return@withContext null
+                val text = SubtitleEncoding.decode(bytes, SubtitleEncoding.charsetFor(_subtitleEncoding.value))
+                val format = SubtitleFormat.detect(text) ?: return@withContext null
+                val shifted = when (format) {
+                    SubtitleFormat.SRT, SubtitleFormat.VTT -> SubtitleShifter.shift(text, delay)
+                    SubtitleFormat.ASS -> AssShifter.shift(text, delay)
+                    SubtitleFormat.TTML -> text
+                }
                 val dir = File(context.cacheDir, "subs").apply { mkdirs() }
                 dir.listFiles()?.forEach { it.delete() }
-                val file = File(dir, "sub_${System.nanoTime()}." + if (isVtt) "vtt" else "srt")
-                file.writeText(SubtitleShifter.shift(text, delay))
-                Pair(Uri.fromFile(file), isVtt)
+                val file = File(dir, "sub_${System.nanoTime()}.${format.extension}")
+                file.writeText(shifted) // always UTF-8, whatever the source encoding was
+                externalFormat = format
+                Pair(Uri.fromFile(file), format)
             } catch (e: Exception) {
                 null
             }
@@ -319,7 +339,7 @@ class Media3PlayerManager(private val context: Context) : PlayerController, Play
             val position = exoPlayer.currentPosition
             val playWhenReady = exoPlayer.playWhenReady
             val config = MediaItem.SubtitleConfiguration.Builder(prepared.first)
-                .setMimeType(if (prepared.second) MimeTypes.TEXT_VTT else MimeTypes.APPLICATION_SUBRIP)
+                .setMimeType(prepared.second.mimeType)
                 .setLanguage("en")
                 .setLabel("External subtitle")
                 .setSelectionFlags(C.SELECTION_FLAG_DEFAULT)
@@ -352,6 +372,8 @@ class Media3PlayerManager(private val context: Context) : PlayerController, Play
         if (!_videoColor.value.isNeutral) setVideoColor(com.lnxv.player.core.model.VideoColor()) // colour tweaks apply per video
         _subtitleDelayMs.value = 0L
         _hasExternalSubtitle.value = false
+        _subtitleEncoding.value = "AUTO"
+        externalFormat = null
         val mediaItemBuilder = MediaItem.Builder().setUri(uri)
         if (title != null) {
             mediaItemBuilder.setMediaMetadata(androidx.media3.common.MediaMetadata.Builder().setTitle(title).build())
@@ -907,6 +929,7 @@ class Media3PlayerManager(private val context: Context) : PlayerController, Play
     }
 
     private companion object {
+        const val MAX_SUBTITLE_BYTES = 4 * 1024 * 1024
         const val SCRUB_SEEK_INTERVAL_MS = 90L
         const val MAX_REMEMBER_ATTEMPTS = 3
     }

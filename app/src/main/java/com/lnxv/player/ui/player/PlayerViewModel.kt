@@ -43,6 +43,7 @@ data class PlayerUiState(
     val showAspectRatioDialog: Boolean = false,
     val showAudioDialog: Boolean = false,
     val showSubtitleDialog: Boolean = false,
+    val showOnlineSubtitleDialog: Boolean = false,
     val showPropertiesDialog: Boolean = false,
     val subtitleStyle: SubtitleStyleConfig = SubtitleStyleConfig(),
     val resumePromptPositionMs: Long? = null,
@@ -76,6 +77,41 @@ class PlayerViewModel(
     val subtitleTracks: StateFlow<List<SubtitleTrackInfo>> = playerManager.subtitleTracks
     val subtitleDelayMs: StateFlow<Long> = playerManager.subtitleDelayMs
     val hasExternalSubtitle: StateFlow<Boolean> = playerManager.hasExternalSubtitle
+    val subtitleEncoding: StateFlow<String> = playerManager.subtitleEncoding
+    fun setSubtitleEncoding(name: String) { viewModelScope.launch { playerManager.setSubtitleEncoding(name) } }
+
+    // Online subtitles (OpenSubtitles): user-initiated only; see OnlineSubtitlesController.
+    private val onlineSettings = com.lnxv.player.core.subtitle.online.OnlineSubtitleSettings(application)
+    val onlineSubtitles = com.lnxv.player.core.subtitle.online.OnlineSubtitlesController(
+        viewModelScope,
+        application,
+        onlineSettings,
+        com.lnxv.player.core.subtitle.online.OpenSubtitlesClient(
+            onlineSettings,
+            "LNXV v" + (runCatching { application.packageManager.getPackageInfo(application.packageName, 0).versionName }.getOrNull() ?: "1.0")
+        ),
+        com.lnxv.player.core.subtitle.online.OnlineSubtitleStore(application)
+    )
+
+    fun showOnlineSubtitleDialog(show: Boolean) {
+        if (!show) onlineSubtitles.cancel()
+        _uiState.value = _uiState.value.copy(showOnlineSubtitleDialog = show)
+    }
+
+    fun downloadOnlineSubtitle(sub: com.lnxv.player.core.subtitle.OsSubtitle) {
+        onlineSubtitles.download(_uiState.value.currentVideo, sub) { file ->
+            viewModelScope.launch {
+                val ok = playerManager.loadExternalSubtitle(Uri.fromFile(file))
+                val app = getApplication<Application>()
+                android.widget.Toast.makeText(
+                    app,
+                    if (ok) app.getString(com.lnxv.player.R.string.online_subs_loaded) else app.getString(com.lnxv.player.R.string.os_err_bad_response),
+                    android.widget.Toast.LENGTH_SHORT
+                ).show()
+                if (ok) showOnlineSubtitleDialog(false)
+            }
+        }
+    }
     val audioDelayMs: StateFlow<Long> = playerManager.audioDelayMs
 
     fun adjustAudioDelay(deltaMs: Long) = playerManager.setAudioDelayMs(playerManager.audioDelayMs.value + deltaMs)
@@ -242,6 +278,7 @@ class PlayerViewModel(
         playerManager.prepareAndPlay(
             uri = video.uri,
             startPositionMs = positionMs,
+            externalSubtitleUri = onlineSubtitles.rememberedFor(video)?.let { Uri.fromFile(it) },
             title = if (video.isVault) "Private video" else video.title
         )
         playerManager.applyRememberedTracks(pendingTracks)
@@ -377,7 +414,7 @@ class PlayerViewModel(
             if (!ok) {
                 android.widget.Toast.makeText(
                     getApplication<Application>(),
-                    "Unsupported subtitle file. Use .srt or .vtt",
+                    "Unsupported subtitle file. Use .srt, .vtt, .ass, .ssa or .ttml",
                     android.widget.Toast.LENGTH_LONG
                 ).show()
             }
