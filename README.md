@@ -7,7 +7,7 @@ LNXV is an advanced, production-ready Android video player built with **Jetpack 
 ## 1. Technical Stack & Architecture
 
 * **UI Framework**: 100% Jetpack Compose with Material 3 and custom Liquid Glass modifiers.
-* **Media Playback Engine**: AndroidX Media3 ExoPlayer (`1.4.1`) with hardware `MediaCodec` acceleration and software decoder fallback.
+* **Media Playback Engine**: AndroidX Media3 ExoPlayer (`1.11.0`) with hardware `MediaCodec` acceleration, a selectable decoder mode, an audio-only FFmpeg fallback and a capped dav1d AV1 software fallback (see below).
 * **Background Service**: AndroidX `MediaSessionService` (`LNXVPlaybackService`) for background audio and lock screen controls.
 * **Architecture**: Clean Architecture & MVVM with Unidirectional Data Flow (UDF).
 * **Local Persistence**: Room Database 2.6.1 with reactive Kotlin `Flow` queries.
@@ -52,8 +52,8 @@ LNXV is an advanced, production-ready Android video player built with **Jetpack 
 * NOT DEVICE-TESTED yet.
 
 ### Build flavors
-* `sideload` (default for CI/GitHub releases): arm64-v8a only, in-app updater with SHA-256 + signer verification, declares REQUEST_INSTALL_PACKAGES.
-* `store`: no install permission, no updater UI. Build with `./gradlew assembleStoreRelease`.
+* `sideload` (default for CI/GitHub releases): arm64-v8a and armeabi-v7a, in-app updater with SHA-256 + signer verification, declares REQUEST_INSTALL_PACKAGES.
+* `store`: same ABIs; no install permission, no updater UI. Build with `./gradlew assembleStoreRelease`.
 * Both: `./gradlew testSideloadDebugUnitTest lintSideloadDebug assembleSideloadRelease`.
 
 ### Low-end mode
@@ -64,9 +64,16 @@ No analytics, no tracking, no ads. Only network use: the update check (sideload)
 
 ---
 
+### Native decoders and third-party licenses
+* **FFmpeg (LGPL 2.1 or later), audio only.** Used as a fallback when the device has no MediaCodec decoder for an audio track (AC-3, E-AC-3, DTS, TrueHD, and others). Built from the pinned tag in `decoders/tools/versions.env` with `--disable-everything` plus an explicit decoder list; the build script refuses to continue unless FFmpeg reports an LGPL-only configuration (no GPL, no nonfree). It is **dynamically linked**: `libavcodec.so`, `libavutil.so` and `libswresample.so` are separate files in the APK's `lib/<abi>/` and can be replaced with your own build. Video never goes through FFmpeg.
+* **dav1d (BSD-2-Clause), AV1 software decoding.** Used only when no hardware AV1 decoder can play the video, never in "Hardware only" mode, and capped (1080p30; 720p30 on low-end devices). Above the cap the player shows a message instead of stuttering.
+* Some audio formats (AC-3, DTS, TrueHD) may carry patent or licensing obligations in some jurisdictions. This is not legal advice; check before distributing.
+* All libraries and license texts are listed in the app under **Settings > Open-source licenses**. Details and build steps: `docs/DECODERS.md`.
+
 ## 3. How to Build in Android Studio
 
 ### Prerequisites
+* **Native decoders (optional locally):** run `decoders/tools/build_all.sh` (needs NDK `26.1.10909125`, CMake `3.22.1`, `meson`, `ninja`, `git`). Without it the app still builds and runs, using MediaCodec only. CI always builds them.
 * **Android Studio**: Android Studio Koala (2024.1+) or newer.
 * **JDK**: OpenJDK 17.
 * **Android SDK**: Android API 34 SDK platform and build-tools installed.
@@ -107,7 +114,7 @@ No analytics, no tracking, no ads. Only network use: the update check (sideload)
 ## Android compatibility (compatibility pass)
 
 - Minimum supported Android version is Android 6.0 (API 23).
-- Sideload builds no longer force `arm64-v8a`; Gradle packages the ABIs available from the app and its dependencies.
+- Release builds package `arm64-v8a` and `armeabi-v7a` (x86_64 native decoders are only packaged in debug builds, for emulators).
 - Android 13 (API 33), including TECNO Camon 19, remains within the declared OS range. This does not by itself diagnose or fix a launch crash on a particular device.
 - The project currently retains its existing `compileSdk = 34` and `targetSdk = 34` toolchain settings. Apps can run on newer Android releases, but adopting the newest platform behavior requires a separate compile/target SDK and Android Gradle Plugin upgrade plus testing.
 - Android 5.x and older are not supported by this configuration.

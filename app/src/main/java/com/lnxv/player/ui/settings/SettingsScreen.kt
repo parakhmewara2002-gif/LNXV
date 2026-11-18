@@ -67,7 +67,8 @@ import com.lnxv.player.core.update.UpdateState
 @Composable
 fun SettingsScreen(
     viewModel: SettingsViewModel,
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    onOpenLicenses: () -> Unit = {}
 ) {
     val prefs by viewModel.userPreferences.collectAsState()
     val updateState by viewModel.updateState.collectAsState()
@@ -594,6 +595,33 @@ fun SettingsScreen(
                                 fontSize = 12.sp
                             )
                         }
+                    }
+                }
+            }
+
+            if (show("Open-source licenses", "licenses", "ffmpeg", "dav1d", "lgpl", "open source")) item {
+                GlassPanel(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(22.dp),
+                    backgroundColor = appColors.glassFill
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(onClick = onOpenLicenses)
+                            .padding(16.dp)
+                    ) {
+                        Text(
+                            text = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.settings_open_source_licenses),
+                            color = appColors.textPrimary,
+                            style = Typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            text = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.settings_open_source_licenses_summary),
+                            color = appColors.textTertiary,
+                            fontSize = 12.sp
+                        )
                     }
                 }
             }
