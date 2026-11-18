@@ -149,6 +149,7 @@ jobs:
             done
             echo '```'
           } | tee sizes.md >> "$GITHUB_STEP_SUMMARY"
+          cat sizes.md
 
       - name: Rename APK and write SHA-256 checksum
         run: |
