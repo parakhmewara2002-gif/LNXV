@@ -23,7 +23,7 @@ android {
         }
     }
 
-    // sideload: self-updating APK (arm64 only to keep it small). store: no installer permission, no updater.
+    // sideload: self-updating APK. store: no installer permission, no updater. Both ship arm64-v8a + armeabi-v7a in release.
     // Only ship the languages LNXV is translated into (drops unused library locale resources).
     defaultConfig { resourceConfigurations += listOf("en", "hi") }
 
@@ -31,8 +31,6 @@ android {
     productFlavors {
         create("sideload") {
             dimension = "dist"
-            // Do not restrict ABIs: package every ABI supplied by the app/dependencies.
-            // This allows 32-bit ARM devices as well as 64-bit ARM and x86 devices.
             resValue("bool", "updater_enabled", "true")
         }
         create("store") {
@@ -55,6 +53,7 @@ android {
 
     buildTypes {
         release {
+            ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
             signingConfig = if (System.getenv("KEYSTORE_PATH") != null)
                 signingConfigs.getByName("lnxvRelease") else signingConfigs.getByName("debug")
             isMinifyEnabled = true
@@ -67,11 +66,14 @@ android {
         // Used only by :benchmark (macrobenchmark / baseline-profile generation). Never shipped.
         create("benchmark") {
             initWith(getByName("release"))
+            ndk { abiFilters.clear(); abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
             signingConfig = signingConfigs.getByName("debug")
             matchingFallbacks += listOf("release")
             isDebuggable = false
         }
         debug {
+            // x86_64 (emulator) native decoders are only built for debug; release never ships them.
+            ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64") }
             applicationIdSuffix = ".debug"
             isDebuggable = true
         }
@@ -89,6 +91,10 @@ android {
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
+        }
+        jniLibs {
+            // FFmpeg .so files are copied into :decoders jniLibs and are also seen via the CMake imported targets.
+            pickFirsts += listOf("**/libavcodec.so", "**/libavutil.so", "**/libswresample.so")
         }
     }
 }
@@ -141,6 +147,8 @@ dependencies {
     implementation(libs.androidx.media3.session)
     implementation(libs.androidx.media3.common)
     implementation(libs.androidx.media3.extractor)
+    // FFmpeg audio-only fallback (LGPL, dynamically linked) and dav1d AV1 software fallback (BSD-2). See docs/DECODERS.md.
+    implementation(project(":decoders"))
 
     // Room Database
     implementation(libs.androidx.room.runtime)

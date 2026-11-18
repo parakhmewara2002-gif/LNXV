@@ -3,3 +3,8 @@ build/
 local.properties
 *.iml
 .idea/
+
+# Native decoder build outputs (built by decoders/tools/build_all.sh, cached in CI)
+decoders/src/main/jni/third_party/
+decoders/src/main/jniLibs/
+.cxx/

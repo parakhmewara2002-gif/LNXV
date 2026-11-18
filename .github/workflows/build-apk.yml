@@ -13,6 +13,9 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      # Fail loudly if the native decoder build is missing instead of silently shipping an APK without it.
+      ORG_GRADLE_PROJECT_requireNativeDecoders: "true"
 
     steps:
       - name: Checkout Repository
@@ -35,6 +38,39 @@ jobs:
             gradle wrapper --gradle-version 8.7
           fi
 
+      - name: Install NDK, CMake and meson/ninja (pinned in decoders/tools/versions.env)
+        run: |
+          source decoders/tools/versions.env
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;${NDK_VERSION}" "cmake;${CMAKE_VERSION}" > /dev/null
+          pip install --user meson ninja
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Restore native decoder build cache
+        id: native-cache
+        uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: |
+            decoders/src/main/jni/third_party/out
+            decoders/src/main/jni/third_party/cpu_features
+            decoders/src/main/jniLibs
+          key: native-decoders-${{ runner.os }}-${{ hashFiles('decoders/tools/**') }}
+
+      - name: Build native decoders (FFmpeg LGPL audio + dav1d) on cache miss
+        if: steps.native-cache.outputs.cache-hit != 'true'
+        run: decoders/tools/build_all.sh arm64-v8a armeabi-v7a
+
+      # Saved right after the build (not at job end) so a later failing step does not throw the slow build away.
+      - name: Save native decoder build cache
+        if: steps.native-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: |
+            decoders/src/main/jni/third_party/out
+            decoders/src/main/jni/third_party/cpu_features
+            decoders/src/main/jniLibs
+          key: native-decoders-${{ runner.os }}-${{ hashFiles('decoders/tools/**') }}
+
       - name: Run unit tests
         run: |
           set +e
@@ -49,13 +85,6 @@ jobs:
       - name: Android lint (non-blocking until the baseline is clean)
         continue-on-error: true
         run: ./gradlew lintSideloadDebug --console=plain
-
-      - name: Report artifact sizes (measured, not estimated)
-        run: |
-          for f in app/build/outputs/apk/sideload/release/*.apk app/build/outputs/apk/store/release/*.apk app/build/outputs/bundle/storeRelease/*.aab; do
-            [ -f "$f" ] && echo "$(du -b "$f" | cut -f1) bytes  $f"
-          done | tee sizes.txt
-          { echo '### Artifact sizes'; echo '```'; cat sizes.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Compile benchmark module (not run; needs a device)
         run: ./gradlew :benchmark:assembleBenchmark --stacktrace
@@ -97,6 +126,29 @@ jobs:
             grep -E "^e: |error:|What went wrong|Execution failed|Could not|FAILED|Caused by" build.log | head -40 | while IFS= read -r l; do echo "::error::${l:0:400}"; done
           fi
           exit $code
+
+      - name: Verify native libraries in the APK and report sizes (measured)
+        run: |
+          set -e
+          APK=app/build/outputs/apk/sideload/release/app-sideload-release.apk
+          for abi in arm64-v8a armeabi-v7a; do
+            for lib in libavcodec.so libavutil.so libswresample.so libffmpegJNI.so libdav1dJNI.so; do
+              unzip -l "$APK" "lib/$abi/$lib" | grep -q "lib/$abi/$lib" || { echo "::error::lib/$abi/$lib missing from APK"; exit 1; }
+            done
+          done
+          if unzip -l "$APK" | grep -q "lib/x86_64/"; then echo "::error::x86_64 libs must not be in release"; exit 1; fi
+          {
+            echo '### Native libraries in sideload release APK (uncompressed bytes per file)'
+            echo '```'
+            unzip -l "$APK" 'lib/*' | awk 'NR>3 && $1 ~ /^[0-9]+$/ {print $1, $4}'
+            echo '```'
+            echo '### Artifact sizes'
+            echo '```'
+            for f in app/build/outputs/apk/sideload/release/*.apk app/build/outputs/apk/store/release/*.apk app/build/outputs/bundle/storeRelease/*.aab; do
+              [ -f "$f" ] && echo "$(du -b "$f" | cut -f1) bytes  $f"
+            done
+            echo '```'
+          } | tee sizes.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Rename APK and write SHA-256 checksum
         run: |
