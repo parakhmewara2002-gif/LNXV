@@ -8,6 +8,11 @@ plugins {
 val jniDir = file("src/main/jni")
 val nativeBuilt = file("src/main/jni/third_party/out/ffmpeg").isDirectory &&
     file("src/main/jni/third_party/out/dav1d").isDirectory
+// Only configure CMake for ABIs whose libraries were actually built (other ABIs have no prebuilt FFmpeg/dav1d).
+val builtAbis = listOf("arm64-v8a", "armeabi-v7a", "x86_64").filter {
+    file("src/main/jni/third_party/out/ffmpeg/$it/lib").isDirectory &&
+        file("src/main/jni/third_party/out/dav1d/$it/libdav1d.a").isFile
+}
 val requireNative = providers.gradleProperty("requireNativeDecoders").orNull == "true"
 if (requireNative && !nativeBuilt) {
     throw GradleException(
@@ -24,6 +29,7 @@ android {
         minSdk = 23
         consumerProguardFiles("proguard-rules.txt")
         if (nativeBuilt) {
+            ndk { abiFilters += builtAbis }
             externalNativeBuild {
                 cmake {
                     targets("ffmpegJNI", "dav1dJNI")
