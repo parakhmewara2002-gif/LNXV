@@ -101,19 +101,25 @@ object SubtitleEncoding {
         return null
     }
 
-    /** Chooses between Cyrillic, Arabic, Greek and Hebrew code pages by counting which one yields real letters. */
+    /**
+     * Chooses between Cyrillic, Arabic, Greek and Hebrew code pages. All of them map every high byte to some letter of
+     * their own script, so counting script letters cannot tell them apart. Instead each candidate is scored by how
+     * many decoded characters are among that language's most frequent letters; the wrong code page produces
+     * mostly rare letters.
+     */
     private fun singleByteScript(bytes: ByteArray): Charset {
         val candidates = listOf(
-            "windows-1251" to { c: Char -> c in 'Ѐ'..'ӿ' },
-            "windows-1256" to { c: Char -> c in '؀'..'ۿ' },
-            "windows-1253" to { c: Char -> c in 'Ͱ'..'Ͽ' },
-            "windows-1255" to { c: Char -> c in '֐'..'׿' }
+            "windows-1251" to "оеаинтсрвлкмдпу",
+            "windows-1256" to "اليمونرتبد",
+            "windows-1253" to "αοιετνσςρκπυ",
+            "windows-1255" to "יוהלאמרתשנב"
         )
         var best = "windows-1252"
-        var bestScore = 0
-        for ((name, inScript) in candidates) {
-            val text = String(bytes, Charset.forName(name))
-            val score = text.count(inScript)
+        var bestScore = 0.0
+        for ((name, common) in candidates) {
+            val high = String(bytes, Charset.forName(name)).filter { it.code > 0x7F }
+            if (high.isEmpty()) continue
+            val score = high.count { it.lowercaseChar() in common }.toDouble() / high.length
             if (score > bestScore) { best = name; bestScore = score }
         }
         return Charset.forName(best)
