@@ -51,6 +51,6 @@ class SubtitleEncodingTest {
     }
     @Test fun `choices resolve to real charsets`() {
         assertEquals(null, SubtitleEncoding.charsetFor("AUTO"))
-        SubtitleEncoding.CHOICES.drop(1).forEach { org.junit.Assert.assertNotNull(SubtitleEncoding.charsetFor(it), it) }
+        SubtitleEncoding.CHOICES.drop(1).forEach { org.junit.Assert.assertNotNull(it, SubtitleEncoding.charsetFor(it)) }
     }
 }
