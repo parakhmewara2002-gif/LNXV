@@ -21,6 +21,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.composed
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -32,8 +36,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 /**
- * Liquid Glass styling modifier that renders a translucent backdrop, subtle border reflection,
- * and high-performance specular shine.
+ * Liquid Glass surface. Techniques ported from the Figma Liquid Glass plugin's layer stack (glass-layers.ts):
+ *  - refraction layer: inner shadow (depth) + angular-gradient edge stroke with two opposite specular lobes
+ *    (stops 12% / 64% bright, 28-36% and 78-89% dim),
+ *  - highlight layer: a soft, wide version of the same two lobes clipped inside the shape,
+ *  - tint layer: the translucent fill.
+ * Everything is drawn once per size through drawWithCache (no per-frame work). The tier comes from [LocalGlassProfile]:
+ * LOW keeps the minimal fill + hairline + top highlight; BALANCED/HIGH add the layered look; HIGH adds a static chromatic fringe.
+ * Real backdrop refraction is NOT done here (a Modifier cannot sample what is behind it): see LiquidLens.kt.
  */
 fun Modifier.liquidGlassSurface(
     shape: Shape = RoundedCornerShape(20.dp),
@@ -41,53 +51,113 @@ fun Modifier.liquidGlassSurface(
     borderColor: Color = Color(0x40FFFFFF),
     borderWidth: Dp = 1.dp,
     @Suppress("UNUSED_PARAMETER") blurRadius: Dp = 16.dp // Modifier.blur blurs content, not backdrop; unused
-): Modifier = this
-    .clip(shape)
-    .background(
-        brush = Brush.verticalGradient(
-            colors = listOf(
-                backgroundColor.copy(alpha = (backgroundColor.alpha * 1.25f).coerceAtMost(1f)),
-                backgroundColor.copy(alpha = backgroundColor.alpha * 0.75f)
-            )
-        ),
-        shape = shape
-    )
-    .border(
-        width = borderWidth,
-        brush = Brush.linearGradient(
-            colors = listOf(
-                borderColor,
-                borderColor.copy(alpha = borderColor.alpha * 0.2f),
-                borderColor.copy(alpha = borderColor.alpha * 0.6f)
-            ),
-            start = Offset.Zero,
-            end = Offset.Infinite
-        ),
-        shape = shape
-    )
-    .drawWithContent {
-        // Authentic Apple iOS Liquid Glass specular inner gradient
-        drawRect(
+): Modifier = composed {
+    val profile = LocalGlassProfile.current
+    val isDark = appColors.isDark
+    val fill = Modifier
+        .clip(shape)
+        .background(
             brush = Brush.verticalGradient(
-                0f to Color.White.copy(alpha = 0.14f),
-                0.25f to Color.White.copy(alpha = 0.05f),
-                0.60f to Color.Transparent,
+                colors = listOf(
+                    backgroundColor.copy(alpha = (backgroundColor.alpha * 1.25f).coerceAtMost(1f)),
+                    backgroundColor.copy(alpha = backgroundColor.alpha * 0.75f)
+                )
+            ),
+            shape = shape
+        )
+    if (profile == GlassProfile.LOW) {
+        fill
+            .border(
+                width = borderWidth,
+                brush = Brush.linearGradient(
+                    colors = listOf(
+                        borderColor,
+                        borderColor.copy(alpha = borderColor.alpha * 0.2f),
+                        borderColor.copy(alpha = borderColor.alpha * 0.6f)
+                    ),
+                    start = Offset.Zero,
+                    end = Offset.Infinite
+                ),
+                shape = shape
+            )
+            .drawWithContent {
+                drawRect(
+                    brush = Brush.verticalGradient(
+                        0f to Color.White.copy(alpha = 0.14f),
+                        0.25f to Color.White.copy(alpha = 0.05f),
+                        0.60f to Color.Transparent,
+                        1f to Color.Transparent
+                    )
+                )
+                drawContent()
+                drawLine(
+                    brush = Brush.horizontalGradient(
+                        0f to Color.White.copy(alpha = 0.45f),
+                        0.5f to Color.White.copy(alpha = 0.12f),
+                        1f to Color.White.copy(alpha = 0.02f)
+                    ),
+                    start = Offset(10.dp.toPx(), 0.8.dp.toPx()),
+                    end = Offset(size.width - 10.dp.toPx(), 0.8.dp.toPx()),
+                    strokeWidth = 1.0.dp.toPx()
+                )
+            }
+    } else {
+        fill.drawWithCache {
+            val outline = shape.createOutline(size, layoutDirection, this)
+            val stroke = borderWidth.toPx().coerceAtLeast(1f)
+            val bright = (borderColor.alpha * 2.4f).coerceIn(0.35f, 0.9f)
+            val dim = borderColor.alpha * 0.35f
+            val base = Color(borderColor.red, borderColor.green, borderColor.blue)
+            val center = Offset(size.width / 2f, size.height / 2f)
+            // Figma "angular gradient" strokes: lobes at 12% and 64% of the sweep, dim in between.
+            fun lobes(peak: Float, floor: Float) = Brush.sweepGradient(
+                0f to base.copy(alpha = floor),
+                0.12f to base.copy(alpha = peak),
+                0.28f to base.copy(alpha = floor),
+                0.36f to base.copy(alpha = floor),
+                0.64f to base.copy(alpha = peak),
+                0.78f to base.copy(alpha = floor),
+                0.89f to base.copy(alpha = floor),
+                1f to base.copy(alpha = floor),
+                center = center
+            )
+            val edge = lobes(bright, dim)
+            // "Highlight reflection": wide soft strokes (approximating the 12px / blur-14 stroke) kept inside the clip.
+            val softA = lobes(bright * 0.16f, 0f)
+            val softB = lobes(bright * 0.26f, 0f)
+            val softC = lobes(bright * 0.40f, 0f)
+            val innerShadow = Brush.linearGradient(
+                0f to Color.Transparent,
+                0.55f to Color.Transparent,
+                1f to Color.Black.copy(alpha = if (isDark) 0.22f else 0.07f),
+                start = Offset.Zero,
+                end = Offset(size.width, size.height)
+            )
+            val topGloss = Brush.verticalGradient(
+                0f to Color.White.copy(alpha = if (isDark) 0.13f else 0.30f),
+                0.32f to Color.White.copy(alpha = 0.03f),
+                0.7f to Color.Transparent,
                 1f to Color.Transparent
             )
-        )
-        drawContent()
-        // iOS Razor-sharp specular highlight on the top inner rim
-        drawLine(
-            brush = Brush.horizontalGradient(
-                0f to Color.White.copy(alpha = 0.45f),
-                0.5f to Color.White.copy(alpha = 0.12f),
-                1f to Color.White.copy(alpha = 0.02f)
-            ),
-            start = Offset(10.dp.toPx(), 0.8.dp.toPx()),
-            end = Offset(size.width - 10.dp.toPx(), 0.8.dp.toPx()),
-            strokeWidth = 1.0.dp.toPx()
-        )
+            val fringe = profile == GlassProfile.HIGH
+            val fringeOffset = 0.7.dp.toPx()
+            onDrawWithContent {
+                drawOutline(outline, brush = topGloss)
+                drawOutline(outline, brush = innerShadow)
+                drawOutline(outline, brush = softA, style = Stroke(stroke * 9f))
+                drawOutline(outline, brush = softB, style = Stroke(stroke * 5.5f))
+                drawOutline(outline, brush = softC, style = Stroke(stroke * 2.8f))
+                drawContent()
+                if (fringe) {
+                    // Static chromatic-aberration hint at the rim (NOT refraction): cool/warm fringes offset opposite ways.
+                    translate(-fringeOffset, 0f) { drawOutline(outline, color = Color(0xFF4FC3F7).copy(alpha = 0.10f), style = Stroke(stroke)) }
+                    translate(fringeOffset, 0f) { drawOutline(outline, color = Color(0xFFFF7A8A).copy(alpha = 0.10f), style = Stroke(stroke)) }
+                }
+                drawOutline(outline, brush = edge, style = Stroke(stroke * 1.25f))
+            }
+        }
     }
+}
 
 @Composable
 fun GlassPanel(

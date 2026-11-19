@@ -27,9 +27,14 @@ object DeviceTier {
         EffectsMode.AUTO -> lowEnd
     }
 
-    fun detect(context: Context, maxRefreshHz: Float): Boolean {
+    fun detect(context: Context, maxRefreshHz: Float): Boolean = specs(context, maxRefreshHz).lowEnd
+
+    /** Measured facts for [GlassProfileResolver]. */
+    class Specs(val lowEnd: Boolean, val totalRamBytes: Long, val maxRefreshHz: Float)
+
+    fun specs(context: Context, maxRefreshHz: Float): Specs {
         val am = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
         val info = ActivityManager.MemoryInfo().also { am.getMemoryInfo(it) }
-        return isLowEnd(am.isLowRamDevice, info.totalMem, maxRefreshHz)
+        return Specs(isLowEnd(am.isLowRamDevice, info.totalMem, maxRefreshHz), info.totalMem, maxRefreshHz)
     }
 }

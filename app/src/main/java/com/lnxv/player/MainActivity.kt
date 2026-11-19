@@ -48,11 +48,12 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
     @Volatile private var autoLockEnabled = true
     private var globalSecure = false
     private var lockJob: Job? = null
-    private val lowEndDevice: Boolean by lazy {
+    private val deviceSpecs: com.lnxv.player.core.design.DeviceTier.Specs by lazy {
         @Suppress("DEPRECATION")
         val hz = runCatching { windowManager.defaultDisplay.supportedModes.maxOf { it.refreshRate } }.getOrDefault(60f)
-        com.lnxv.player.core.design.DeviceTier.detect(this, hz)
+        com.lnxv.player.core.design.DeviceTier.specs(this, hz)
     }
+    private val lowEndDevice: Boolean get() = deviceSpecs.lowEnd
 
     /** System "Remove animations" (animator duration scale 0) is treated as "reduce effects". */
     private fun systemAnimationsDisabled(): Boolean = runCatching {
@@ -134,7 +135,15 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
                 val reduce = com.lnxv.player.core.design.DeviceTier.resolveReduceEffects(
                     com.lnxv.player.core.design.EffectsMode.parse(p.effectsMode), lowEndDevice
                 ) || systemAnimationsDisabled()
-                LNXVTheme(darkTheme = darkTheme, amoled = p.isAmoled, dynamicColor = p.dynamicColor, reduceEffects = reduce) {
+                val glassProfile = com.lnxv.player.core.design.GlassProfileResolver.resolve(
+                    mode = com.lnxv.player.core.design.EffectsMode.parse(p.effectsMode),
+                    lowEnd = lowEndDevice,
+                    apiLevel = android.os.Build.VERSION.SDK_INT,
+                    totalRamBytes = deviceSpecs.totalRamBytes,
+                    maxRefreshHz = deviceSpecs.maxRefreshHz,
+                    systemAnimationsOff = systemAnimationsDisabled()
+                )
+                LNXVTheme(darkTheme = darkTheme, amoled = p.isAmoled, dynamicColor = p.dynamicColor, reduceEffects = reduce, glassProfile = glassProfile) {
                     val navController = rememberNavController()
                     LNXVNavigationHost(navController = navController)
                 }
