@@ -23,6 +23,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.scale
