@@ -38,6 +38,10 @@ import com.lnxv.player.core.model.SubtitleTrackInfo
 import com.lnxv.player.core.util.SeekMath
 import com.lnxv.player.playback.diag.DiagnosticsCollector
 import com.lnxv.player.core.util.SubtitleShifter
+import com.lnxv.player.core.enhancer.PictureDisabledReason
+import com.lnxv.player.core.enhancer.PictureGate
+import com.lnxv.player.core.enhancer.PictureSettings
+import com.lnxv.player.playback.effects.PictureEffect
 import com.lnxv.player.core.subtitle.AssShifter
 import com.lnxv.player.core.subtitle.SubtitleEncoding
 import com.lnxv.player.core.subtitle.SubtitleFormat
@@ -229,15 +233,49 @@ class Media3PlayerManager(private val context: Context) : PlayerController, Play
     private val _videoColor = MutableStateFlow(com.lnxv.player.core.model.VideoColor())
     override val videoColor: StateFlow<com.lnxv.player.core.model.VideoColor> = _videoColor
 
-    /** GL video effects (media3-effect). Neutral = no effect chain, so no GPU pass is added. */
+    private val _picture = MutableStateFlow(PictureSettings())
+    override val picture: StateFlow<PictureSettings> = _picture
+    private val _pictureDisabledReason = MutableStateFlow<PictureDisabledReason?>(null)
+    override val pictureDisabledReason: StateFlow<PictureDisabledReason?> = _pictureDisabledReason
+    private var pictureBypass = false
+
+    /** Old brightness/contrast/saturation menu: it now edits the same Picture settings. */
     override fun setVideoColor(color: com.lnxv.player.core.model.VideoColor) {
-        _videoColor.value = color
+        setPicture(_picture.value.copy(brightness = color.brightness, contrast = color.contrast, saturation = color.saturation))
+    }
+
+    override fun setPicture(settings: PictureSettings) {
+        val s = settings.sanitized()
+        _picture.value = s
+        _videoColor.value = com.lnxv.player.core.model.VideoColor(s.brightness, s.contrast, s.saturation)
+        applyPicture()
+    }
+
+    /** Hold-to-compare: true shows the untouched picture, false puts the effect back. No player rebuild. */
+    override fun setPictureBypass(bypass: Boolean) {
+        pictureBypass = bypass
+        applyPicture()
+    }
+
+    /**
+     * One GL effect pass (media3-effect) for the whole Picture pipeline. A neutral picture, a bypass, or a gate reason
+     * (HDR, protected content, low-end device, power saver) means no effect chain, so no GPU pass is added.
+     */
+    private fun applyPicture() {
+        val format = exoPlayer.videoFormat
+        val transfer = format?.colorInfo?.colorTransfer
+        val isHdr = transfer == C.COLOR_TRANSFER_ST2084 || transfer == C.COLOR_TRANSFER_HLG
+        val powerSave = (context.getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager)?.isPowerSaveMode == true
+        val reason = PictureGate.decide(
+            isHdr = isHdr,
+            isProtected = format?.drmInitData != null,
+            isLowEnd = lowRamDevice(),
+            isPowerSave = powerSave
+        )
+        _pictureDisabledReason.value = reason
+        val p = _picture.value
         val fx = ArrayList<androidx.media3.common.Effect>()
-        if (!color.isNeutral) {
-            if (color.brightness != 0f) fx += androidx.media3.effect.Brightness(color.brightness)
-            if (color.contrast != 0f) fx += androidx.media3.effect.Contrast(color.contrast)
-            if (color.saturation != 0f) fx += androidx.media3.effect.HslAdjustment.Builder().adjustSaturation(color.saturation * 100f).build()
-        }
+        if (reason == null && !pictureBypass && !p.isNeutral) fx += PictureEffect(p)
         runCatching { exoPlayer.setVideoEffects(fx) }
     }
 
@@ -369,7 +407,7 @@ class Media3PlayerManager(private val context: Context) : PlayerController, Play
         pendingRememberedAttempts = 0
         networkSource = BufferProfiles.isNetwork(uri.scheme)
         if (_audioOnly.value) setAudioOnly(false) // audio-only applies per video
-        if (!_videoColor.value.isNeutral) setVideoColor(com.lnxv.player.core.model.VideoColor()) // colour tweaks apply per video
+        if (!_picture.value.isNeutral) setPicture(PictureSettings()) // picture tweaks apply per video; the ViewModel then loads this video's or the global default
         _subtitleDelayMs.value = 0L
         _hasExternalSubtitle.value = false
         _subtitleEncoding.value = "AUTO"
@@ -757,6 +795,7 @@ class Media3PlayerManager(private val context: Context) : PlayerController, Play
 
     override fun onTracksChanged(tracks: Tracks) {
         updateTrackLists(tracks)
+        if (!_picture.value.isNeutral) applyPicture() else _pictureDisabledReason.value = null
         tryApplyRemembered()
     }
 

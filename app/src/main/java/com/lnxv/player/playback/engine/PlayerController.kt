@@ -76,6 +76,10 @@ interface PlayerController {
     fun setAudioOnly(enabled: Boolean)
     val videoColor: StateFlow<com.lnxv.player.core.model.VideoColor>
     fun setVideoColor(color: com.lnxv.player.core.model.VideoColor)
+    val picture: StateFlow<com.lnxv.player.core.enhancer.PictureSettings>
+    val pictureDisabledReason: StateFlow<com.lnxv.player.core.enhancer.PictureDisabledReason?>
+    fun setPicture(settings: com.lnxv.player.core.enhancer.PictureSettings)
+    fun setPictureBypass(bypass: Boolean)
     suspend fun loadExternalSubtitle(uri: Uri): Boolean
     val subtitleEncoding: StateFlow<String>
     suspend fun setSubtitleEncoding(name: String)

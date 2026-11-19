@@ -193,4 +193,47 @@
     <string name="subs_encoding">टेक्स्ट एन्कोडिंग</string>
     <string name="subs_encoding_auto">अपने-आप पहचानें</string>
     <string name="subs_encoding_hint">अक्षर गलत दिखें (जैसे हिंदी, अरबी या रूसी टेक्स्ट) तो इसे इस्तेमाल करें।</string>
+
+    <!-- Picture enhancer (Phase 3) -->
+    <string name="menu_picture">पिक्चर…</string>
+    <string name="picture_title">पिक्चर</string>
+    <string name="picture_off_prefix">इस वीडियो के लिए एन्हांसर बंद है:</string>
+    <string name="picture_off_hdr">यह HDR वीडियो (HDR10/HLG/Dolby Vision) है, जिसे एन्हांसर सपोर्ट नहीं करता।</string>
+    <string name="picture_off_protected">यह सुरक्षित (DRM) कंटेंट है।</string>
+    <string name="picture_off_low_end">यह कम मेमोरी वाला डिवाइस है, जहाँ अतिरिक्त वीडियो प्रोसेसिंग से अटकना हो सकता है।</string>
+    <string name="picture_off_power_save">बैटरी सेवर चालू है।</string>
+    <string name="picture_presets">प्रीसेट</string>
+    <string name="picture_preset_off">बंद</string>
+    <string name="picture_preset_clear">क्लियर</string>
+    <string name="picture_preset_cinema">सिनेमा</string>
+    <string name="picture_preset_vivid">विविड</string>
+    <string name="picture_preset_night">नाइट</string>
+    <string name="picture_compare">मूल से तुलना के लिए दबाए रखें</string>
+    <string name="picture_detail">डिटेल</string>
+    <string name="picture_sharpness">शार्पनेस</string>
+    <string name="picture_noise_threshold">नॉइज़ सीमा</string>
+    <string name="picture_taps">%1$d टैप</string>
+    <string name="picture_vivid">विविड (कम रोशनी में सुधार)</string>
+    <string name="picture_vivid_note">गहरे और मध्यम टोन को उठाता है और चमकीले हिस्से बचाए रखता है। यह HDR नहीं है।</string>
+    <string name="picture_light_colour">रोशनी और रंग</string>
+    <string name="picture_brightness">ब्राइटनेस</string>
+    <string name="picture_contrast">कंट्रास्ट</string>
+    <string name="picture_saturation">सैचुरेशन</string>
+    <string name="picture_gamma">गामा</string>
+    <string name="picture_tone">टोन</string>
+    <string name="picture_tone_neutral">सामान्य</string>
+    <string name="picture_tone_warm">गर्म</string>
+    <string name="picture_tone_cool">ठंडा</string>
+    <string name="picture_tone_strength">टोन की तीव्रता</string>
+    <string name="picture_colour_blind">रंग-अंधता सहायता</string>
+    <string name="picture_cb_off">बंद</string>
+    <string name="picture_cb_protan">प्रोटानोपिया</string>
+    <string name="picture_cb_deutan">ड्यूटेरानोपिया</string>
+    <string name="picture_cb_tritan">ट्रिटानोपिया</string>
+    <string name="picture_cb_correct">रंग ठीक करें</string>
+    <string name="picture_cb_simulate">सिमुलेट</string>
+    <string name="picture_reset">पिक्चर रीसेट करें</string>
+    <string name="picture_save_default">सभी वीडियो के लिए डिफ़ॉल्ट बनाएँ</string>
+    <string name="picture_save_video">इस वीडियो के लिए याद रखें</string>
+    <string name="picture_clear_video">इस वीडियो के लिए भूल जाएँ</string>
 </resources>

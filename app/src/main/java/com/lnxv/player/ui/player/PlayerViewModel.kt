@@ -44,6 +44,7 @@ data class PlayerUiState(
     val showAudioDialog: Boolean = false,
     val showSubtitleDialog: Boolean = false,
     val showOnlineSubtitleDialog: Boolean = false,
+    val showPictureDialog: Boolean = false,
     val showPropertiesDialog: Boolean = false,
     val subtitleStyle: SubtitleStyleConfig = SubtitleStyleConfig(),
     val resumePromptPositionMs: Long? = null,
@@ -284,6 +285,49 @@ class PlayerViewModel(
         playerManager.applyRememberedTracks(pendingTracks)
         playerManager.setPlaybackSpeed(speed)
         playerManager.setSkipSilence(userPrefs.value.isEnabled(com.lnxv.player.core.flags.FeatureFlag.SKIP_SILENCE))
+        if (userPrefs.value.isEnabled(com.lnxv.player.core.flags.FeatureFlag.PICTURE_ENHANCER)) {
+            viewModelScope.launch {
+                val own = if (pictureRememberable(video)) pictureStore.forVideo(video.id) else null
+                playerManager.setPicture(own ?: pictureStore.global())
+            }
+        }
+    }
+
+    // Picture enhancer (flag PICTURE_ENHANCER): per-video and global default settings.
+    private val pictureStore = com.lnxv.player.core.enhancer.PictureStore(application)
+    val picture: StateFlow<com.lnxv.player.core.enhancer.PictureSettings> = playerManager.picture
+    val pictureDisabledReason: StateFlow<com.lnxv.player.core.enhancer.PictureDisabledReason?> = playerManager.pictureDisabledReason
+
+    /** "High tier" gates the 13 and 25 tap sharpen kernels: 64-bit, not a low-RAM device, at least 6 GB RAM. A guess, not measured. */
+    val highTierDevice: Boolean by lazy {
+        val am = application.getSystemService(android.content.Context.ACTIVITY_SERVICE) as? android.app.ActivityManager
+        val info = android.app.ActivityManager.MemoryInfo().also { am?.getMemoryInfo(it) }
+        am != null && !am.isLowRamDevice && android.os.Build.SUPPORTED_64_BIT_ABIS.isNotEmpty() && info.totalMem >= 6L * 1024 * 1024 * 1024
+    }
+
+    private fun pictureRememberable(video: VideoItem) = !video.isVault && video.id > 0L && video.folderPath != "Network Streams"
+
+    fun showPictureDialog(show: Boolean) {
+        if (!show) playerManager.setPictureBypass(false)
+        _uiState.value = _uiState.value.copy(showPictureDialog = show)
+    }
+
+    fun setPicture(s: com.lnxv.player.core.enhancer.PictureSettings) = playerManager.setPicture(s)
+    fun setPictureBypass(bypass: Boolean) = playerManager.setPictureBypass(bypass)
+
+    fun savePictureAsDefault() { viewModelScope.launch { pictureStore.saveGlobal(picture.value) } }
+
+    fun savePictureForThisVideo() {
+        val v = _uiState.value.currentVideo ?: return
+        if (pictureRememberable(v)) viewModelScope.launch { pictureStore.saveForVideo(v.id, picture.value) }
+    }
+
+    fun clearPictureForThisVideo() {
+        val v = _uiState.value.currentVideo ?: return
+        if (pictureRememberable(v)) viewModelScope.launch {
+            pictureStore.clearVideo(v.id)
+            playerManager.setPicture(pictureStore.global())
+        }
     }
 
     fun resumeFromPrompt() {
