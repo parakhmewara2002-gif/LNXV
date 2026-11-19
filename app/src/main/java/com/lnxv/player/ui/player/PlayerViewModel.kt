@@ -45,6 +45,7 @@ data class PlayerUiState(
     val showSubtitleDialog: Boolean = false,
     val showOnlineSubtitleDialog: Boolean = false,
     val showPictureDialog: Boolean = false,
+    val showBookmarksDialog: Boolean = false,
     val showPropertiesDialog: Boolean = false,
     val subtitleStyle: SubtitleStyleConfig = SubtitleStyleConfig(),
     val resumePromptPositionMs: Long? = null,
@@ -285,12 +286,58 @@ class PlayerViewModel(
         playerManager.applyRememberedTracks(pendingTracks)
         playerManager.setPlaybackSpeed(speed)
         playerManager.setSkipSilence(userPrefs.value.isEnabled(com.lnxv.player.core.flags.FeatureFlag.SKIP_SILENCE))
+        loadBookmarks(video)
         if (userPrefs.value.isEnabled(com.lnxv.player.core.flags.FeatureFlag.PICTURE_ENHANCER)) {
             viewModelScope.launch {
                 val own = if (pictureRememberable(video)) pictureStore.forVideo(video.id) else null
                 playerManager.setPicture(own ?: pictureStore.global())
             }
         }
+    }
+
+    // Bookmarks (flag BOOKMARKS): per library video, never for vault / transient / network videos.
+    private val bookmarkStore = com.lnxv.player.core.bookmarks.BookmarkStore(application)
+    private val _bookmarks = MutableStateFlow<List<com.lnxv.player.core.bookmarks.Bookmark>>(emptyList())
+    val bookmarks: StateFlow<List<com.lnxv.player.core.bookmarks.Bookmark>> = _bookmarks
+
+    private fun bookmarkable(v: VideoItem) = !v.isVault && v.id > 0L && v.folderPath != "Network Streams"
+
+    private fun loadBookmarks(video: VideoItem) {
+        _bookmarks.value = emptyList()
+        if (!bookmarkable(video) || !userPrefs.value.isEnabled(com.lnxv.player.core.flags.FeatureFlag.BOOKMARKS)) return
+        viewModelScope.launch {
+            val loaded = bookmarkStore.load(video.id)
+            if (_uiState.value.currentVideo?.id == video.id || _uiState.value.currentVideo == null) _bookmarks.value = loaded
+        }
+    }
+
+    val canBookmark: Boolean get() = _uiState.value.currentVideo?.let { bookmarkable(it) } == true
+
+    fun showBookmarksDialog(show: Boolean) {
+        _uiState.value = _uiState.value.copy(showBookmarksDialog = show)
+    }
+
+    private fun updateBookmarks(newList: List<com.lnxv.player.core.bookmarks.Bookmark>) {
+        val v = _uiState.value.currentVideo ?: return
+        if (!bookmarkable(v)) return
+        _bookmarks.value = newList
+        viewModelScope.launch { bookmarkStore.save(v.id, newList) }
+    }
+
+    fun addBookmarkHere() =
+        updateBookmarks(com.lnxv.player.core.bookmarks.BookmarkList.add(_bookmarks.value, positionMs.value))
+
+    fun removeBookmark(positionMs: Long) =
+        updateBookmarks(com.lnxv.player.core.bookmarks.BookmarkList.remove(_bookmarks.value, positionMs))
+
+    fun jumpToBookmark(positionMs: Long) = playerManager.seekTo(positionMs)
+
+    fun jumpToNextBookmark() {
+        com.lnxv.player.core.bookmarks.BookmarkList.next(_bookmarks.value, positionMs.value)?.let { playerManager.seekTo(it.positionMs) }
+    }
+
+    fun jumpToPreviousBookmark() {
+        com.lnxv.player.core.bookmarks.BookmarkList.previous(_bookmarks.value, positionMs.value)?.let { playerManager.seekTo(it.positionMs) }
     }
 
     // Picture enhancer (flag PICTURE_ENHANCER): per-video and global default settings.
