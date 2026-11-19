@@ -72,7 +72,8 @@ object ColorMath {
 
     /** Contrast about mid-grey using the same curve as Media3's `Contrast`, then a brightness offset. */
     fun contrastBrightness(contrast: Float, brightness: Float): Affine {
-        val k = (1f + contrast) / (1.0001f - contrast)
+        // Media3's curve has a 1.0001 guard that makes contrast 0 slightly off identity; keep zero exact.
+        val k = if (contrast == 0f) 1f else (1f + contrast) / (1.0001f - contrast)
         val off = 0.5f * (1f - k) + brightness
         return Affine(floatArrayOf(k, 0f, 0f, 0f, k, 0f, 0f, 0f, k), floatArrayOf(off, off, off))
     }
