@@ -81,7 +81,7 @@ fun SettingsScreen(
     val reduceEffects = com.lnxv.player.core.design.LocalReduceEffects.current
     val queryState = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf("") }
     val query = queryState.value.trim()
-    fun show(vararg keys: String) = query.isEmpty() || keys.any { it.contains(query, ignoreCase = true) }
+    fun show(section: com.lnxv.player.core.model.SettingsSection) = com.lnxv.player.core.model.SettingsSearch.matches(query, section)
     val settingsContext = androidx.compose.ui.platform.LocalContext.current
     var confirmResetFlags by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
 
@@ -131,7 +131,7 @@ fun SettingsScreen(
                 )
             }
 
-            if (show("Appearance & Glass Engine", "appearance","theme","glass","amoled","dark","light")) item {
+            if (show(com.lnxv.player.core.model.SettingsSection.APPEARANCE_GLASS)) item {
                 SectionHeader("Appearance & Glass Engine")
                 GlassPanel(
                     modifier = Modifier.fillMaxWidth(),
@@ -163,7 +163,7 @@ fun SettingsScreen(
                 }
             }
 
-            if (show("Playback & Gestures", "playback","gesture","subtitle","speed","resume","seek")) item {
+            if (show(com.lnxv.player.core.model.SettingsSection.PLAYBACK)) item {
                 SectionHeader("Playback & Gestures")
                 GlassPanel(
                     modifier = Modifier.fillMaxWidth(),
@@ -322,7 +322,7 @@ fun SettingsScreen(
                 }
             }
 
-            if (updaterEnabled) if (show("Updates", "update","version")) item {
+            if (updaterEnabled) if (show(com.lnxv.player.core.model.SettingsSection.UPDATES)) item {
                 SectionHeader("Updates")
                 GlassPanel(
                     modifier = Modifier.fillMaxWidth(),
@@ -403,7 +403,7 @@ fun SettingsScreen(
                 }
             }
 
-            if (show("Appearance & performance", "performance","effects","blur","material","reduce")) item {
+            if (show(com.lnxv.player.core.model.SettingsSection.PERFORMANCE)) item {
                 SectionHeader("Appearance & performance")
                 GlassPanel(
                     modifier = Modifier.fillMaxWidth(),
@@ -430,7 +430,7 @@ fun SettingsScreen(
                 }
             }
 
-            if (show("Security", "security","vault","pin","biometric","screenshot","lock")) item {
+            if (show(com.lnxv.player.core.model.SettingsSection.SECURITY)) item {
                 SectionHeader("Security")
                 GlassPanel(
                     modifier = Modifier.fillMaxWidth(),
@@ -460,7 +460,7 @@ fun SettingsScreen(
                 }
             }
 
-            if (show("Advanced > Experimental", "advanced","experimental","flag","developer")) item {
+            if (show(com.lnxv.player.core.model.SettingsSection.ADVANCED)) item {
                 SectionHeader("Advanced > Experimental")
                 GlassPanel(
                     modifier = Modifier.fillMaxWidth(),
@@ -481,7 +481,7 @@ fun SettingsScreen(
                 }
             }
 
-            if (show("Storage", "storage","cache","clear")) item {
+            if (show(com.lnxv.player.core.model.SettingsSection.STORAGE)) item {
                 SectionHeader("Storage")
                 GlassPanel(
                     modifier = Modifier.fillMaxWidth(),
@@ -527,7 +527,7 @@ fun SettingsScreen(
                 }
             }
 
-            if (show("Privacy", "privacy","permission")) item {
+            if (show(com.lnxv.player.core.model.SettingsSection.PRIVACY)) item {
                 SectionHeader("Privacy")
                 GlassPanel(
                     modifier = Modifier.fillMaxWidth(),
@@ -563,7 +563,7 @@ fun SettingsScreen(
                 }
             }
 
-            if (show("About LNXV", "about","version","info")) item {
+            if (show(com.lnxv.player.core.model.SettingsSection.ABOUT)) item {
                 SectionHeader("About LNXV")
                 GlassPanel(
                     modifier = Modifier.fillMaxWidth(),
@@ -601,13 +601,13 @@ fun SettingsScreen(
             }
 
             if (onlineSubsEnabled &&
-                show("Online subtitles", "opensubtitles", "subtitles", "api key", "login")
+                show(com.lnxv.player.core.model.SettingsSection.ONLINE_SUBTITLES)
             ) item {
                 SectionHeader(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.settings_os_header))
                 OnlineSubtitlesSettingsPanel()
             }
 
-            if (show("Open-source licenses", "licenses", "ffmpeg", "dav1d", "lgpl", "open source")) item {
+            if (show(com.lnxv.player.core.model.SettingsSection.LICENSES)) item {
                 GlassPanel(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(22.dp),
@@ -634,7 +634,7 @@ fun SettingsScreen(
                 }
             }
 
-            if (show("Developer", "system info", "device", "build", "debug", "reset flags")) item {
+            if (show(com.lnxv.player.core.model.SettingsSection.DEVELOPER)) item {
                 SectionHeader("Developer")
                 com.lnxv.player.core.design.GlassGroup {
                     com.lnxv.player.core.design.GlassInfoRow("App version", viewModel.currentVersion)
