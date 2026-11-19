@@ -209,7 +209,6 @@ class PlayerViewModel(
                 _uiState.value = _uiState.value.copy(accessDenied = true)
                 return
             }
-            if (rebuildQueue) buildQueue(video)
             session.playingVaultItem = video.isVault
             playerManager.owner = this@PlayerViewModel
             val prefs = dataStore.userPreferencesFlow.first()
@@ -233,6 +232,9 @@ class PlayerViewModel(
                 }
                 else -> startPlayback(video, last, speed)
             }
+            // The folder queue only feeds next/previous, so build it AFTER playback has been handed to ExoPlayer
+            // instead of making the first frame wait for another database read.
+            if (rebuildQueue) buildQueue(video)
         }
     }
 

@@ -224,10 +224,13 @@ fun HomeScreen(
     // One blur layer: the top bar blurs the list scrolling under it (skipped when "Reduce effects" is on).
     val hazeState = remember { dev.chrisbanes.haze.HazeState() }
     val reduceEffects = com.lnxv.player.core.design.LocalReduceEffects.current
+    // Live backdrop blur (Haze / AGSL lens) re-renders the scrolling list every frame, which is what makes scrolling
+    // heavy on mid-range GPUs. Only the HIGH tier pays for it; BALANCED/LOW use a translucent flat bar with the layered glass edge.
+    val flatBars = reduceEffects || com.lnxv.player.core.design.LocalGlassProfile.current != com.lnxv.player.core.design.GlassProfile.HIGH
     // HIGH tier on API 33+: real AGSL refraction/frost of the list behind the bars (see core/design/LiquidLens.kt).
     // Any shader failure flips lensState.failed and the bars fall back to Haze automatically.
     val lensState = remember { com.lnxv.player.core.design.LiquidLensState() }
-    val lensOn = !reduceEffects && !lensState.failed &&
+    val lensOn = !flatBars && !lensState.failed &&
         com.lnxv.player.core.design.lensSupported(com.lnxv.player.core.design.LocalGlassProfile.current, android.os.Build.VERSION.SDK_INT)
     BackHandler(enabled = selection.isNotEmpty()) { viewModel.clearSelection() }
     BackHandler(enabled = uiState.openFolderPath != null && selection.isEmpty()) { viewModel.closeFolder() }
@@ -340,13 +343,13 @@ bottomBar = {
                         modifier = Modifier
                             .fillMaxWidth()
                             .then(
-                                if (reduceEffects) Modifier
+                                if (flatBars) Modifier
                                 else if (lensOn) Modifier.liquidLensTarget(lensState, 1, 26.dp)
                                 else Modifier.clip(selShape).hazeChild(state = hazeState)
                             )
                             .liquidGlassSurface(
                                 shape = selShape,
-                                backgroundColor = if (reduceEffects) appColors.barFill else appColors.barFill.copy(alpha = if (lensOn) 0.32f else 0.6f),
+                                backgroundColor = if (flatBars) appColors.barFill else appColors.barFill.copy(alpha = if (lensOn) 0.32f else 0.6f),
                                 borderColor = appColors.glassBorder
                             )
                     ) {
@@ -440,7 +443,7 @@ bottomBar = {
                         labels = HomeTab.values().map { androidx.compose.ui.res.stringResource(it.labelRes) },
                         selectedIndex = HomeTab.values().indexOf(uiState.selectedTab),
                         onSelect = { viewModel.selectTab(HomeTab.values()[it]) },
-                        hazeState = if (reduceEffects || lensOn) null else hazeState
+                        hazeState = if (flatBars || lensOn) null else hazeState
                     )
                 }
                 }
@@ -452,13 +455,13 @@ topBar = {
                 modifier = Modifier
                     .fillMaxWidth()
                     .then(
-                        if (reduceEffects) Modifier
+                        if (flatBars) Modifier
                         else if (lensOn) Modifier.liquidLensTarget(lensState, 0, 28.dp, bleedTop = 64.dp)
                         else Modifier.clip(barShape).hazeChild(state = hazeState)
                     )
                     .liquidGlassSurface(
                         shape = barShape,
-                        backgroundColor = if (reduceEffects) appColors.barFill else appColors.barFill.copy(alpha = if (lensOn) 0.30f else 0.55f),
+                        backgroundColor = if (flatBars) appColors.barFill else appColors.barFill.copy(alpha = if (lensOn) 0.30f else 0.55f),
                         borderColor = appColors.glassBorder,
                         borderWidth = 1.dp
                     )
@@ -508,7 +511,7 @@ topBar = {
             modifier = Modifier
                 .fillMaxSize()
                 .then(
-                    if (reduceEffects) Modifier
+                    if (flatBars) Modifier
                     else if (lensOn) Modifier.liquidLensSource(lensState)
                     else Modifier.haze(state = hazeState)
                 ),

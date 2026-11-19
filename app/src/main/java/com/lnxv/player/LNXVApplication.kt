@@ -132,10 +132,12 @@ class LNXVApplication : Application(), ImageLoaderFactory {
         return ImageLoader.Builder(this)
             .components {
                 add(VideoFrameDecoder.Factory())
+                add(com.lnxv.player.data.thumb.VideoThumbKeyer())
+                add(com.lnxv.player.data.thumb.VideoThumbFetcher.Factory(this@LNXVApplication))
             }
             .memoryCache {
                 MemoryCache.Builder(this)
-                    .maxSizePercent(0.12)
+                    .maxSizePercent(0.15)
                     .build()
             }
             .diskCache {

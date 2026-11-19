@@ -113,6 +113,7 @@ fun VideoItemRow(
     var isMenuOpen by remember { mutableStateOf(false) }
 
     GlassPanel(
+        lite = true,
         modifier = modifier
             .fillMaxWidth()
             .bouncyClickable(onLongClick = onLongClick) { onClick() }
@@ -136,12 +137,7 @@ fun VideoItemRow(
                     .background(appColors.placeholder)
             ) {
                 AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current)
-                        .data(video.uri)
-                        .videoFrameMillis(1000)
-                        .size(coil.size.Size(360, 240))
-                        .crossfade(150)
-                        .build(),
+                    model = com.lnxv.player.data.thumb.videoThumbRequest(LocalContext.current, video),
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
@@ -270,6 +266,7 @@ fun FolderItemRow(
 ) {
     var menuOpen by remember { mutableStateOf(false) }
     GlassPanel(
+        lite = true,
         modifier = modifier
             .fillMaxWidth()
             .bouncyClickable { onClick() },
@@ -492,6 +489,7 @@ fun VideoGridCard(
     var isMenuOpen by remember { mutableStateOf(false) }
 
     GlassPanel(
+        lite = true,
         modifier = modifier
             .bouncyClickable(onLongClick = onLongClick) { onClick() }
             .semantics { this.selected = selected },
@@ -509,12 +507,7 @@ fun VideoGridCard(
                     .background(appColors.placeholder)
             ) {
                 AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current)
-                        .data(video.uri)
-                        .videoFrameMillis(1000)
-                        .size(coil.size.Size(360, 240))
-                        .crossfade(150)
-                        .build(),
+                    model = com.lnxv.player.data.thumb.videoThumbRequest(LocalContext.current, video),
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
