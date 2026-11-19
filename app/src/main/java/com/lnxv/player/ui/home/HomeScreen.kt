@@ -98,6 +98,8 @@ import com.lnxv.player.core.design.GlassPanel
 import com.lnxv.player.core.design.NeonCyan
 import com.lnxv.player.core.design.SurfaceDark
 import com.lnxv.player.core.design.Typography
+import com.lnxv.player.core.design.liquidLensTarget
+import com.lnxv.player.core.design.liquidLensSource
 import androidx.compose.foundation.layout.navigationBarsPadding
 import com.lnxv.player.core.design.IosTabBar
 import com.lnxv.player.core.design.IosPillIcon
@@ -222,6 +224,11 @@ fun HomeScreen(
     // One blur layer: the top bar blurs the list scrolling under it (skipped when "Reduce effects" is on).
     val hazeState = remember { dev.chrisbanes.haze.HazeState() }
     val reduceEffects = com.lnxv.player.core.design.LocalReduceEffects.current
+    // HIGH tier on API 33+: real AGSL refraction/frost of the list behind the bars (see core/design/LiquidLens.kt).
+    // Any shader failure flips lensState.failed and the bars fall back to Haze automatically.
+    val lensState = remember { com.lnxv.player.core.design.LiquidLensState() }
+    val lensOn = !reduceEffects && !lensState.failed &&
+        com.lnxv.player.core.design.lensSupported(com.lnxv.player.core.design.LocalGlassProfile.current, android.os.Build.VERSION.SDK_INT)
     BackHandler(enabled = selection.isNotEmpty()) { viewModel.clearSelection() }
     BackHandler(enabled = uiState.openFolderPath != null && selection.isEmpty()) { viewModel.closeFolder() }
     val deletablePicked = selection.mapNotNull { id -> selectionPool.firstOrNull { it.id == id } }.filter { !it.isVault && it.id != com.lnxv.player.LNXVApplication.TRANSIENT_VIDEO_ID }
@@ -332,10 +339,14 @@ bottomBar = {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .then(if (reduceEffects) Modifier else Modifier.clip(selShape).hazeChild(state = hazeState))
+                            .then(
+                                if (reduceEffects) Modifier
+                                else if (lensOn) Modifier.liquidLensTarget(lensState, 1, 26.dp)
+                                else Modifier.clip(selShape).hazeChild(state = hazeState)
+                            )
                             .liquidGlassSurface(
                                 shape = selShape,
-                                backgroundColor = if (reduceEffects) appColors.barFill else appColors.barFill.copy(alpha = 0.6f),
+                                backgroundColor = if (reduceEffects) appColors.barFill else appColors.barFill.copy(alpha = if (lensOn) 0.32f else 0.6f),
                                 borderColor = appColors.glassBorder
                             )
                     ) {
@@ -424,10 +435,12 @@ bottomBar = {
                     }
                 } else {
                     IosTabBar(
+                        modifier = if (lensOn) Modifier.liquidLensTarget(lensState, 1, 24.dp) else Modifier,
+                        backdropHandled = lensOn,
                         labels = HomeTab.values().map { androidx.compose.ui.res.stringResource(it.labelRes) },
                         selectedIndex = HomeTab.values().indexOf(uiState.selectedTab),
                         onSelect = { viewModel.selectTab(HomeTab.values()[it]) },
-                        hazeState = if (reduceEffects) null else hazeState
+                        hazeState = if (reduceEffects || lensOn) null else hazeState
                     )
                 }
                 }
@@ -438,10 +451,14 @@ topBar = {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .then(if (reduceEffects) Modifier else Modifier.clip(barShape).hazeChild(state = hazeState))
+                    .then(
+                        if (reduceEffects) Modifier
+                        else if (lensOn) Modifier.liquidLensTarget(lensState, 0, 28.dp, bleedTop = 64.dp)
+                        else Modifier.clip(barShape).hazeChild(state = hazeState)
+                    )
                     .liquidGlassSurface(
                         shape = barShape,
-                        backgroundColor = if (reduceEffects) appColors.barFill else appColors.barFill.copy(alpha = 0.55f),
+                        backgroundColor = if (reduceEffects) appColors.barFill else appColors.barFill.copy(alpha = if (lensOn) 0.30f else 0.55f),
                         borderColor = appColors.glassBorder,
                         borderWidth = 1.dp
                     )
@@ -490,7 +507,11 @@ topBar = {
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .then(if (reduceEffects) Modifier else Modifier.haze(state = hazeState)),
+                .then(
+                    if (reduceEffects) Modifier
+                    else if (lensOn) Modifier.liquidLensSource(lensState)
+                    else Modifier.haze(state = hazeState)
+                ),
             // The list scrolls under the top bar (so there is something to blur); padding keeps first item clear of it.
             contentPadding = PaddingValues(
                 start = 16.dp,

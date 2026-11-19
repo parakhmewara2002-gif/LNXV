@@ -329,9 +329,11 @@ fun IosTabBar(
     selectedIndex: Int,
     onSelect: (Int) -> Unit,
     modifier: Modifier = Modifier,
-    hazeState: HazeState? = null
+    hazeState: HazeState? = null,
+    /** True when something else (the AGSL lens) already frosts what is behind the bar, so the fill can be translucent. */
+    backdropHandled: Boolean = false
 ) {
-    val blurred = hazeState != null && !LocalReduceEffects.current
+    val blurred = backdropHandled || (hazeState != null && !LocalReduceEffects.current)
     val tap = rememberTapHaptic()
     Row(
         modifier = modifier
@@ -339,7 +341,7 @@ fun IosTabBar(
             .glassBlur(hazeState, CircleShape)
             .liquidGlassSurface(
                 shape = CircleShape,
-                backgroundColor = if (blurred) appColors.barFill.copy(alpha = 0.6f) else appColors.barFill,
+                backgroundColor = if (backdropHandled) appColors.barFill.copy(alpha = 0.32f) else if (blurred) appColors.barFill.copy(alpha = 0.6f) else appColors.barFill,
                 borderColor = appColors.glassBorder
             )
             .padding(4.dp),

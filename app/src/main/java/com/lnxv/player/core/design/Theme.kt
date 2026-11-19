@@ -58,6 +58,7 @@ fun LNXVTheme(
     amoled: Boolean = true,
     dynamicColor: Boolean = false,
     reduceEffects: Boolean = false,
+    glassProfile: GlassProfile = if (reduceEffects) GlassProfile.LOW else GlassProfile.BALANCED,
     content: @Composable () -> Unit
 ) {
     val context = LocalContext.current
@@ -102,6 +103,7 @@ fun LNXVTheme(
     CompositionLocalProvider(
         LocalLNXVColors provides palette,
         LocalReduceEffects provides reduceEffects,
+        LocalGlassProfile provides glassProfile,
         LocalHazeStyle provides hazeStyle
     ) {
         MaterialTheme(
