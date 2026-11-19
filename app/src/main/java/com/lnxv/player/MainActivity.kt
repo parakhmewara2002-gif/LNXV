@@ -89,6 +89,11 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         splash.setKeepOnScreenCondition { prefsState.value == null }
+        // Build ExoPlayer + codec renderers while the main thread is idle on Home, so the first video does not pay for it.
+        android.os.Looper.myQueue().addIdleHandler {
+            if (!isFinishing && !isDestroyed) runCatching { (application as LNXVApplication).playerManager }
+            false
+        }
 
         requestHighestRefreshRate()
         checkAndRequestPermissions()

@@ -160,9 +160,23 @@ fun Modifier.liquidGlassSurface(
     }
 }
 
+/**
+ * Cheapest translucent card (solid fill + hairline, no clip layer, no composed modifier). Use for anything repeated in a
+ * scrolling list: the layered [liquidGlassSurface] is for the few bars/dialogs, not for 50 rows.
+ */
+fun Modifier.liquidGlassSurfaceLite(
+    shape: Shape,
+    backgroundColor: Color,
+    borderColor: Color,
+    borderWidth: Dp = 1.dp
+): Modifier = this
+    .background(backgroundColor, shape)
+    .border(borderWidth, borderColor, shape)
+
 @Composable
 fun GlassPanel(
     modifier: Modifier = Modifier,
+    lite: Boolean = false,
     shape: Shape = RoundedCornerShape(24.dp),
     backgroundColor: Color = appColors.glassFill,
     borderColor: Color = appColors.glassBorder,
@@ -170,7 +184,8 @@ fun GlassPanel(
     content: @Composable BoxScope.() -> Unit
 ) {
     Box(
-        modifier = modifier.liquidGlassSurface(
+        modifier = if (lite) modifier.liquidGlassSurfaceLite(shape, backgroundColor, borderColor, borderWidth)
+        else modifier.liquidGlassSurface(
             shape = shape,
             backgroundColor = backgroundColor,
             borderColor = borderColor,
@@ -305,7 +320,7 @@ fun GlassBadge(
 ) {
     Box(
         modifier = modifier
-            .liquidGlassSurface(
+            .liquidGlassSurfaceLite(
                 shape = CircleShape,
                 backgroundColor = color.copy(alpha = 0.2f),
                 borderColor = color.copy(alpha = 0.5f),

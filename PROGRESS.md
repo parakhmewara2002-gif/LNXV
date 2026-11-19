@@ -105,3 +105,10 @@ See [`docs/IOS_VISUAL_REDESIGN.md`](docs/IOS_VISUAL_REDESIGN.md) for exact chang
 - `core/design/LiquidGlass.kt`: `liquidGlassSurface` now follows the Figma layer stack: inner shadow, two-lobe angular-gradient edge (stops 12%/64%), soft wide highlight lobes, top gloss, HIGH adds a static chromatic rim fringe. Drawn once via drawWithCache. LOW keeps the old minimal look.
 - `core/design/LiquidLens.kt`: AGSL RuntimeShader (API 33+, HIGH only) on the Home list: SDF edge-band refraction, per-channel chromatic aberration, 12-tap frost, for the top bar and bottom bar. Deviations from Figma: SDF-gradient normal instead of centre direction, 13-tap disc blur instead of gaussian. Shader failure -> falls back to Haze automatically.
 - Tecno Camon 19 (Android 13, 60 Hz, ~4-6 GB) resolves to BALANCED/LOW in Auto, so the AGSL lens is off by default there; Settings > Effects "Off" forces HIGH to try it.
+
+## Scroll + video-open performance pass (NOT DEVICE-TESTED, no numbers measured)
+- List rows/badges use `liquidGlassSurfaceLite` (solid fill + hairline); the layered glass is only for bars/dialogs.
+- Live blur (Haze, AGSL lens) only on the HIGH tier; BALANCED/LOW bars are translucent flat bars (no per-frame backdrop re-render while scrolling). Settings > Effects "Off" forces HIGH.
+- Row thumbnails come from MediaStore system thumbnails (`data/thumb/VideoThumbs.kt`, API 29+) instead of decoding a video frame per row; fallback = one MediaMetadataRetriever frame; vault/legacy keep the old path. Thumbnail memory cache 12% -> 15%.
+- `videoSharedBounds` (per-row shared element state) only on HIGH.
+- Player open: ExoPlayer manager is built on a main-thread idle handler after launch; folder queue is built after playback is started (was before).
