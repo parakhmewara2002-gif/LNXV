@@ -3,3 +3,10 @@
 # These wildcard rules mark all app code as startup-relevant (H = hot, S = startup, P = post-startup) so ART precompiles it.
 HSPLcom/lnxv/player/**;->**(**)**
 Lcom/lnxv/player/**;
+# Third-party hot paths used on Home scroll and player open (Compose/Media3 ship partial profiles, Coil does not).
+HSPLcoil/**;->**(**)**
+Lcoil/**;
+HSPLandroidx/media3/exoplayer/ExoPlayerImpl;->**(**)**
+HSPLandroidx/media3/exoplayer/mediacodec/**;->**(**)**
+HSPLandroidx/media3/exoplayer/video/**;->**(**)**
+HSPLandroidx/compose/foundation/lazy/**;->**(**)**

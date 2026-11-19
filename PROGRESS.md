@@ -112,3 +112,6 @@ See [`docs/IOS_VISUAL_REDESIGN.md`](docs/IOS_VISUAL_REDESIGN.md) for exact chang
 - Row thumbnails come from MediaStore system thumbnails (`data/thumb/VideoThumbs.kt`, API 29+) instead of decoding a video frame per row; fallback = one MediaMetadataRetriever frame; vault/legacy keep the old path. Thumbnail memory cache 12% -> 15%.
 - `videoSharedBounds` (per-row shared element state) only on HIGH.
 - Player open: ExoPlayer manager is built on a main-thread idle handler after launch; folder queue is built after playback is started (was before).
+
+## Baseline profile additions
+- Added Coil, Media3 decoder/video and LazyList rules to `baseline-prof.txt` (app code was already wildcarded). Kotlin 2.2.10 => Compose strong skipping is already on. No profile was generated/measured on a device.
