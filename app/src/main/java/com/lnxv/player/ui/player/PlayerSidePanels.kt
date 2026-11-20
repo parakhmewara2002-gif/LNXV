@@ -240,6 +240,18 @@ fun BoxScope.PlayerSidePanels(
     }
 
     PlayerSidePanel(
+        visible = uiState.showChaptersDialog,
+        title = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.chapters_title),
+        icon = Icons.Default.Edit,
+        onDismiss = { viewModel.showChaptersDialog(false) },
+        backdrop = glassBackdrop
+    ) {
+        val list by viewModel.chapters.collectAsState()
+        val pos by viewModel.positionMs.collectAsState()
+        ChaptersContent(items = list, positionMs = pos, onJump = { viewModel.jumpToChapter(it) })
+    }
+
+    PlayerSidePanel(
         visible = uiState.showBookmarksDialog,
         title = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.bookmarks_title),
         icon = Icons.Default.Edit,

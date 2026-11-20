@@ -258,6 +258,10 @@
     <string name="route_bluetooth">ब्लूटूथ</string>
     <string name="route_hdmi">HDMI</string>
     <string name="route_other">अन्य आउटपुट</string>
+    <!-- Chapters (Phase 4e) -->
+    <string name="menu_chapters">चैप्टर…</string>
+    <string name="chapters_title">चैप्टर</string>
+    <string name="chapters_jump_to">%1$s, %2$s पर जाएँ</string>
     <!-- Recycle bin (Phase 4c) -->
     <string name="trash_title">ट्रैश</string>
     <string name="trash_empty">ट्रैश खाली है।</string>

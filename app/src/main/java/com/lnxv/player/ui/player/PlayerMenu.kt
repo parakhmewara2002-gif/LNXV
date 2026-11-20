@@ -103,6 +103,16 @@ fun PlayerMoreMenuItems(
                 closeMenu()
             }
         )
+        val chapterList by viewModel.chapters.collectAsState()
+        if (viewModel.userPrefs.collectAsState().value.isEnabled(com.lnxv.player.core.flags.FeatureFlag.CHAPTERS) && chapterList.isNotEmpty()) {
+            PlayerMenuItem(
+                text = { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.menu_chapters)) },
+                onClick = {
+                    closeMenu()
+                    viewModel.showChaptersDialog(true)
+                }
+            )
+        }
         if (viewModel.userPrefs.collectAsState().value.isEnabled(com.lnxv.player.core.flags.FeatureFlag.BOOKMARKS) && viewModel.canBookmark) {
             PlayerMenuItem(
                 text = { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.menu_bookmarks)) },

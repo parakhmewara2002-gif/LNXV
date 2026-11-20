@@ -413,6 +413,26 @@ class Media3PlayerManager(private val context: Context) : PlayerController, Play
         }
     }
 
+    private val _chapters = MutableStateFlow<List<com.lnxv.player.core.model.ChapterItem>>(emptyList())
+    override val chapters: StateFlow<List<com.lnxv.player.core.model.ChapterItem>> = _chapters
+
+    /** Collects Media3 1.11 Chapter metadata entries (Matroska, MP4/QuickTime) from [metadata] into the chapter list. */
+    private fun collectChapters(metadata: androidx.media3.common.Metadata?, into: MutableList<com.lnxv.player.core.model.ChapterItem>) {
+        if (metadata == null) return
+        for (i in 0 until metadata.length()) {
+            val entry = metadata.get(i)
+            if (entry is androidx.media3.extractor.metadata.Chapter && !entry.isHidden && entry.startTimeMs != C.TIME_UNSET) {
+                into += com.lnxv.player.core.model.ChapterItem(entry.startTimeMs, entry.title?.value.orEmpty())
+            }
+        }
+    }
+
+    override fun onMetadata(metadata: androidx.media3.common.Metadata) {
+        val found = ArrayList<com.lnxv.player.core.model.ChapterItem>(_chapters.value)
+        collectChapters(metadata, found)
+        if (found.size != _chapters.value.size) _chapters.value = com.lnxv.player.core.model.ChapterList.sanitize(found)
+    }
+
     override fun prepareAndPlay(
         uri: Uri,
         startPositionMs: Long,
@@ -425,6 +445,7 @@ class Media3PlayerManager(private val context: Context) : PlayerController, Play
         diagnostics.resetPlaybackCounters()
         pendingRemembered = null
         pendingRememberedAttempts = 0
+        _chapters.value = emptyList()
         networkSource = BufferProfiles.isNetwork(uri.scheme)
         if (_audioOnly.value) setAudioOnly(false) // audio-only applies per video
         if (!_picture.value.isNeutral) setPicture(PictureSettings()) // picture tweaks apply per video; the ViewModel then loads this video's or the global default
@@ -814,6 +835,11 @@ class Media3PlayerManager(private val context: Context) : PlayerController, Play
     }
 
     override fun onTracksChanged(tracks: Tracks) {
+        runCatching {
+            val found = ArrayList<com.lnxv.player.core.model.ChapterItem>()
+            for (g in tracks.groups) for (i in 0 until g.length) collectChapters(g.getTrackFormat(i).metadata, found)
+            if (found.isNotEmpty()) _chapters.value = com.lnxv.player.core.model.ChapterList.sanitize(found)
+        }
         updateTrackLists(tracks)
         if (!_picture.value.isNeutral) applyPicture() else _pictureDisabledReason.value = null
         tryApplyRemembered()

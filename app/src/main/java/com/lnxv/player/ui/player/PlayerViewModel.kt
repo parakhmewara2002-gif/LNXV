@@ -46,6 +46,7 @@ data class PlayerUiState(
     val showOnlineSubtitleDialog: Boolean = false,
     val showPictureDialog: Boolean = false,
     val showBookmarksDialog: Boolean = false,
+    val showChaptersDialog: Boolean = false,
     val showAudioFxDialog: Boolean = false,
     val showPropertiesDialog: Boolean = false,
     val subtitleStyle: SubtitleStyleConfig = SubtitleStyleConfig(),
@@ -367,6 +368,10 @@ class PlayerViewModel(
     fun showAudioFxDialog(show: Boolean) {
         _uiState.value = _uiState.value.copy(showAudioFxDialog = show)
     }
+
+    val chapters: StateFlow<List<com.lnxv.player.core.model.ChapterItem>> = playerManager.chapters
+    fun showChaptersDialog(show: Boolean) { _uiState.value = _uiState.value.copy(showChaptersDialog = show) }
+    fun jumpToChapter(startMs: Long) = playerManager.seekTo(startMs)
 
     fun showBookmarksDialog(show: Boolean) {
         _uiState.value = _uiState.value.copy(showBookmarksDialog = show)

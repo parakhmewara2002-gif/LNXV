@@ -61,6 +61,11 @@ enum class FeatureFlag(val title: String, val description: String, val defaultEn
         "Adds a Picture sheet to the player menu: sharpness, Vivid low-light lift, colour-blind assist, tone, brightness/contrast/saturation/gamma and presets, applied with one GPU pass. Turns itself off for HDR, protected and low-end cases and says why. Experimental: not measured on real devices.",
         false
     ),
+    CHAPTERS(
+        "Chapters",
+        "Adds 'Chapters' to the player menu when the video has chapter markers (MKV, MP4/M4B): list, jump, current chapter. Reads Media3 1.11 chapter metadata; not tested with real files.",
+        false
+    ),
     RECYCLE_BIN(
         "Recycle bin",
         "On Android 11+, 'Delete from device' moves videos to the system trash (kept about 30 days) instead of deleting them for good, and Home gets a Trash button to restore or delete them. Below Android 11 nothing changes. Not tested on real devices.",
