@@ -1,5 +1,7 @@
 # Changelog
 
+Release note: v1.0.150-v1.0.157 were created in one burst from a batch of merges, so GitHub marked an older one as latest. This entry triggers a fresh build so the newest release contains everything below.
+
 Unreleased changes from the phased work (each is its own pull request; none verified on a device).
 
 ## Added
