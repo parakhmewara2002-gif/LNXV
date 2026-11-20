@@ -125,3 +125,6 @@ See [`docs/IOS_VISUAL_REDESIGN.md`](docs/IOS_VISUAL_REDESIGN.md) for exact chang
 
 ## Seek-bar preview fix (NOT DEVICE-TESTED)
 - Scrub preview was one Coil request per drag step, cancelled by the next step before finishing (blank on heavy files) and disabled entirely when effects were reduced. Now `ui/player/ScrubThumbnailer.kt`: one reused MediaMetadataRetriever, keyframe decode at 320x180, newest-position-only worker, last frame kept (never blank), LRU of 48 seconds. Swipe-seek on the video surface still shows only the time HUD (no thumbnail).
+
+## Readable track names (NOT DEVICE-TESTED)
+- Audio/subtitle panels now show "English · Stereo · AAC" / "English · SRT · Forced" (`playback/engine/TrackNames.kt`, unit-tested) instead of the container title, which is often only a release tag like "(Movies4u.Foo).". Title is used only when the language is unknown; repeats are still numbered (1), (2).
