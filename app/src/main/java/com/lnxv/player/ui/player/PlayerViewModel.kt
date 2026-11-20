@@ -46,6 +46,7 @@ data class PlayerUiState(
     val showOnlineSubtitleDialog: Boolean = false,
     val showPictureDialog: Boolean = false,
     val showBookmarksDialog: Boolean = false,
+    val showAudioFxDialog: Boolean = false,
     val showPropertiesDialog: Boolean = false,
     val subtitleStyle: SubtitleStyleConfig = SubtitleStyleConfig(),
     val resumePromptPositionMs: Long? = null,
@@ -136,7 +137,54 @@ class PlayerViewModel(
             ).show()
         }
     }
-    fun cycleEqPreset() = playerManager.setEqPreset(playerManager.eqPreset.value.next())
+    fun cycleEqPreset() = setFxPreset(playerManager.eqPreset.value.next())
+
+    // Audio effects (flag EQUALIZER): preset, Bass Boost and Virtualizer, remembered per output route.
+    val bassStrength: StateFlow<Int> = playerManager.bassStrength
+    val virtualizerStrength: StateFlow<Int> = playerManager.virtualizerStrength
+    private val audioFxStore = com.lnxv.player.core.model.AudioFxStore(application)
+    private val audioManager = application.getSystemService(android.content.Context.AUDIO_SERVICE) as? android.media.AudioManager
+    private val _route = MutableStateFlow(com.lnxv.player.core.model.OutputRoute.SPEAKER)
+    val route: StateFlow<com.lnxv.player.core.model.OutputRoute> = _route
+
+    private fun fxEnabled() = userPrefs.value.isEnabled(com.lnxv.player.core.flags.FeatureFlag.EQUALIZER)
+
+    private fun currentFx() = com.lnxv.player.core.model.AudioFxSettings(
+        playerManager.eqPreset.value, playerManager.bassStrength.value, playerManager.virtualizerStrength.value
+    )
+
+    private fun saveFx() {
+        val r = _route.value
+        val s = currentFx()
+        viewModelScope.launch { audioFxStore.save(r, s) }
+    }
+
+    fun setFxPreset(p: com.lnxv.player.core.model.EqPreset) { playerManager.setEqPreset(p); saveFx() }
+    fun setBass(s: Int) { playerManager.setBassStrength(s); saveFx() }
+    fun setVirtualizer(s: Int) { playerManager.setVirtualizerStrength(s); saveFx() }
+
+    /** Re-reads the active output (speaker, wired, Bluetooth, HDMI) and applies the settings saved for it. */
+    fun refreshOutputRoute() {
+        if (!fxEnabled()) return
+        val types = audioManager?.getDevices(android.media.AudioManager.GET_DEVICES_OUTPUTS)?.map { it.type } ?: emptyList()
+        val route = com.lnxv.player.core.model.OutputRouteClassifier.classify(types)
+        _route.value = route
+        viewModelScope.launch {
+            val s = audioFxStore.load(route)
+            playerManager.setEqPreset(s.preset)
+            playerManager.setBassStrength(s.bass)
+            playerManager.setVirtualizerStrength(s.virtualizer)
+        }
+    }
+
+    private val deviceCallback = object : android.media.AudioDeviceCallback() {
+        override fun onAudioDevicesAdded(addedDevices: Array<out android.media.AudioDeviceInfo>?) = refreshOutputRoute()
+        override fun onAudioDevicesRemoved(removedDevices: Array<out android.media.AudioDeviceInfo>?) = refreshOutputRoute()
+    }
+
+    init {
+        audioManager?.registerAudioDeviceCallback(deviceCallback, null)
+    }
 
     fun resetAudioDelay() = playerManager.setAudioDelayMs(0L)
 
@@ -287,6 +335,7 @@ class PlayerViewModel(
         playerManager.setPlaybackSpeed(speed)
         playerManager.setSkipSilence(userPrefs.value.isEnabled(com.lnxv.player.core.flags.FeatureFlag.SKIP_SILENCE))
         loadBookmarks(video)
+        refreshOutputRoute()
         if (userPrefs.value.isEnabled(com.lnxv.player.core.flags.FeatureFlag.PICTURE_ENHANCER)) {
             viewModelScope.launch {
                 val own = if (pictureRememberable(video)) pictureStore.forVideo(video.id) else null
@@ -312,6 +361,10 @@ class PlayerViewModel(
     }
 
     val canBookmark: Boolean get() = _uiState.value.currentVideo?.let { bookmarkable(it) } == true
+
+    fun showAudioFxDialog(show: Boolean) {
+        _uiState.value = _uiState.value.copy(showAudioFxDialog = show)
+    }
 
     fun showBookmarksDialog(show: Boolean) {
         _uiState.value = _uiState.value.copy(showBookmarksDialog = show)
@@ -563,6 +616,7 @@ class PlayerViewModel(
 
     override fun onCleared() {
         super.onCleared()
+        audioManager?.unregisterAudioDeviceCallback(deviceCallback)
         if (playerManager.owner === this) {
             playerManager.onDecoderFallback = null
             playerManager.onAudioTrackChosen = null

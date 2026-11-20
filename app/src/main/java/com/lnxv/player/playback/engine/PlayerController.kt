@@ -25,6 +25,8 @@ interface PlayerController {
     val subtitleDelayMs: StateFlow<Long>
     val hasExternalSubtitle: StateFlow<Boolean>
     val eqPreset: StateFlow<EqPreset>
+    val bassStrength: StateFlow<Int>
+    val virtualizerStrength: StateFlow<Int>
     val boostMb: StateFlow<Int>
     val audioOnly: StateFlow<Boolean>
 
@@ -72,6 +74,8 @@ interface PlayerController {
     fun selectSubtitleTrack(track: SubtitleTrackInfo?)
     fun setAudioDelayMs(ms: Long)
     fun setEqPreset(p: EqPreset)
+    fun setBassStrength(s: Int)
+    fun setVirtualizerStrength(s: Int)
     fun setBoostMb(mb: Int)
     fun setAudioOnly(enabled: Boolean)
     val videoColor: StateFlow<com.lnxv.player.core.model.VideoColor>
