@@ -100,6 +100,15 @@ fun PlayerMoreMenuItems(
                 closeMenu()
             }
         )
+        if (viewModel.userPrefs.collectAsState().value.isEnabled(com.lnxv.player.core.flags.FeatureFlag.PICTURE_ENHANCER)) {
+            PlayerMenuItem(
+                text = { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.menu_picture)) },
+                onClick = {
+                    closeMenu()
+                    viewModel.showPictureDialog(true)
+                }
+            )
+        }
         if (viewModel.userPrefs.collectAsState().value.isEnabled(com.lnxv.player.core.flags.FeatureFlag.VIDEO_TRANSFORMS)) {
             PlayerMenuItem(
                 text = { Text("Rotate video 90° (now $videoRotation°)") },

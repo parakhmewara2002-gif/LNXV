@@ -56,6 +56,11 @@ enum class FeatureFlag(val title: String, val description: String, val defaultEn
         "Adds Rotate, Flip and Brightness/Contrast/Saturation to the player menu. Rotate/flip is applied to the video surface and may look wrong on some devices (SurfaceView); colour uses a GL effect pass.",
         false
     ),
+    PICTURE_ENHANCER(
+        "Picture enhancer",
+        "Adds a Picture sheet to the player menu: sharpness, Vivid low-light lift, colour-blind assist, tone, brightness/contrast/saturation/gamma and presets, applied with one GPU pass. Turns itself off for HDR, protected and low-end cases and says why. Experimental: not measured on real devices.",
+        false
+    ),
     EQUALIZER(
         "Equalizer presets",
         "Adds an Equalizer preset switcher (Flat, Bass, Vocal, Treble, Loud) to the player menu. Uses the system audio effect; may be unsupported on some devices.",

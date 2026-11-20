@@ -54,6 +54,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.runtime.Composable
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.animation.togetherWith
@@ -213,6 +214,28 @@ fun BoxScope.PlayerSidePanels(
             onSearchOnline = if (androidx.compose.ui.res.booleanResource(com.lnxv.player.R.bool.online_subtitles_enabled)) {
                 { viewModel.showSubtitleDialog(false); viewModel.showOnlineSubtitleDialog(true) }
             } else null
+        )
+    }
+
+    PlayerSidePanel(
+        visible = uiState.showPictureDialog,
+        title = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.picture_title),
+        icon = Icons.Default.Edit,
+        onDismiss = { viewModel.showPictureDialog(false) },
+        backdrop = glassBackdrop
+    ) {
+        val picture by viewModel.picture.collectAsState()
+        val reason by viewModel.pictureDisabledReason.collectAsState()
+        PictureContent(
+            settings = picture,
+            disabledReason = reason,
+            highTier = viewModel.highTierDevice,
+            canRememberForVideo = uiState.currentVideo?.let { !it.isVault && it.id > 0L } == true,
+            onChange = { viewModel.setPicture(it) },
+            onCompare = { viewModel.setPictureBypass(it) },
+            onSaveDefault = { viewModel.savePictureAsDefault() },
+            onSaveVideo = { viewModel.savePictureForThisVideo() },
+            onClearVideo = { viewModel.clearPictureForThisVideo() }
         )
     }
 

@@ -197,4 +197,47 @@
     <string name="subs_encoding">Text encoding</string>
     <string name="subs_encoding_auto">Auto-detect</string>
     <string name="subs_encoding_hint">Use this if letters look wrong (for example Hindi, Arabic or Russian text).</string>
+
+    <!-- Picture enhancer (Phase 3) -->
+    <string name="menu_picture">Picture…</string>
+    <string name="picture_title">Picture</string>
+    <string name="picture_off_prefix">Enhancer is off for this video:</string>
+    <string name="picture_off_hdr">it is an HDR video (HDR10/HLG/Dolby Vision), which the enhancer does not support.</string>
+    <string name="picture_off_protected">it is protected (DRM) content.</string>
+    <string name="picture_off_low_end">this is a low-memory device, where extra video processing could cause stutter.</string>
+    <string name="picture_off_power_save">battery saver is on.</string>
+    <string name="picture_presets">Presets</string>
+    <string name="picture_preset_off">Off</string>
+    <string name="picture_preset_clear">Clear</string>
+    <string name="picture_preset_cinema">Cinema</string>
+    <string name="picture_preset_vivid">Vivid</string>
+    <string name="picture_preset_night">Night</string>
+    <string name="picture_compare">Hold to compare with original</string>
+    <string name="picture_detail">Detail</string>
+    <string name="picture_sharpness">Sharpness</string>
+    <string name="picture_noise_threshold">Noise threshold</string>
+    <string name="picture_taps">%1$d taps</string>
+    <string name="picture_vivid">Vivid (low-light lift)</string>
+    <string name="picture_vivid_note">Lifts dark and mid tones and keeps highlights. This is not HDR.</string>
+    <string name="picture_light_colour">Light and colour</string>
+    <string name="picture_brightness">Brightness</string>
+    <string name="picture_contrast">Contrast</string>
+    <string name="picture_saturation">Saturation</string>
+    <string name="picture_gamma">Gamma</string>
+    <string name="picture_tone">Tone</string>
+    <string name="picture_tone_neutral">Neutral</string>
+    <string name="picture_tone_warm">Warm</string>
+    <string name="picture_tone_cool">Cool</string>
+    <string name="picture_tone_strength">Tone strength</string>
+    <string name="picture_colour_blind">Colour-blind assist</string>
+    <string name="picture_cb_off">Off</string>
+    <string name="picture_cb_protan">Protanopia</string>
+    <string name="picture_cb_deutan">Deuteranopia</string>
+    <string name="picture_cb_tritan">Tritanopia</string>
+    <string name="picture_cb_correct">Correct colours</string>
+    <string name="picture_cb_simulate">Simulate</string>
+    <string name="picture_reset">Reset picture</string>
+    <string name="picture_save_default">Use as default for all videos</string>
+    <string name="picture_save_video">Remember for this video</string>
+    <string name="picture_clear_video">Forget for this video</string>
 </resources>

@@ -82,6 +82,19 @@ jobs:
           fi
           exit $code
 
+      # The enhancer's fragment shaders are generated in Kotlin; a unit test writes them to app/build/shaders.
+      - name: Validate GLSL shaders (glslangValidator)
+        run: |
+          if ! (sudo apt-get update -qq && sudo apt-get install -y -qq glslang-tools); then
+            echo "::warning::glslang-tools could not be installed; shader validation skipped"
+            exit 0
+          fi
+          ls app/build/shaders/*.vert app/build/shaders/*.frag
+          for f in app/build/shaders/*.vert app/build/shaders/*.frag; do
+            echo "validating $f"
+            glslangValidator "$f"
+          done
+
       - name: Android lint (non-blocking until the baseline is clean)
         continue-on-error: true
         run: ./gradlew lintSideloadDebug --console=plain
