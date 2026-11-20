@@ -262,4 +262,8 @@
     <string name="route_bluetooth">Bluetooth</string>
     <string name="route_hdmi">HDMI</string>
     <string name="route_other">Other output</string>
+    <!-- Chapters (Phase 4e) -->
+    <string name="menu_chapters">Chapters…</string>
+    <string name="chapters_title">Chapters</string>
+    <string name="chapters_jump_to">%1$s, jump to %2$s</string>
 </resources>

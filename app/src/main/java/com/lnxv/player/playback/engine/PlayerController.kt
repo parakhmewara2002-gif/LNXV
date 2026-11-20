@@ -22,6 +22,7 @@ interface PlayerController {
     val audioTracks: StateFlow<List<AudioTrackInfo>>
     val subtitleTracks: StateFlow<List<SubtitleTrackInfo>>
     val audioDelayMs: StateFlow<Long>
+    val chapters: StateFlow<List<com.lnxv.player.core.model.ChapterItem>>
     val subtitleDelayMs: StateFlow<Long>
     val hasExternalSubtitle: StateFlow<Boolean>
     val eqPreset: StateFlow<EqPreset>

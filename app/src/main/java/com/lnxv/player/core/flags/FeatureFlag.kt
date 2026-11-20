@@ -61,6 +61,11 @@ enum class FeatureFlag(val title: String, val description: String, val defaultEn
         "Adds a Picture sheet to the player menu: sharpness, Vivid low-light lift, colour-blind assist, tone, brightness/contrast/saturation/gamma and presets, applied with one GPU pass. Turns itself off for HDR, protected and low-end cases and says why. Experimental: not measured on real devices.",
         false
     ),
+    CHAPTERS(
+        "Chapters",
+        "Adds 'Chapters' to the player menu when the video has chapter markers (MKV, MP4/M4B): list, jump, current chapter. Reads Media3 1.11 chapter metadata; not tested with real files.",
+        false
+    ),
     BOOKMARKS(
         "Bookmarks",
         "Adds 'Bookmarks' to the player menu: save positions in a video, jump between them. Stored on this device only, per library video (never for vault or network videos).",

@@ -258,4 +258,8 @@
     <string name="route_bluetooth">ब्लूटूथ</string>
     <string name="route_hdmi">HDMI</string>
     <string name="route_other">अन्य आउटपुट</string>
+    <!-- Chapters (Phase 4e) -->
+    <string name="menu_chapters">चैप्टर…</string>
+    <string name="chapters_title">चैप्टर</string>
+    <string name="chapters_jump_to">%1$s, %2$s पर जाएँ</string>
 </resources>
