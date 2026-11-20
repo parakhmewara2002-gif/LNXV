@@ -77,6 +77,8 @@ interface PlayerController {
     val videoColor: StateFlow<com.lnxv.player.core.model.VideoColor>
     fun setVideoColor(color: com.lnxv.player.core.model.VideoColor)
     suspend fun loadExternalSubtitle(uri: Uri): Boolean
+    val subtitleEncoding: StateFlow<String>
+    suspend fun setSubtitleEncoding(name: String)
     suspend fun adjustSubtitleDelay(deltaMs: Long)
     fun describeStream(): List<Pair<String, String>>
     fun diagnosticsSnapshot(video: VideoItem?, containerInfo: String): String

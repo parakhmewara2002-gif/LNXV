@@ -137,6 +137,7 @@ fun BoxScope.PlayerSidePanels(
     subtitleTracks: List<com.lnxv.player.core.model.SubtitleTrackInfo>,
     subtitleDelayMs: Long,
     hasExternalSubtitle: Boolean,
+    subtitleEncoding: String,
     glassBackdrop: ImageBitmap?,
     reportScope: kotlinx.coroutines.CoroutineScope,
     context: Context,
@@ -206,7 +207,26 @@ fun BoxScope.PlayerSidePanels(
             onLoadFile = { onLoadSubtitleFile() },
             delayMs = subtitleDelayMs,
             canDelay = hasExternalSubtitle,
-            onDelayChange = { viewModel.adjustSubtitleDelay(it) }
+            onDelayChange = { viewModel.adjustSubtitleDelay(it) },
+            encoding = subtitleEncoding,
+            onEncodingChange = { viewModel.setSubtitleEncoding(it) },
+            onSearchOnline = if (androidx.compose.ui.res.booleanResource(com.lnxv.player.R.bool.online_subtitles_enabled)) {
+                { viewModel.showSubtitleDialog(false); viewModel.showOnlineSubtitleDialog(true) }
+            } else null
+        )
+    }
+
+    PlayerSidePanel(
+        visible = uiState.showOnlineSubtitleDialog,
+        title = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.online_subs_title),
+        icon = Icons.Default.Subtitles,
+        onDismiss = { viewModel.showOnlineSubtitleDialog(false) },
+        backdrop = glassBackdrop
+    ) {
+        OnlineSubtitlesContent(
+            controller = viewModel.onlineSubtitles,
+            video = uiState.currentVideo,
+            onPick = { viewModel.downloadOnlineSubtitle(it) }
         )
     }
 

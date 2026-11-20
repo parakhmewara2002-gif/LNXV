@@ -74,6 +74,7 @@ fun SettingsScreen(
     val updateState by viewModel.updateState.collectAsState()
 
     val updaterEnabled = androidx.compose.ui.res.booleanResource(com.lnxv.player.R.bool.updater_enabled)
+    val onlineSubsEnabled = androidx.compose.ui.res.booleanResource(com.lnxv.player.R.bool.online_subtitles_enabled)
     LaunchedEffect(Unit) { if (updaterEnabled) viewModel.checkForUpdate() }
 
     val hazeState = androidx.compose.runtime.remember { dev.chrisbanes.haze.HazeState() }
@@ -554,7 +555,7 @@ fun SettingsScreen(
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
                             "Stored only on this device: watch history and resume positions, favorites, playlists, settings, recent network URLs, and the encrypted vault. " +
-                                "The only network requests are the update check to GitHub (sideload build) and streams you open yourself.",
+                                "The only network requests are the update check to GitHub (sideload build), streams you open yourself, and OpenSubtitles when you tap Search or Download for subtitles (sideload build, with your own API key).",
                             color = appColors.textSecondary,
                             fontSize = 12.sp
                         )
@@ -597,6 +598,13 @@ fun SettingsScreen(
                         }
                     }
                 }
+            }
+
+            if (onlineSubsEnabled &&
+                show("Online subtitles", "opensubtitles", "subtitles", "api key", "login")
+            ) item {
+                SectionHeader(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.settings_os_header))
+                OnlineSubtitlesSettingsPanel()
             }
 
             if (show("Open-source licenses", "licenses", "ffmpeg", "dav1d", "lgpl", "open source")) item {

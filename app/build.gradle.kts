@@ -32,10 +32,13 @@ android {
         create("sideload") {
             dimension = "dist"
             resValue("bool", "updater_enabled", "true")
+            resValue("bool", "online_subtitles_enabled", "true")
         }
         create("store") {
             dimension = "dist"
             resValue("bool", "updater_enabled", "false")
+            // Online subtitles contact a third party, so the store build leaves them out entirely.
+            resValue("bool", "online_subtitles_enabled", "false")
         }
     }
 
@@ -114,6 +117,8 @@ kotlin {
 
 dependencies {
     testImplementation("junit:junit:4.13.2")
+    // org.json is a stub in android.jar; the real implementation is needed for JVM unit tests (tests only, never shipped).
+    testImplementation("org.json:json:20240303")
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.core.splashscreen)
     // Real backdrop blur (RenderEffect on Android 12+, translucent fallback below). Used on one bar only.

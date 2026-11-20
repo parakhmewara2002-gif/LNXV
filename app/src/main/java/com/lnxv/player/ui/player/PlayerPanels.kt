@@ -42,6 +42,7 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -566,7 +567,10 @@ fun SubtitleBottomSheet(
     onLoadFile: () -> Unit,
     delayMs: Long,
     canDelay: Boolean,
-    onDelayChange: (Long) -> Unit
+    onDelayChange: (Long) -> Unit,
+    encoding: String = "AUTO",
+    onEncodingChange: (String) -> Unit = {},
+    onSearchOnline: (() -> Unit)? = null
 ) {
     PanelOptionRow(
         label = "Off",
@@ -585,11 +589,20 @@ fun SubtitleBottomSheet(
     }
     PanelOptionRow(
         label = "Load subtitle file…",
-        subtitle = ".srt or .vtt",
+        subtitle = ".srt .vtt .ass .ssa .ttml",
         selected = false,
         icon = Icons.Default.FolderOpen,
         onClick = onLoadFile
     )
+    if (onSearchOnline != null) {
+        PanelOptionRow(
+            label = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.online_subs_open),
+            subtitle = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.online_subs_open_summary),
+            selected = false,
+            icon = Icons.Default.Subtitles,
+            onClick = onSearchOnline
+        )
+    }
     if (canDelay) {
         Spacer(modifier = Modifier.height(8.dp))
         val shape = RoundedCornerShape(16.dp)
@@ -612,9 +625,32 @@ fun SubtitleBottomSheet(
                 )
             }
             DelayStepButton(label = "− 0.5s", onClick = { onDelayChange(-500L) })
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(6.dp))
+            DelayStepButton(label = "− 0.1s", onClick = { onDelayChange(-100L) })
+            Spacer(modifier = Modifier.width(6.dp))
+            DelayStepButton(label = "+ 0.1s", onClick = { onDelayChange(100L) })
+            Spacer(modifier = Modifier.width(6.dp))
             DelayStepButton(label = "+ 0.5s", onClick = { onDelayChange(500L) })
         }
+        Spacer(modifier = Modifier.height(10.dp))
+        Text(
+            androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.subs_encoding),
+            color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Medium
+        )
+        Row(modifier = Modifier.fillMaxWidth().padding(top = 6.dp).horizontalScroll(rememberScrollState())) {
+            com.lnxv.player.core.subtitle.SubtitleEncoding.CHOICES.forEach { name ->
+                com.lnxv.player.core.design.GlassFilterChip(
+                    selected = name == encoding,
+                    label = if (name == "AUTO") androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.subs_encoding_auto) else name,
+                    onClick = { onEncodingChange(name) }
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+            }
+        }
+        Text(
+            androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.subs_encoding_hint),
+            color = Color(0x80FFFFFF), fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp)
+        )
         Text(
             text = "Applies to the loaded external file; playback position is kept.",
             color = Color(0x80FFFFFF),

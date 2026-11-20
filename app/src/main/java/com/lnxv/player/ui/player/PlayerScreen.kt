@@ -168,6 +168,7 @@ fun PlayerScreen(
     var glassBackdrop by remember { mutableStateOf<ImageBitmap?>(null) }
     val subtitleDelayMs by viewModel.subtitleDelayMs.collectAsState()
     val hasExternalSubtitle by viewModel.hasExternalSubtitle.collectAsState()
+    val subtitleEncoding by viewModel.subtitleEncoding.collectAsState()
     val subtitleFileLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) viewModel.loadExternalSubtitle(uri)
     }
@@ -487,6 +488,7 @@ fun PlayerScreen(
             subtitleTracks = subtitleTracks,
             subtitleDelayMs = subtitleDelayMs,
             hasExternalSubtitle = hasExternalSubtitle,
+            subtitleEncoding = subtitleEncoding,
             glassBackdrop = glassBackdrop,
             reportScope = reportScope,
             context = context,
