@@ -723,7 +723,7 @@ class Media3PlayerManager(private val context: Context) : PlayerController, Play
                             AudioTrackInfo(
                                 id = format.id ?: "audio_$i",
                                 language = format.language ?: "und",
-                                label = format.label ?: "Track ${i + 1} (${format.language ?: "Unknown"})",
+                                label = TrackNames.audioLabel(format.language, format.label, format.channelCount, format.sampleMimeType, i),
                                 channelCount = format.channelCount,
                                 sampleRate = format.sampleRate,
                                 isSelected = isSelected
@@ -739,7 +739,14 @@ class Media3PlayerManager(private val context: Context) : PlayerController, Play
                             SubtitleTrackInfo(
                                 id = format.id ?: "sub_$i",
                                 language = format.language ?: "und",
-                                label = format.label ?: "Subtitle ${i + 1} (${format.language ?: "Unknown"})",
+                                label = TrackNames.subtitleLabel(
+                                    language = format.language,
+                                    title = format.label,
+                                    mime = format.sampleMimeType,
+                                    index = i,
+                                    forced = (format.selectionFlags and C.SELECTION_FLAG_FORCED) != 0,
+                                    sdh = (format.roleFlags and C.ROLE_FLAG_CAPTION) != 0
+                                ),
                                 isExternal = false,
                                 isSelected = isSelected
                             )
