@@ -307,6 +307,10 @@ class HomeViewModel(
         }
     }
 
+    val recycleBinEnabled: kotlinx.coroutines.flow.StateFlow<Boolean> = dataStore.userPreferencesFlow
+        .map { it.isEnabled(com.lnxv.player.core.flags.FeatureFlag.RECYCLE_BIN) && android.os.Build.VERSION.SDK_INT >= 30 }
+        .stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5000), false)
+
     /** Recent network stream URLs (credentials already stripped when saved). */
     val recentStreams: kotlinx.coroutines.flow.StateFlow<List<String>> = dataStore.userPreferencesFlow
         .map { com.lnxv.player.core.util.StreamUrl.decodeList(it.recentStreams) }

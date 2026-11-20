@@ -258,4 +258,16 @@
     <string name="route_bluetooth">ब्लूटूथ</string>
     <string name="route_hdmi">HDMI</string>
     <string name="route_other">अन्य आउटपुट</string>
+    <!-- Recycle bin (Phase 4c) -->
+    <string name="trash_title">ट्रैश</string>
+    <string name="trash_empty">ट्रैश खाली है।</string>
+    <string name="trash_restore">वापस लाएँ</string>
+    <string name="trash_delete_forever">हमेशा के लिए हटाएँ</string>
+    <string name="trash_close">बंद करें</string>
+    <string name="trash_move_action">ट्रैश में भेजें</string>
+    <string name="trash_move_text">फ़ाइलें सिस्टम ट्रैश में जाएँगी और लगभग 30 दिन तक वापस लाई जा सकती हैं। उसके बाद Android उन्हें हटा देता है।</string>
+    <plurals name="trash_days_left">
+        <item quantity="one">%d दिन बाकी</item>
+        <item quantity="other">%d दिन बाकी</item>
+    </plurals>
 </resources>
