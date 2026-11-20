@@ -181,6 +181,11 @@ fun HomeScreen(
         )
     }
     val recentStreams by viewModel.recentStreams.collectAsState()
+    val webDavOn by viewModel.webDavEnabled.collectAsState()
+    var showWebDav by remember { mutableStateOf(false) }
+    if (showWebDav) {
+        WebDavDialog(onDismiss = { showWebDav = false }, onPlay = { viewModel.openStream(it, remember = false) })
+    }
     if (showStreamDialog) {
         var url by remember { mutableStateOf("") }
         var error by remember { mutableStateOf<String?>(null) }
@@ -195,6 +200,11 @@ fun HomeScreen(
                         placeholder = "https://, HLS (.m3u8), DASH (.mpd), rtsp://",
                         errorText = error
                     )
+                    if (webDavOn) {
+                        androidx.compose.material3.TextButton(onClick = { showStreamDialog = false; showWebDav = true }) {
+                            Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.webdav_browse), fontSize = 13.sp)
+                        }
+                    }
                     if (recentStreams.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(8.dp))
                         Text("Recent", fontSize = 12.sp)
