@@ -28,6 +28,34 @@ object MediaActions {
     fun deleteRequest(ctx: Context, uris: List<Uri>): IntentSender? =
         if (Build.VERSION.SDK_INT >= 30) MediaStore.createDeleteRequest(ctx.contentResolver, uris).intentSender else null
 
+    /** API 30+: system confirmation to move to (or restore from) the trash; null below 30. */
+    fun trashRequest(ctx: Context, uris: List<Uri>, trash: Boolean): IntentSender? =
+        if (Build.VERSION.SDK_INT >= 30) MediaStore.createTrashRequest(ctx.contentResolver, uris, trash).intentSender else null
+
+    /** Videos currently in the system trash that this app can see (API 30+); empty below 30 or on any error. */
+    fun queryTrashed(ctx: Context): List<com.lnxv.player.core.model.TrashItem> {
+        if (Build.VERSION.SDK_INT < 30) return emptyList()
+        return runCatching {
+            val args = android.os.Bundle().apply {
+                putInt(MediaStore.QUERY_ARG_MATCH_TRASHED, MediaStore.MATCH_ONLY)
+            }
+            val out = ArrayList<com.lnxv.player.core.model.TrashItem>()
+            ctx.contentResolver.query(
+                MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
+                arrayOf(MediaStore.MediaColumns._ID, MediaStore.MediaColumns.DISPLAY_NAME, MediaStore.MediaColumns.SIZE, MediaStore.MediaColumns.DATE_EXPIRES),
+                args,
+                null
+            )?.use { c ->
+                while (c.moveToNext()) {
+                    out += com.lnxv.player.core.model.TrashItem(c.getLong(0), c.getString(1) ?: "", c.getLong(2), c.getLong(3))
+                }
+            }
+            com.lnxv.player.core.model.TrashPolicy.sorted(out)
+        }.getOrDefault(emptyList())
+    }
+
+    fun uriForId(id: Long): Uri = android.content.ContentUris.withAppendedId(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, id)
+
     fun writeRequest(ctx: Context, uris: List<Uri>): IntentSender? =
         if (Build.VERSION.SDK_INT >= 30) MediaStore.createWriteRequest(ctx.contentResolver, uris).intentSender else null
 

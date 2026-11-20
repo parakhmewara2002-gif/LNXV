@@ -234,21 +234,24 @@ fun HomeScreen(
         com.lnxv.player.core.design.lensSupported(com.lnxv.player.core.design.LocalGlassProfile.current, android.os.Build.VERSION.SDK_INT)
     BackHandler(enabled = selection.isNotEmpty()) { viewModel.clearSelection() }
     BackHandler(enabled = uiState.openFolderPath != null && selection.isEmpty()) { viewModel.closeFolder() }
+    val recycleBinOn by viewModel.recycleBinEnabled.collectAsState()
+    var showTrash by remember { mutableStateOf(false) }
     val deletablePicked = selection.mapNotNull { id -> selectionPool.firstOrNull { it.id == id } }.filter { !it.isVault && it.id != com.lnxv.player.LNXVApplication.TRANSIENT_VIDEO_ID }
     if (confirmDeleteDevice) {
         GlassDialog(
             onDismissRequest = { confirmDeleteDevice = false },
             title = { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.delete_device_title, deletablePicked.size)) },
-            text = { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.delete_device_text)) },
+            text = { Text(androidx.compose.ui.res.stringResource(if (recycleBinOn) com.lnxv.player.R.string.trash_move_text else com.lnxv.player.R.string.delete_device_text)) },
             confirmButton = {
                 GlassDialogButton(
-                    text = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.action_delete_device),
+                    text = androidx.compose.ui.res.stringResource(if (recycleBinOn) com.lnxv.player.R.string.trash_move_action else com.lnxv.player.R.string.action_delete_device),
                     primary = true,
                     destructive = true,
                     onClick = {
                     confirmDeleteDevice = false
                     val uris = deletablePicked.map { it.uri }
-                    val sender = com.lnxv.player.data.mediastore.MediaActions.deleteRequest(actionCtx, uris)
+                    val sender = if (recycleBinOn) com.lnxv.player.data.mediastore.MediaActions.trashRequest(actionCtx, uris, true)
+                        else com.lnxv.player.data.mediastore.MediaActions.deleteRequest(actionCtx, uris)
                     val finish = { viewModel.removeSelected(selectionPool) }
                     if (sender != null) {
                         pendingAfterGrant = finish
@@ -257,6 +260,16 @@ fun HomeScreen(
                 })
             },
             dismissButton = { GlassDialogButton(text = "Cancel", onClick = { confirmDeleteDevice = false }) }
+        )
+    }
+    if (showTrash) {
+        TrashDialog(
+            onDismiss = { showTrash = false },
+            requestGrant = { sender, after ->
+                pendingAfterGrant = after
+                grantLauncher.launch(androidx.activity.result.IntentSenderRequest.Builder(sender).build())
+            },
+            onChanged = { viewModel.refreshLibrary() }
         )
     }
     renameTarget?.let { target ->
@@ -490,6 +503,9 @@ topBar = {
                     }
                     IosPill(hazeState = null) {
                         IosPillIcon(Icons.Default.Search, "Search", { isSearchExpanded = !isSearchExpanded })
+                        if (recycleBinOn) {
+                            IosPillIcon(Icons.Default.Delete, androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.trash_title), { showTrash = true })
+                        }
                         IosPillIcon(Icons.Default.Link, "Open network stream", { showStreamDialog = true })
                         IosPillIcon(Icons.Default.Lock, "Private Vault", onVaultClick)
                         IosPillIcon(Icons.Default.Settings, "Settings", onSettingsClick)

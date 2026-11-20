@@ -262,4 +262,16 @@
     <string name="route_bluetooth">Bluetooth</string>
     <string name="route_hdmi">HDMI</string>
     <string name="route_other">Other output</string>
+    <!-- Recycle bin (Phase 4c) -->
+    <string name="trash_title">Trash</string>
+    <string name="trash_empty">The trash is empty.</string>
+    <string name="trash_restore">Restore</string>
+    <string name="trash_delete_forever">Delete forever</string>
+    <string name="trash_close">Close</string>
+    <string name="trash_move_action">Move to trash</string>
+    <string name="trash_move_text">The files go to the system trash and can be restored for about 30 days. After that Android deletes them.</string>
+    <plurals name="trash_days_left">
+        <item quantity="one">%d day left</item>
+        <item quantity="other">%d days left</item>
+    </plurals>
 </resources>
