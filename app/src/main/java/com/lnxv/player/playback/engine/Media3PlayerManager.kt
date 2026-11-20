@@ -153,7 +153,10 @@ class Media3PlayerManager(private val context: Context) : PlayerController, Play
         .setMediaSourceFactory(
             DefaultMediaSourceFactory(
                 VaultRoutingDataSource.Factory(
-                    androidx.media3.datasource.DefaultDataSource.Factory(context),
+                    androidx.media3.datasource.ResolvingDataSource.Factory(
+                        androidx.media3.datasource.DefaultDataSource.Factory(context),
+                        androidx.media3.datasource.ResolvingDataSource.Resolver { spec -> com.lnxv.player.core.webdav.WebDavAuth.resolve(spec) }
+                    ),
                     EncryptedDataSource.Factory(
                         keyProvider = { (context.applicationContext as LNXVApplication).vaultKeyManager.requireKey() },
                         fileResolver = { uri -> java.io.File(VaultFiles.dir(context), uri.lastPathSegment ?: "") }

@@ -270,4 +270,15 @@
         <item quantity="one">%d दिन बाकी</item>
         <item quantity="other">%d दिन बाकी</item>
     </plurals>
+    <!-- WebDAV (Phase 4d) -->
+    <string name="webdav_title">WebDAV</string>
+    <string name="webdav_browse">WebDAV ब्राउज़ करें…</string>
+    <string name="webdav_url_hint">https://server/path/</string>
+    <string name="webdav_user">यूज़रनेम</string>
+    <string name="webdav_password">पासवर्ड</string>
+    <string name="webdav_connect">कनेक्ट करें</string>
+    <string name="webdav_disconnect">डिस्कनेक्ट करें</string>
+    <string name="webdav_up">एक फ़ोल्डर ऊपर</string>
+    <string name="webdav_empty">यहाँ कोई फ़ोल्डर या वीडियो नहीं है।</string>
+    <string name="webdav_note">सिर्फ़ https:// सर्वर सपोर्टेड हैं। पासवर्ड डिस्कनेक्ट करने या ऐप बंद करने तक सिर्फ़ मेमोरी में रहता है, कभी सेव नहीं होता।</string>
 </resources>
