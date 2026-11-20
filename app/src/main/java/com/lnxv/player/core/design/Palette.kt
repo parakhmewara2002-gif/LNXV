@@ -66,13 +66,13 @@ val LightPalette = LNXVColors(
     glowB = Color(0xFF7C4DFF).copy(alpha = 0.14f),
     textPrimary = Color(0xFF14181F),
     textSecondary = Color(0xFF566070),
-    textTertiary = Color(0xFF8792A2),
+    textTertiary = Color(0xFF616C7C),
     glassFill = Color(0xB3FFFFFF),
     glassBorder = Color(0x24000000),
     glassSubtle = Color(0x0F000000),
     barFill = Color(0xE6F2F5FA),
     placeholder = Color(0xFFDDE3EB),
-    accent = Color(0xFF00838F)
+    accent = Color(0xFF007680)
 )
 
 val LocalLNXVColors = staticCompositionLocalOf { AmoledPalette }
