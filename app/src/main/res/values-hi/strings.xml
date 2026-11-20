@@ -262,4 +262,27 @@
     <string name="menu_chapters">चैप्टर…</string>
     <string name="chapters_title">चैप्टर</string>
     <string name="chapters_jump_to">%1$s, %2$s पर जाएँ</string>
+    <!-- Recycle bin (Phase 4c) -->
+    <string name="trash_title">ट्रैश</string>
+    <string name="trash_empty">ट्रैश खाली है।</string>
+    <string name="trash_restore">वापस लाएँ</string>
+    <string name="trash_delete_forever">हमेशा के लिए हटाएँ</string>
+    <string name="trash_close">बंद करें</string>
+    <string name="trash_move_action">ट्रैश में भेजें</string>
+    <string name="trash_move_text">फ़ाइलें सिस्टम ट्रैश में जाएँगी और लगभग 30 दिन तक वापस लाई जा सकती हैं। उसके बाद Android उन्हें हटा देता है।</string>
+    <plurals name="trash_days_left">
+        <item quantity="one">%d दिन बाकी</item>
+        <item quantity="other">%d दिन बाकी</item>
+    </plurals>
+    <!-- WebDAV (Phase 4d) -->
+    <string name="webdav_title">WebDAV</string>
+    <string name="webdav_browse">WebDAV ब्राउज़ करें…</string>
+    <string name="webdav_url_hint">https://server/path/</string>
+    <string name="webdav_user">यूज़रनेम</string>
+    <string name="webdav_password">पासवर्ड</string>
+    <string name="webdav_connect">कनेक्ट करें</string>
+    <string name="webdav_disconnect">डिस्कनेक्ट करें</string>
+    <string name="webdav_up">एक फ़ोल्डर ऊपर</string>
+    <string name="webdav_empty">यहाँ कोई फ़ोल्डर या वीडियो नहीं है।</string>
+    <string name="webdav_note">सिर्फ़ https:// सर्वर सपोर्टेड हैं। पासवर्ड डिस्कनेक्ट करने या ऐप बंद करने तक सिर्फ़ मेमोरी में रहता है, कभी सेव नहीं होता।</string>
 </resources>

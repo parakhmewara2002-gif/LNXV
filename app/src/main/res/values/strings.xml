@@ -266,4 +266,27 @@
     <string name="menu_chapters">Chapters…</string>
     <string name="chapters_title">Chapters</string>
     <string name="chapters_jump_to">%1$s, jump to %2$s</string>
+    <!-- Recycle bin (Phase 4c) -->
+    <string name="trash_title">Trash</string>
+    <string name="trash_empty">The trash is empty.</string>
+    <string name="trash_restore">Restore</string>
+    <string name="trash_delete_forever">Delete forever</string>
+    <string name="trash_close">Close</string>
+    <string name="trash_move_action">Move to trash</string>
+    <string name="trash_move_text">The files go to the system trash and can be restored for about 30 days. After that Android deletes them.</string>
+    <plurals name="trash_days_left">
+        <item quantity="one">%d day left</item>
+        <item quantity="other">%d days left</item>
+    </plurals>
+    <!-- WebDAV (Phase 4d) -->
+    <string name="webdav_title">WebDAV</string>
+    <string name="webdav_browse">Browse WebDAV…</string>
+    <string name="webdav_url_hint">https://server/path/</string>
+    <string name="webdav_user">Username</string>
+    <string name="webdav_password">Password</string>
+    <string name="webdav_connect">Connect</string>
+    <string name="webdav_disconnect">Disconnect</string>
+    <string name="webdav_up">Up one folder</string>
+    <string name="webdav_empty">No folders or videos here.</string>
+    <string name="webdav_note">Only https:// servers are supported. The password is kept in memory until you disconnect or close the app, and is never saved.</string>
 </resources>

@@ -307,6 +307,14 @@ class HomeViewModel(
         }
     }
 
+    val webDavEnabled: kotlinx.coroutines.flow.StateFlow<Boolean> = dataStore.userPreferencesFlow
+        .map { it.isEnabled(com.lnxv.player.core.flags.FeatureFlag.WEBDAV) }
+        .stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5000), false)
+
+    val recycleBinEnabled: kotlinx.coroutines.flow.StateFlow<Boolean> = dataStore.userPreferencesFlow
+        .map { it.isEnabled(com.lnxv.player.core.flags.FeatureFlag.RECYCLE_BIN) && android.os.Build.VERSION.SDK_INT >= 30 }
+        .stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5000), false)
+
     /** Recent network stream URLs (credentials already stripped when saved). */
     val recentStreams: kotlinx.coroutines.flow.StateFlow<List<String>> = dataStore.userPreferencesFlow
         .map { com.lnxv.player.core.util.StreamUrl.decodeList(it.recentStreams) }
@@ -327,12 +335,12 @@ class HomeViewModel(
     }
 
     /** Validates and opens a network stream through the transient-video player route. Returns an error text or null. */
-    fun openStream(rawUrl: String): String? {
+    fun openStream(rawUrl: String, remember: Boolean = true): String? {
         val debuggable = getApplication<Application>().applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE != 0
         return when (val r = com.lnxv.player.core.util.StreamUrl.validate(rawUrl, allowCleartextHttp = debuggable)) {
             is com.lnxv.player.core.util.StreamUrl.Result.Error -> r.message
             is com.lnxv.player.core.util.StreamUrl.Result.Ok -> {
-                rememberStream(r.url)
+                if (remember) rememberStream(r.url)
                 session.transientVideo = VideoItem(
                     id = LNXVApplication.TRANSIENT_VIDEO_ID,
                     title = com.lnxv.player.core.util.StreamUrl.titleFor(r.url),
