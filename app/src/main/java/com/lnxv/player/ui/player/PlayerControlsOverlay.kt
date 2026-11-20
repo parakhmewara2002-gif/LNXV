@@ -33,6 +33,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -160,23 +161,30 @@ fun IosPlayerControls(
                     PillIcon(Icons.Default.MoreHoriz, stringResource(R.string.cd_more), onClick = onMore)
                 }
             }
-            VolumePill()
+            Box(modifier = Modifier.weight(1f).padding(start = 10.dp), contentAlignment = Alignment.CenterEnd) {
+                VolumePill(Modifier.widthIn(max = 206.dp))
+            }
         }
 
         // ---- Centre: rewind / play-pause / forward ----
         Row(
-            modifier = Modifier.align(Alignment.Center),
+            modifier = Modifier
+                .align(Alignment.Center)
+                .windowInsetsPadding(WindowInsets.displayCutout)
+                .widthIn(max = 520.dp)
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(36.dp)
+            horizontalArrangement = Arrangement.SpaceEvenly
         ) {
             if (queueUi.size > 1) {
-                GlassCircle(Icons.Default.SkipPrevious, stringResource(R.string.cd_prev_video), 48.dp) { viewModel.playPrevious() }
+                GlassCircle(Icons.Default.SkipPrevious, stringResource(R.string.cd_prev_video), 44.dp) { viewModel.playPrevious() }
             }
-            GlassCircle(Icons.Default.RewindArrow, stringResource(R.string.cd_seek_back), 60.dp, label = "10") { viewModel.seekRelative(-10000L) }
+            GlassCircle(Icons.Default.RewindArrow, stringResource(R.string.cd_seek_back), 56.dp, label = "10") { viewModel.seekRelative(-10000L) }
 
             Box(
                 modifier = Modifier
-                    .size(84.dp)
+                    .size(76.dp)
                     .bouncyClickable(pressedScale = 0.86f) { viewModel.togglePlayPause() },
                 contentAlignment = Alignment.Center
             ) {
@@ -196,14 +204,14 @@ fun IosPlayerControls(
                         imageVector = if (playing) Icons.Default.Pause else Icons.Default.PlayArrow,
                         contentDescription = stringResource(R.string.cd_play_pause),
                         tint = Color.White,
-                        modifier = Modifier.size(68.dp)
+                        modifier = Modifier.size(60.dp)
                     )
                 }
             }
 
-            GlassCircle(Icons.Default.ForwardArrow, stringResource(R.string.cd_seek_fwd), 60.dp, label = "10") { viewModel.seekRelative(10000L) }
+            GlassCircle(Icons.Default.ForwardArrow, stringResource(R.string.cd_seek_fwd), 56.dp, label = "10") { viewModel.seekRelative(10000L) }
             if (queueUi.size > 1) {
-                GlassCircle(Icons.Default.SkipNext, stringResource(R.string.cd_next_video), 48.dp) { viewModel.playNext() }
+                GlassCircle(Icons.Default.SkipNext, stringResource(R.string.cd_next_video), 44.dp) { viewModel.playNext() }
             }
         }
 
@@ -240,15 +248,15 @@ fun IosPlayerControls(
                     modifier = Modifier
                         .weight(1f)
                         .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     GlassChip("Info") { viewModel.showPropertiesDialog(true) }
                     GlassChip("Lock") { viewModel.toggleScreenLock() }
                     GlassChip("Rotate") { onCycleOrientation() }
-                    GlassChip(playbackState.sleepTimerRemainingSeconds?.let { "Timer ${it / 60}m" } ?: "Sleep timer") { onSleepTimer() }
+                    GlassChip(playbackState.sleepTimerRemainingSeconds?.let { "Timer ${it / 60}m" } ?: "Timer") { onSleepTimer() }
                 }
-                Spacer(modifier = Modifier.width(12.dp))
+                Spacer(modifier = Modifier.width(8.dp))
                 GlassPill {
                     val speedLabel = "${playbackState.playbackSpeed}x"
                     PillIcon(Icons.Default.Speed, "Playback speed", onClick = { viewModel.showSpeedDialog(true) })
@@ -376,10 +384,10 @@ private fun GlassChip(text: String, onClick: () -> Unit) {
         modifier = Modifier
             .bouncyClickable(pressedScale = 0.95f) { onClick() }
             .liquidGlassSurface(shape = CircleShape, backgroundColor = PillFill, borderColor = PillBorder)
-            .padding(horizontal = 16.dp, vertical = 9.dp),
+            .padding(horizontal = 12.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center
     ) {
-        Text(text, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+        Text(text, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
     }
 }
 
@@ -464,7 +472,7 @@ private fun VolumePill(modifier: Modifier = Modifier) {
         }
     }
     GlassPill(modifier) {
-        Spacer(modifier = Modifier.width(18.dp))
+        Spacer(modifier = Modifier.width(14.dp))
         ThinTrack(
             fraction = fraction,
             onChange = {
@@ -473,7 +481,7 @@ private fun VolumePill(modifier: Modifier = Modifier) {
                 audio.setStreamVolume(AudioManager.STREAM_MUSIC, (it * maxVol).roundToInt().coerceIn(0, maxVol), 0)
             },
             onFinished = { touching = false },
-            modifier = Modifier.width(140.dp)
+            modifier = Modifier.weight(1f).widthIn(min = 40.dp)
         )
         Spacer(modifier = Modifier.width(10.dp))
         Icon(

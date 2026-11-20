@@ -154,7 +154,7 @@ fun GestureHud(state: GestureOverlayState) {
         modifier = Modifier.fillMaxSize()
     ) {
         Box(
-            modifier = Modifier.fillMaxSize().padding(top = 72.dp),
+            modifier = Modifier.fillMaxSize().padding(top = 140.dp),
             contentAlignment = Alignment.TopCenter
         ) {
             val (label, value, fraction) = when (shown.activeGesture) {

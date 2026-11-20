@@ -395,9 +395,11 @@ fun PlayerScreen(
 
             BufferingIndicator(isBuffering = playbackState.isBuffering)
 
-            // Controls Overlay
+            // Controls Overlay (hidden while a panel/menu is open, otherwise the dimmed controls show through it)
+            val panelOpen = uiState.showSpeedDialog || uiState.showAspectRatioDialog || uiState.showAudioDialog ||
+                uiState.showSubtitleDialog || uiState.showPropertiesDialog || isMoreMenuOpen
             AnimatedVisibility(
-                visible = uiState.isControlsVisible || playbackState.isScreenLocked,
+                visible = (uiState.isControlsVisible || playbackState.isScreenLocked) && !panelOpen,
                 enter = fadeIn(tween(200)) + slideInVertically(tween(220)) { it / 14 },
                 exit = fadeOut(tween(150)) + slideOutVertically(tween(180)) { it / 18 }
             ) {

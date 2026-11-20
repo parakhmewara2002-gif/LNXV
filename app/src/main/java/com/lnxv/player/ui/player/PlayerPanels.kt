@@ -534,13 +534,27 @@ fun AudioTrackBottomSheet(
     if (tracks.isEmpty()) {
         Text("No alternate audio tracks available", color = Color(0x80FFFFFF), fontSize = 14.sp)
     } else {
-        tracks.forEach { track ->
+        val audioLabels = uniqueLabels(tracks.map { it.label })
+        tracks.forEachIndexed { index, track ->
             PanelOptionRow(
-                label = track.label,
+                label = audioLabels[index],
                 selected = track.isSelected,
                 icon = Icons.Default.Audiotrack,
                 onClick = { onTrackSelected(track) }
             )
+        }
+    }
+}
+
+/** Several embedded tracks often share one title ("(Movies4u.Foo)." twice); number repeats so they can be told apart. */
+internal fun uniqueLabels(labels: List<String>): List<String> {
+    val total = labels.groupingBy { it }.eachCount()
+    val seen = HashMap<String, Int>()
+    return labels.map { l ->
+        if ((total[l] ?: 0) <= 1) l else {
+            val n = (seen[l] ?: 0) + 1
+            seen[l] = n
+            "$l ($n)"
         }
     }
 }
@@ -560,9 +574,10 @@ fun SubtitleBottomSheet(
         icon = Icons.Default.Subtitles,
         onClick = { onTrackSelected(null) }
     )
-    tracks.forEach { track ->
+    val subtitleLabels = uniqueLabels(tracks.map { it.label })
+    tracks.forEachIndexed { index, track ->
         PanelOptionRow(
-            label = track.label,
+            label = subtitleLabels[index],
             selected = track.isSelected,
             icon = Icons.Default.Subtitles,
             onClick = { onTrackSelected(track) }
