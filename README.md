@@ -120,3 +120,7 @@ No analytics, no tracking, no ads. Only network use: the update check (sideload)
 - Android 5.x and older are not supported by this configuration.
 
 See `docs/ANDROID_COMPATIBILITY.md` for the compatibility notes and verification checklist.
+
+## Documentation
+[Architecture](docs/ARCHITECTURE.md) | [Testing](docs/TESTING.md) | [Design system](docs/DESIGN_SYSTEM.md) |
+[Decoders](docs/DECODERS.md) | [Changelog](docs/CHANGELOG.md) | [Roadmap](docs/ROADMAP.md) | [Device test plan](docs/DEVICE_TEST_PLAN.md)
