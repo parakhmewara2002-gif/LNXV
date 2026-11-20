@@ -16,3 +16,11 @@
 
 # Per-source buffering: a java.lang.reflect.Proxy forwards calls on this interface (SwitchingProxy).
 -keep interface androidx.media3.exoplayer.LoadControl { *; }
+
+# Native decoder fallbacks (FFmpeg audio, dav1d AV1). DefaultRenderersFactory loads these renderers reflectively
+# (extension mode), so R8 must not strip or rename them. JNI keep rules live in decoders/proguard-rules.txt.
+-keep class androidx.media3.decoder.ffmpeg.FfmpegAudioRenderer { <init>(...); }
+-keep class androidx.media3.decoder.av1.Libdav1dVideoRenderer { <init>(...); }
+-keep class androidx.media3.decoder.ffmpeg.FfmpegLibrary { *; }
+-keep class androidx.media3.decoder.av1.Dav1dLibrary { *; }
+-keep class com.lnxv.player.decoders.Av1SoftwareGate { *; }

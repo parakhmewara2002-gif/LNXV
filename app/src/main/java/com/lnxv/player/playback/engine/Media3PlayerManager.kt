@@ -20,6 +20,8 @@ import com.lnxv.player.data.repository.VaultFiles
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import com.lnxv.player.core.model.ABRepeatState
 import com.lnxv.player.core.model.AspectRatioMode
+import com.lnxv.player.core.model.Av1SoftwarePolicy
+import com.lnxv.player.decoders.Av1SoftwareGate
 import com.lnxv.player.core.model.AudioTrackInfo
 import com.lnxv.player.core.model.BufferProfiles
 import com.lnxv.player.core.model.CodecQuirks
@@ -94,6 +96,21 @@ class Media3PlayerManager(private val context: Context) : PlayerController, Play
         setEnableDecoderFallback(true) // Software decoding fallback when hardware decoding fails
         setMediaCodecSelector(codecSelector)
     }
+
+    init {
+        // dav1d software AV1 is only a fallback: it is gated by decoder mode and a resolution / frame-rate cap.
+        val lowEnd = lowRamDevice() || android.os.Build.SUPPORTED_64_BIT_ABIS.isEmpty()
+        Av1SoftwareGate.setGate { format ->
+            when (Av1SoftwarePolicy.decide(decoderModeValue, format.width, format.height, format.frameRate, Av1SoftwarePolicy.limitsFor(lowEnd))) {
+                Av1SoftwarePolicy.Verdict.ALLOWED -> Av1SoftwareGate.ALLOWED
+                Av1SoftwarePolicy.Verdict.BLOCKED_BY_MODE -> Av1SoftwareGate.BLOCKED_BY_MODE
+                Av1SoftwarePolicy.Verdict.EXCEEDS_LIMIT -> Av1SoftwareGate.EXCEEDS_LIMIT
+            }
+        }
+    }
+
+    private fun lowRamDevice() =
+        (context.getSystemService(Context.ACTIVITY_SERVICE) as? android.app.ActivityManager)?.isLowRamDevice == true
 
     private val _audioDelayMs = MutableStateFlow(0L)
     /** Audio delay in ms (0..2000, 50 ms steps). Negative delay is not supported (documented limitation). */
@@ -530,6 +547,18 @@ class Media3PlayerManager(private val context: Context) : PlayerController, Play
 
     /** @return true when the error was a decoder problem that was handled by retrying (no error is shown). */
     private fun handleDecoderFailure(error: androidx.media3.common.PlaybackException): Boolean {
+        // The AV1 software gate refused the video: retrying in software would only stutter, so say why instead.
+        val denial = Av1SoftwareGate.consumeDenial()
+        if (denial != null && denial.reason == Av1SoftwareGate.EXCEEDS_LIMIT) {
+            val limits = Av1SoftwarePolicy.limitsFor(lowRamDevice() || android.os.Build.SUPPORTED_64_BIT_ABIS.isEmpty())
+            diagnostics.note("av1 software refused: over cap")
+            _playbackError.value = context.getString(
+                com.lnxv.player.R.string.av1_software_too_demanding,
+                Av1SoftwarePolicy.describeVideo(denial.width, denial.height, denial.frameRate),
+                limits.describe()
+            )
+            return true
+        }
         val action = when (error.errorCode) {
             androidx.media3.common.PlaybackException.ERROR_CODE_DECODER_INIT_FAILED,
             androidx.media3.common.PlaybackException.ERROR_CODE_DECODING_FORMAT_EXCEEDS_CAPABILITIES ->

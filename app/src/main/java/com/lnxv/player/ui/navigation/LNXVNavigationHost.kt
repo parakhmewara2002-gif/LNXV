@@ -177,8 +177,13 @@ fun LNXVNavigationHost(navController: NavHostController) {
             val settingsViewModel: SettingsViewModel = org.koin.androidx.compose.koinViewModel()
             SettingsScreen(
                 viewModel = settingsViewModel,
-                onBackClick = { navController.popBackStack() }
+                onBackClick = { navController.popBackStack() },
+                onOpenLicenses = { navController.navigate(Screen.Licenses.route) }
             )
+        }
+
+        composable(Screen.Licenses.route) {
+            com.lnxv.player.ui.settings.LicensesScreen(onBackClick = { navController.popBackStack() })
         }
     }
     }

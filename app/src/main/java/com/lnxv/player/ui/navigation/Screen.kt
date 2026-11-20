@@ -4,6 +4,7 @@ sealed class Screen(val route: String) {
     object Home : Screen("home")
     object Vault : Screen("vault")
     object Settings : Screen("settings")
+    object Licenses : Screen("licenses")
 
     object Player : Screen("player/{videoId}") {
         fun createRoute(videoId: Long): String = "player/$videoId"

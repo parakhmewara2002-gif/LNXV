@@ -16,3 +16,4 @@ dependencyResolutionManagement {
 rootProject.name = "LNXV"
 include(":app")
 include(":benchmark")
+include(":decoders")

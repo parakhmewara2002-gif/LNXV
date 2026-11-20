@@ -1,0 +1,22 @@
+# Consumer R8 rules for the vendored Media3 decoder extensions (from androidx/media 1.11.0).
+# The reflective constructors of FfmpegAudioRenderer / Libdav1dVideoRenderer are already kept by
+# media3-exoplayer's own consumer rules; these cover the JNI side.
+
+# JNI: native method owners must keep their names.
+-keepclasseswithmembernames class * {
+    native <methods>;
+}
+
+# Fields/methods accessed from native code.
+-keep class androidx.media3.decoder.VideoDecoderOutputBuffer {
+  *;
+}
+-keep class androidx.media3.decoder.DecoderInputBuffer {
+  *;
+}
+-keep class androidx.media3.decoder.av1.Dav1dDecoder {
+  *;
+}
+-keep, includedescriptorclasses class androidx.media3.decoder.ffmpeg.FfmpegAudioDecoder {
+  private java.nio.ByteBuffer growOutputBuffer(androidx.media3.decoder.SimpleDecoderOutputBuffer, int);
+}
