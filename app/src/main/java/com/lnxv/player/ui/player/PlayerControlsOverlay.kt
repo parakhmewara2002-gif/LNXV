@@ -57,6 +57,8 @@ import com.lnxv.player.core.design.icons.VolumeUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -188,6 +190,13 @@ fun IosPlayerControls(
                     .bouncyClickable(pressedScale = 0.86f) { viewModel.togglePlayPause() },
                 contentAlignment = Alignment.Center
             ) {
+                if (playbackState.isBuffering) {
+                    androidx.compose.material3.CircularProgressIndicator(
+                        color = com.lnxv.player.core.design.NeonCyan,
+                        strokeWidth = 3.dp,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
                 AnimatedContent(
                     targetState = playbackState.isPlaying,
                     transitionSpec = {
@@ -285,25 +294,33 @@ private fun ScrubSection(
     val shownMs = dragFraction?.let { SeekMath.fractionToPosition(it, duration) } ?: positionMs
 
     // Thumbnail preview while scrubbing (local content:// / file:// videos only; never vault/network).
+    val context = LocalContext.current
+    val previewEligible = video != null && !video.isVault && (video.uri.scheme == "content" || video.uri.scheme == "file")
+    val thumbnailer = remember(video?.uri, previewEligible) {
+        if (previewEligible && video != null) ScrubThumbnailer(context.applicationContext, video.uri) else null
+    }
+    DisposableEffect(thumbnailer) { onDispose { thumbnailer?.release() } }
     val previewFraction = dragFraction
-    if (previewFraction != null && !reduceEffects && video != null && !video.isVault &&
-        (video.uri.scheme == "content" || video.uri.scheme == "file")
-    ) {
-        val previewMs = (SeekMath.fractionToPosition(previewFraction, duration) / 1000L) * 1000L
+    if (previewFraction != null && thumbnailer != null) {
+        val previewMs = SeekMath.fractionToPosition(previewFraction, duration)
+        LaunchedEffect(previewMs / 1000L) { thumbnailer.request(previewMs) }
+        val bmp by thumbnailer.frame.collectAsState()
         Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-            coil.compose.AsyncImage(
-                model = coil.request.ImageRequest.Builder(LocalContext.current)
-                    .data(video.uri)
-                    .videoFrameMillis(previewMs)
-                    .size(coil.size.Size(320, 180))
-                    .build(),
-                contentDescription = null,
-                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+            Box(
                 modifier = Modifier
                     .size(width = 160.dp, height = 90.dp)
                     .clip(RoundedCornerShape(12.dp))
                     .background(Color(0x66000000))
-            )
+            ) {
+                bmp?.let {
+                    androidx.compose.foundation.Image(
+                        bitmap = it.asImageBitmap(),
+                        contentDescription = null,
+                        contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+            }
         }
         Spacer(modifier = Modifier.height(6.dp))
     }
