@@ -115,3 +115,7 @@ See [`docs/IOS_VISUAL_REDESIGN.md`](docs/IOS_VISUAL_REDESIGN.md) for exact chang
 
 ## Baseline profile additions
 - Added Coil, Media3 decoder/video and LazyList rules to `baseline-prof.txt` (app code was already wildcarded). Kotlin 2.2.10 => Compose strong skipping is already on. No profile was generated/measured on a device.
+
+## Player UI fixes from on-device screenshots (NOT DEVICE-TESTED)
+- Volume pill shrinks (weight track) so its icon is never clipped; centre controls spread evenly inside the screen (no edge clipping in portrait); compact bottom chips (Info/Lock/Rotate/Timer) fit beside the speed/audio/subtitle pill.
+- Gesture HUD moved below the top pills; controls hide while any panel/menu is open (they showed through the translucent side panel); duplicate subtitle/audio track names are numbered.
