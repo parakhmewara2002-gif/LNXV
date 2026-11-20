@@ -23,6 +23,10 @@ Record device model, Android version, RAM, and result for each line. Mark failur
 ## Phase 4: bookmarks (enable flag)
 - [ ] Add, jump, previous/next, remove; survive app restart; not offered for vault/network videos.
 
+## Phase 4b: audio effects (enable Equalizer flag)
+- [ ] Bass and Virtualizer sliders change sound or are harmlessly ignored; no crash on unsupported devices.
+- [ ] Set different settings on speaker vs headphones/Bluetooth; plugging in/out restores each.
+
 ## Phase 5/6
 - [ ] Light theme: tertiary text and accent readable. TalkBack reads panel buttons. 200% font scale.
 - [ ] Settings search: "picture", "av1", Hindi words find the right section.
