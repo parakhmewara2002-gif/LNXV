@@ -213,6 +213,23 @@ class Media3PlayerManager(private val context: Context) : PlayerController, Play
     private val _eqPreset = MutableStateFlow(com.lnxv.player.core.model.EqPreset.FLAT)
     override val eqPreset: StateFlow<com.lnxv.player.core.model.EqPreset> = _eqPreset
 
+    private val _bass = MutableStateFlow(0)
+    override val bassStrength: StateFlow<Int> = _bass
+    private val _virtualizer = MutableStateFlow(0)
+    override val virtualizerStrength: StateFlow<Int> = _virtualizer
+
+    override fun setBassStrength(s: Int) {
+        audioEffects.attach(exoPlayer.audioSessionId)
+        audioEffects.setBass(s)
+        _bass.value = audioEffects.bassStrength
+    }
+
+    override fun setVirtualizerStrength(s: Int) {
+        audioEffects.attach(exoPlayer.audioSessionId)
+        audioEffects.setVirtualizer(s)
+        _virtualizer.value = audioEffects.virtualizerStrength
+    }
+
     override fun setEqPreset(p: com.lnxv.player.core.model.EqPreset) {
         audioEffects.attach(exoPlayer.audioSessionId)
         audioEffects.setPreset(p)

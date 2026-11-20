@@ -66,8 +66,11 @@ fun PlayerMoreMenuItems(
     if (viewModel.userPrefs.collectAsState().value.isEnabled(com.lnxv.player.core.flags.FeatureFlag.EQUALIZER)) {
             val eqPreset by viewModel.eqPreset.collectAsState()
             PlayerMenuItem(
-                text = { Text("Equalizer: ${eqPreset.label} (tap to change)") },
-                onClick = { viewModel.cycleEqPreset() }
+                text = { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.menu_audio_fx, eqPreset.label)) },
+                onClick = {
+                    closeMenu()
+                    viewModel.showAudioFxDialog(true)
+                }
             )
             val boost by viewModel.boostMb.collectAsState()
             PlayerMenuItem(

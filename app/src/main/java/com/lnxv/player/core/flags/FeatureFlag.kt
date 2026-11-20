@@ -68,7 +68,7 @@ enum class FeatureFlag(val title: String, val description: String, val defaultEn
     ),
     EQUALIZER(
         "Equalizer presets",
-        "Adds an Equalizer preset switcher (Flat, Bass, Vocal, Treble, Loud) to the player menu. Uses the system audio effect; may be unsupported on some devices.",
+        "Adds an Audio effects sheet to the player menu: equalizer presets, Bass Boost and Virtualizer, remembered separately for speaker, headphones, Bluetooth and HDMI. Uses system audio effects; may be unsupported on some devices.",
         false
     ),
     SKIP_SILENCE(

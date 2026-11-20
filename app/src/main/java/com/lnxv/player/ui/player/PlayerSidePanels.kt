@@ -218,6 +218,28 @@ fun BoxScope.PlayerSidePanels(
     }
 
     PlayerSidePanel(
+        visible = uiState.showAudioFxDialog,
+        title = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.audio_fx_title),
+        icon = Icons.Default.Edit,
+        onDismiss = { viewModel.showAudioFxDialog(false) },
+        backdrop = glassBackdrop
+    ) {
+        val preset by viewModel.eqPreset.collectAsState()
+        val bass by viewModel.bassStrength.collectAsState()
+        val virt by viewModel.virtualizerStrength.collectAsState()
+        val route by viewModel.route.collectAsState()
+        AudioFxContent(
+            preset = preset,
+            bass = bass,
+            virtualizer = virt,
+            route = route,
+            onPreset = { viewModel.setFxPreset(it) },
+            onBass = { viewModel.setBass(it) },
+            onVirtualizer = { viewModel.setVirtualizer(it) }
+        )
+    }
+
+    PlayerSidePanel(
         visible = uiState.showBookmarksDialog,
         title = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.bookmarks_title),
         icon = Icons.Default.Edit,

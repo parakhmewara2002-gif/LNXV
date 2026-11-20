@@ -246,4 +246,16 @@
     <string name="bookmarks_remove">हटाएँ</string>
     <string name="bookmarks_jump_to">%1$s पर जाएँ</string>
     <string name="bookmarks_remove_at">%1$s का बुकमार्क हटाएँ</string>
+    <!-- Audio effects (Phase 4b) -->
+    <string name="menu_audio_fx">ऑडियो इफ़ेक्ट: %1$s</string>
+    <string name="audio_fx_title">ऑडियो इफ़ेक्ट</string>
+    <string name="audio_fx_route">इसके लिए सहेजा गया: %1$s</string>
+    <string name="audio_fx_bass">बास बूस्ट</string>
+    <string name="audio_fx_virtualizer">वर्चुअलाइज़र (सराउंड)</string>
+    <string name="audio_fx_note">यह सिस्टम के ऑडियो इफ़ेक्ट इस्तेमाल करता है; कुछ डिवाइस इन्हें सपोर्ट नहीं करते। सेटिंग स्पीकर, हेडफ़ोन, ब्लूटूथ और HDMI के लिए अलग-अलग याद रखी जाती हैं।</string>
+    <string name="route_speaker">स्पीकर</string>
+    <string name="route_wired">वायर्ड हेडफ़ोन</string>
+    <string name="route_bluetooth">ब्लूटूथ</string>
+    <string name="route_hdmi">HDMI</string>
+    <string name="route_other">अन्य आउटपुट</string>
 </resources>

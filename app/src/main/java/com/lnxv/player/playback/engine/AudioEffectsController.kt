@@ -1,7 +1,9 @@
 package com.lnxv.player.playback.engine
 
+import android.media.audiofx.BassBoost
 import android.media.audiofx.Equalizer
 import android.media.audiofx.LoudnessEnhancer
+import android.media.audiofx.Virtualizer
 import com.lnxv.player.core.model.EqPreset
 
 /**
@@ -12,6 +14,12 @@ class AudioEffectsController {
     private var eq: Equalizer? = null
     private var loudness: LoudnessEnhancer? = null
     var boostMb: Int = 0
+        private set
+    private var bassFx: BassBoost? = null
+    private var virtFx: Virtualizer? = null
+    var bassStrength: Int = 0
+        private set
+    var virtualizerStrength: Int = 0
         private set
     private var sessionId: Int = 0
     var preset: EqPreset = EqPreset.FLAT
@@ -24,6 +32,50 @@ class AudioEffectsController {
         if (audioSessionId == 0) return
         if (preset != EqPreset.FLAT) apply()
         if (boostMb > 0) applyBoost()
+        if (bassStrength > 0) applyBass()
+        if (virtualizerStrength > 0) applyVirtualizer()
+    }
+
+    /** Bass Boost strength 0..1000 (0 = off). Best-effort: unsupported devices ignore it. */
+    fun setBass(strength: Int) {
+        bassStrength = strength.coerceIn(0, 1000)
+        if (bassStrength == 0) {
+            try { bassFx?.release() } catch (_: Throwable) {}
+            bassFx = null
+        } else applyBass()
+    }
+
+    private fun applyBass() {
+        if (sessionId == 0) return
+        try {
+            val b = bassFx ?: BassBoost(0, sessionId).also { bassFx = it }
+            if (b.strengthSupported) b.setStrength(bassStrength.toShort())
+            b.enabled = true
+        } catch (_: Throwable) {
+            try { bassFx?.release() } catch (_: Throwable) {}
+            bassFx = null
+        }
+    }
+
+    /** Virtualizer strength 0..1000 (0 = off). Best-effort. */
+    fun setVirtualizer(strength: Int) {
+        virtualizerStrength = strength.coerceIn(0, 1000)
+        if (virtualizerStrength == 0) {
+            try { virtFx?.release() } catch (_: Throwable) {}
+            virtFx = null
+        } else applyVirtualizer()
+    }
+
+    private fun applyVirtualizer() {
+        if (sessionId == 0) return
+        try {
+            val v = virtFx ?: Virtualizer(0, sessionId).also { virtFx = it }
+            if (v.strengthSupported) v.setStrength(virtualizerStrength.toShort())
+            v.enabled = true
+        } catch (_: Throwable) {
+            try { virtFx?.release() } catch (_: Throwable) {}
+            virtFx = null
+        }
     }
 
     /** Volume boost in millibels (0 = off). Not true loudness normalization; it is a fixed gain. */
@@ -79,5 +131,9 @@ class AudioEffectsController {
         eq = null
         try { loudness?.release() } catch (_: Throwable) {}
         loudness = null
+        try { bassFx?.release() } catch (_: Throwable) {}
+        bassFx = null
+        try { virtFx?.release() } catch (_: Throwable) {}
+        virtFx = null
     }
 }

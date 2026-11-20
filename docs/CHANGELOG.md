@@ -7,6 +7,7 @@ Unreleased changes from the phased work (each is its own pull request; none veri
 - Subtitles: format and encoding detection, ASS shifting, delay buttons, OpenSubtitles search with the user's own key (#17).
 - Picture enhancer (flag): sharpness, Vivid, colour-blind assist, tone, per-video settings, auto-off gate (#18).
 - Bookmarks per video (flag) (#19).
+- Audio effects: Bass Boost, Virtualizer, per-output (speaker/wired/Bluetooth/HDMI) memory (flag) (#27).
 - Design tokens, `docs/DESIGN_SYSTEM.md`, WCAG contrast tests (#20).
 - Data-driven settings search (#21).
 

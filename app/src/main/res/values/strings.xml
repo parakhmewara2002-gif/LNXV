@@ -250,4 +250,16 @@
     <string name="bookmarks_remove">Remove</string>
     <string name="bookmarks_jump_to">Jump to %1$s</string>
     <string name="bookmarks_remove_at">Remove bookmark at %1$s</string>
+    <!-- Audio effects (Phase 4b) -->
+    <string name="menu_audio_fx">Audio effects: %1$s</string>
+    <string name="audio_fx_title">Audio effects</string>
+    <string name="audio_fx_route">Saved for: %1$s</string>
+    <string name="audio_fx_bass">Bass boost</string>
+    <string name="audio_fx_virtualizer">Virtualizer (surround)</string>
+    <string name="audio_fx_note">Uses the system audio effects; some devices do not support them. Settings are remembered separately for speaker, headphones, Bluetooth and HDMI.</string>
+    <string name="route_speaker">Speaker</string>
+    <string name="route_wired">Wired headphones</string>
+    <string name="route_bluetooth">Bluetooth</string>
+    <string name="route_hdmi">HDMI</string>
+    <string name="route_other">Other output</string>
 </resources>
