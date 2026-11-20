@@ -240,4 +240,14 @@
     <string name="picture_save_default">Use as default for all videos</string>
     <string name="picture_save_video">Remember for this video</string>
     <string name="picture_clear_video">Forget for this video</string>
+    <!-- Bookmarks (Phase 4) -->
+    <string name="menu_bookmarks">Bookmarks…</string>
+    <string name="bookmarks_title">Bookmarks</string>
+    <string name="bookmarks_add_here">Add here</string>
+    <string name="bookmarks_previous">Previous</string>
+    <string name="bookmarks_next">Next</string>
+    <string name="bookmarks_empty">No bookmarks yet. Tap “Add here” to save the current position.</string>
+    <string name="bookmarks_remove">Remove</string>
+    <string name="bookmarks_jump_to">Jump to %1$s</string>
+    <string name="bookmarks_remove_at">Remove bookmark at %1$s</string>
 </resources>

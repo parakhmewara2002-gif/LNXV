@@ -218,6 +218,24 @@ fun BoxScope.PlayerSidePanels(
     }
 
     PlayerSidePanel(
+        visible = uiState.showBookmarksDialog,
+        title = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.bookmarks_title),
+        icon = Icons.Default.Edit,
+        onDismiss = { viewModel.showBookmarksDialog(false) },
+        backdrop = glassBackdrop
+    ) {
+        val items by viewModel.bookmarks.collectAsState()
+        BookmarksContent(
+            items = items,
+            onAdd = { viewModel.addBookmarkHere() },
+            onJump = { viewModel.jumpToBookmark(it) },
+            onRemove = { viewModel.removeBookmark(it) },
+            onPrevious = { viewModel.jumpToPreviousBookmark() },
+            onNext = { viewModel.jumpToNextBookmark() }
+        )
+    }
+
+    PlayerSidePanel(
         visible = uiState.showPictureDialog,
         title = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.picture_title),
         icon = Icons.Default.Edit,

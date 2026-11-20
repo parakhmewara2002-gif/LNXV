@@ -236,4 +236,14 @@
     <string name="picture_save_default">सभी वीडियो के लिए डिफ़ॉल्ट बनाएँ</string>
     <string name="picture_save_video">इस वीडियो के लिए याद रखें</string>
     <string name="picture_clear_video">इस वीडियो के लिए भूल जाएँ</string>
+    <!-- Bookmarks (Phase 4) -->
+    <string name="menu_bookmarks">बुकमार्क…</string>
+    <string name="bookmarks_title">बुकमार्क</string>
+    <string name="bookmarks_add_here">यहाँ जोड़ें</string>
+    <string name="bookmarks_previous">पिछला</string>
+    <string name="bookmarks_next">अगला</string>
+    <string name="bookmarks_empty">अभी कोई बुकमार्क नहीं। मौजूदा स्थान सहेजने के लिए “यहाँ जोड़ें” दबाएँ।</string>
+    <string name="bookmarks_remove">हटाएँ</string>
+    <string name="bookmarks_jump_to">%1$s पर जाएँ</string>
+    <string name="bookmarks_remove_at">%1$s का बुकमार्क हटाएँ</string>
 </resources>

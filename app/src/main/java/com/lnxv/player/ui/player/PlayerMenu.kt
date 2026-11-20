@@ -100,6 +100,15 @@ fun PlayerMoreMenuItems(
                 closeMenu()
             }
         )
+        if (viewModel.userPrefs.collectAsState().value.isEnabled(com.lnxv.player.core.flags.FeatureFlag.BOOKMARKS) && viewModel.canBookmark) {
+            PlayerMenuItem(
+                text = { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.menu_bookmarks)) },
+                onClick = {
+                    closeMenu()
+                    viewModel.showBookmarksDialog(true)
+                }
+            )
+        }
         if (viewModel.userPrefs.collectAsState().value.isEnabled(com.lnxv.player.core.flags.FeatureFlag.PICTURE_ENHANCER)) {
             PlayerMenuItem(
                 text = { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.menu_picture)) },
