@@ -188,6 +188,13 @@ fun IosPlayerControls(
                     .bouncyClickable(pressedScale = 0.86f) { viewModel.togglePlayPause() },
                 contentAlignment = Alignment.Center
             ) {
+                if (playbackState.isBuffering) {
+                    androidx.compose.material3.CircularProgressIndicator(
+                        color = com.lnxv.player.core.design.NeonCyan,
+                        strokeWidth = 3.dp,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
                 AnimatedContent(
                     targetState = playbackState.isPlaying,
                     transitionSpec = {

@@ -119,3 +119,6 @@ See [`docs/IOS_VISUAL_REDESIGN.md`](docs/IOS_VISUAL_REDESIGN.md) for exact chang
 ## Player UI fixes from on-device screenshots (NOT DEVICE-TESTED)
 - Volume pill shrinks (weight track) so its icon is never clipped; centre controls spread evenly inside the screen (no edge clipping in portrait); compact bottom chips (Info/Lock/Rotate/Timer) fit beside the speed/audio/subtitle pill.
 - Gesture HUD moved below the top pills; controls hide while any panel/menu is open (they showed through the translucent side panel); duplicate subtitle/audio track names are numbered.
+
+## Buffering indicator fix (NOT DEVICE-TESTED)
+- The standalone 72dp buffering circle sat behind the 76dp play button (spinner arc peeking out). With controls visible, buffering is now a spinner ring on the play button; the standalone indicator only shows when controls are hidden.

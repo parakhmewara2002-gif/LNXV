@@ -393,13 +393,14 @@ fun PlayerScreen(
         ) {
             GestureHud(state = overlayState)
 
-            BufferingIndicator(isBuffering = playbackState.isBuffering)
-
             // Controls Overlay (hidden while a panel/menu is open, otherwise the dimmed controls show through it)
             val panelOpen = uiState.showSpeedDialog || uiState.showAspectRatioDialog || uiState.showAudioDialog ||
                 uiState.showSubtitleDialog || uiState.showPropertiesDialog || isMoreMenuOpen
+            val controlsShown = (uiState.isControlsVisible || playbackState.isScreenLocked) && !panelOpen
+            // While the controls are up, buffering is shown as a ring on the play button itself (no second circle behind it).
+            BufferingIndicator(isBuffering = playbackState.isBuffering && !controlsShown)
             AnimatedVisibility(
-                visible = (uiState.isControlsVisible || playbackState.isScreenLocked) && !panelOpen,
+                visible = controlsShown,
                 enter = fadeIn(tween(200)) + slideInVertically(tween(220)) { it / 14 },
                 exit = fadeOut(tween(150)) + slideOutVertically(tween(180)) { it / 18 }
             ) {
