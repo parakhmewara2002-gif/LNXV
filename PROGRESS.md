@@ -122,3 +122,6 @@ See [`docs/IOS_VISUAL_REDESIGN.md`](docs/IOS_VISUAL_REDESIGN.md) for exact chang
 
 ## Buffering indicator fix (NOT DEVICE-TESTED)
 - The standalone 72dp buffering circle sat behind the 76dp play button (spinner arc peeking out). With controls visible, buffering is now a spinner ring on the play button; the standalone indicator only shows when controls are hidden.
+
+## Seek-bar preview fix (NOT DEVICE-TESTED)
+- Scrub preview was one Coil request per drag step, cancelled by the next step before finishing (blank on heavy files) and disabled entirely when effects were reduced. Now `ui/player/ScrubThumbnailer.kt`: one reused MediaMetadataRetriever, keyframe decode at 320x180, newest-position-only worker, last frame kept (never blank), LRU of 48 seconds. Swipe-seek on the video surface still shows only the time HUD (no thumbnail).
