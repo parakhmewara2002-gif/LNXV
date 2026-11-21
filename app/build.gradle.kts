@@ -6,6 +6,10 @@ plugins {
 }
 
 android {
+    testOptions {
+        // Robolectric render tests need merged resources.
+        unitTests.isIncludeAndroidResources = true
+    }
     namespace = "com.lnxv.player"
     compileSdk = 36
 
@@ -119,6 +123,11 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
     // org.json is a stub in android.jar; the real implementation is needed for JVM unit tests (tests only, never shipped).
     testImplementation("org.json:json:20240303")
+    // Render tests (tests only, never shipped): Robolectric native graphics + Compose test rule.
+    testImplementation("org.robolectric:robolectric:4.14.1")
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation("androidx.compose.ui:ui-test-junit4")
+    debugImplementation("androidx.compose.ui:ui-test-manifest")
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.core.splashscreen)
     // Real backdrop blur (RenderEffect on Android 12+, translucent fallback below). Used on one bar only.
