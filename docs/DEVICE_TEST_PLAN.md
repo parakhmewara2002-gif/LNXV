@@ -27,6 +27,24 @@ Record device model, Android version, RAM, and result for each line. Mark failur
 - [ ] Bass and Virtualizer sliders change sound or are harmlessly ignored; no crash on unsupported devices.
 - [ ] Set different settings on speaker vs headphones/Bluetooth; plugging in/out restores each.
 
+## Recycle bin (enable RECYCLE_BIN flag, Android 11+)
+- [ ] Select a video, "Move to trash": system consent dialog appears, video leaves the library.
+- [ ] Home > Trash lists it with days left; Restore brings it back; Delete forever asks for consent and removes it.
+- [ ] Android 10 or lower and flag off: behaviour unchanged (permanent delete dialog).
+
+## WebDAV (enable WEBDAV flag)
+- [ ] Network stream dialog > Browse WebDAV: connect to your own https server; wrong password shows a clear error.
+- [ ] Browse folders, go up, play a video, seek forward and back.
+- [ ] A self-signed certificate is refused (expected). http:// is refused (expected).
+- [ ] After Disconnect, the old video URL no longer plays without signing in again.
+
+## Chapters (enable CHAPTERS flag)
+- [ ] MKV and M4B with chapters: "Chapters..." appears in the player menu, list is correct, tap jumps, current chapter highlighted.
+- [ ] A video without chapters: no menu item.
+
+## Updater
+- [ ] On an older build, "Update available" appears and installs the newest release.
+
 ## Phase 5/6
 - [ ] Light theme: tertiary text and accent readable. TalkBack reads panel buttons. 200% font scale.
 - [ ] Settings search: "picture", "av1", Hindi words find the right section.

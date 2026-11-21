@@ -10,6 +10,7 @@ Unreleased changes from the phased work (each is its own pull request; none veri
 - Picture enhancer (flag): sharpness, Vivid, colour-blind assist, tone, per-video settings, auto-off gate (#18).
 - Bookmarks per video (flag) (#19).
 - Audio effects: Bass Boost, Virtualizer, per-output (speaker/wired/Bluetooth/HDMI) memory (flag) (#27).
+- Recycle bin via system trash (flag) (#29), WebDAV browser, https only (flag) (#30), chapters (flag) (#31).
 - Design tokens, `docs/DESIGN_SYSTEM.md`, WCAG contrast tests (#20).
 - Data-driven settings search (#21).
 
