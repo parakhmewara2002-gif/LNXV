@@ -122,6 +122,23 @@ fun PlayerMoreMenuItems(
                 }
             )
         }
+        val castBackend = com.lnxv.player.core.cast.CastBackends.instance
+        val castUrl = uiState.currentVideo?.uri?.toString()
+        if (castBackend != null &&
+            viewModel.userPrefs.collectAsState().value.isEnabled(com.lnxv.player.core.flags.FeatureFlag.CAST) &&
+            com.lnxv.player.core.cast.CastPolicy.canCast(castUrl)
+        ) {
+            PlayerMenuItem(
+                text = { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.menu_cast)) },
+                onClick = {
+                    closeMenu()
+                    val url = castUrl ?: return@PlayerMenuItem
+                    castBackend.cast(context, url, uiState.currentVideo?.title.orEmpty(), viewModel.positionMs.value) {
+                        playerView?.player?.pause()
+                    }
+                }
+            )
+        }
         val chapterList by viewModel.chapters.collectAsState()
         if (viewModel.userPrefs.collectAsState().value.isEnabled(com.lnxv.player.core.flags.FeatureFlag.CHAPTERS) && chapterList.isNotEmpty()) {
             PlayerMenuItem(
