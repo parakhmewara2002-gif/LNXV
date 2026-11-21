@@ -103,6 +103,25 @@ fun PlayerMoreMenuItems(
                 closeMenu()
             }
         )
+        if (androidx.compose.ui.res.booleanResource(com.lnxv.player.R.bool.popup_window_enabled) &&
+            viewModel.userPrefs.collectAsState().value.isEnabled(com.lnxv.player.core.flags.FeatureFlag.POPUP_WINDOW) &&
+            playerView?.player != null
+        ) {
+            PlayerMenuItem(
+                text = { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.menu_popup)) },
+                onClick = {
+                    closeMenu()
+                    val p = playerView?.player
+                    if (p == null) return@PlayerMenuItem
+                    if (!com.lnxv.player.playback.popup.PopupWindowController.canShow(context)) {
+                        android.widget.Toast.makeText(context, context.getString(com.lnxv.player.R.string.popup_need_permission), android.widget.Toast.LENGTH_LONG).show()
+                        com.lnxv.player.playback.popup.PopupWindowController.requestPermission(context)
+                    } else if (com.lnxv.player.playback.popup.PopupWindowController.show(context, p)) {
+                        (context as? android.app.Activity)?.moveTaskToBack(true)
+                    }
+                }
+            )
+        }
         val chapterList by viewModel.chapters.collectAsState()
         if (viewModel.userPrefs.collectAsState().value.isEnabled(com.lnxv.player.core.flags.FeatureFlag.CHAPTERS) && chapterList.isNotEmpty()) {
             PlayerMenuItem(

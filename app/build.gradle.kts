@@ -37,12 +37,14 @@ android {
             dimension = "dist"
             resValue("bool", "updater_enabled", "true")
             resValue("bool", "online_subtitles_enabled", "true")
+            resValue("bool", "popup_window_enabled", "true")
         }
         create("store") {
             dimension = "dist"
             resValue("bool", "updater_enabled", "false")
             // Online subtitles contact a third party, so the store build leaves them out entirely.
             resValue("bool", "online_subtitles_enabled", "false")
+            resValue("bool", "popup_window_enabled", "false")
         }
     }
 

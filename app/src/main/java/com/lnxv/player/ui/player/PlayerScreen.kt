@@ -177,6 +177,13 @@ fun PlayerScreen(
         viewModel.loadVideo(videoId)
     }
 
+    DisposableEffect(Unit) {
+        com.lnxv.player.playback.popup.PopupWindowController.onClosed = {
+            playerViewRef?.let { v -> v.player = null; v.player = playerManager.exoPlayer }
+        }
+        onDispose { com.lnxv.player.playback.popup.PopupWindowController.onClosed = null }
+    }
+
     // Auto-hide controls after 4 seconds of inactivity
     LaunchedEffect(uiState.isControlsVisible, playbackState.isPlaying) {
         if (uiState.isControlsVisible && playbackState.isPlaying && !playbackState.isScreenLocked) {

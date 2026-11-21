@@ -285,4 +285,9 @@
     <string name="webdav_up">एक फ़ोल्डर ऊपर</string>
     <string name="webdav_empty">यहाँ कोई फ़ोल्डर या वीडियो नहीं है।</string>
     <string name="webdav_note">सिर्फ़ https:// सर्वर सपोर्टेड हैं। पासवर्ड डिस्कनेक्ट करने या ऐप बंद करने तक सिर्फ़ मेमोरी में रहता है, कभी सेव नहीं होता।</string>
+    <!-- Popup window (Phase 4f) -->
+    <string name="menu_popup">पॉपअप विंडो</string>
+    <string name="popup_close">पॉपअप बंद करें</string>
+    <string name="popup_restore">फ़ुल स्क्रीन पर वापस</string>
+    <string name="popup_need_permission">LNXV के लिए “दूसरे ऐप्स के ऊपर दिखाएँ” की अनुमति दें, फिर दोबारा पॉपअप विंडो चुनें।</string>
 </resources>
