@@ -7,6 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -60,14 +61,16 @@ class PanelRenderTest {
         Column(Modifier.background(Color(0xFF111418)).padding(16.dp), content = content)
     }
 
-    @Test fun bookmarksPanelEmptyAndFilled() {
+    @Test fun bookmarksPanelEmpty() {
         var added = 0
         rule.setContent { Panel { BookmarksContent(emptyList(), { added++ }, {}, {}, {}, {}) } }
         rule.onNodeWithText("Add here").assertExists().performClick()
         assertEquals(1, added)
         rule.onNodeWithText("No bookmarks yet", substring = true).assertExists()
         shot("bookmarks_empty")
+    }
 
+    @Test fun bookmarksPanelFilled() {
         var jumped = -1L
         rule.setContent { Panel { BookmarksContent(listOf(Bookmark(65_000), Bookmark(3_661_000, "Fight scene")), {}, { jumped = it }, {}, {}, {}) } }
         rule.onNodeWithText("1:05").assertExists().performClick()
@@ -89,7 +92,7 @@ class PanelRenderTest {
         var preset: EqPreset? = null
         rule.setContent { Panel { AudioFxContent(EqPreset.FLAT, 300, 0, OutputRoute.BLUETOOTH, { preset = it }, {}, {}) } }
         rule.onNodeWithText("Saved for: Bluetooth").assertExists()
-        rule.onNodeWithText("Bass boost").assertExists()
+        rule.onAllNodesWithText("Bass boost").assertCountEquals(2) // preset chip + slider label
         rule.onNodeWithText("30%").assertExists()
         val first = EqPreset.values().first { it != EqPreset.FLAT }
         rule.onAllNodesWithText(first.label)[0].performClick()
