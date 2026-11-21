@@ -152,6 +152,8 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
+    // Declared explicitly: it used to arrive only transitively and disappeared from the classpath when the Cast dependencies were added.
+    implementation("androidx.compose.material:material-icons-core")
     implementation(libs.androidx.navigation.compose)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.leakcanary)
