@@ -82,6 +82,14 @@ jobs:
           fi
           exit $code
 
+      - name: Upload panel render screenshots (for review, not a golden comparison)
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: panel-screenshots
+          path: app/build/screenshots/
+          if-no-files-found: ignore
+
       # The enhancer's fragment shaders are generated in Kotlin; a unit test writes them to app/build/shaders.
       - name: Validate GLSL shaders (glslangValidator)
         run: |
