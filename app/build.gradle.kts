@@ -97,6 +97,11 @@ android {
         compose = true
     }
 
+    composeCompiler {
+        featureFlags.add(org.jetbrains.kotlin.compose.compiler.gradle.ComposeFeatureFlag.StrongSkipping)
+        stabilityConfigurationFiles.add(layout.projectDirectory.file("compose_compiler_config.conf"))
+    }
+
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"

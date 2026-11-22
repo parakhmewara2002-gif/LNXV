@@ -3,6 +3,7 @@ package com.lnxv.player.core.model
 /** Equalizer presets (Phase 5). Shape is given per-band as a fraction of the device's level range (-1..1). */
 enum class EqPreset(val label: String, private val shape: FloatArray) {
     FLAT("Flat", floatArrayOf(0f, 0f, 0f, 0f, 0f)),
+    CLEAR_VOICE("Clear Voice", floatArrayOf(-0.5f, -0.2f, 0.75f, 0.6f, 0.1f)),
     BASS("Bass boost", floatArrayOf(0.8f, 0.5f, 0f, 0f, 0f)),
     VOCAL("Vocal", floatArrayOf(-0.3f, 0f, 0.5f, 0.4f, -0.1f)),
     TREBLE("Treble boost", floatArrayOf(0f, 0f, 0f, 0.5f, 0.8f)),

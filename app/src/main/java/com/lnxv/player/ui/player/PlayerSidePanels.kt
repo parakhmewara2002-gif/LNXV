@@ -207,7 +207,7 @@ fun BoxScope.PlayerSidePanels(
             },
             onLoadFile = { onLoadSubtitleFile() },
             delayMs = subtitleDelayMs,
-            canDelay = hasExternalSubtitle,
+            canDelay = hasExternalSubtitle || subtitleTracks.any { it.isSelected },
             onDelayChange = { viewModel.adjustSubtitleDelay(it) },
             encoding = subtitleEncoding,
             onEncodingChange = { viewModel.setSubtitleEncoding(it) },

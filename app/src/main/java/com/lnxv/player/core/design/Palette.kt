@@ -1,9 +1,9 @@
 package com.lnxv.player.core.design
 
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.ReadOnlyComposable
-import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.foundation.background
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -75,7 +75,7 @@ val LightPalette = LNXVColors(
     accent = Color(0xFF007680)
 )
 
-val LocalLNXVColors = staticCompositionLocalOf { AmoledPalette }
+val LocalLNXVColors = compositionLocalOf { AmoledPalette }
 
 val appColors: LNXVColors
     @Composable

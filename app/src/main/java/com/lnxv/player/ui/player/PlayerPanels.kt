@@ -107,32 +107,24 @@ private class BackdropGeometry(val screenW: Dp, val screenH: Dp, val originX: Dp
  */
 @Composable
 private fun BoxScope.GlassLayers(backdrop: ImageBitmap?, geometry: BackdropGeometry?) {
-    val backdropAlpha by animateFloatAsState(
-        targetValue = if (backdrop != null) 1f else 0f,
-        animationSpec = tween(260),
-        label = "glass_backdrop"
-    )
-    if (backdrop != null) {
-        val imageModifier = if (geometry != null) {
-            Modifier
-                .requiredSize(geometry.screenW, geometry.screenH)
-                .offset(x = -geometry.originX, y = -geometry.originY)
-        } else {
-            Modifier.matchParentSize()
-        }
-        Image(
-            bitmap = backdrop,
-            contentDescription = null,
-            contentScale = ContentScale.FillBounds,
-            filterQuality = FilterQuality.High,
-            modifier = imageModifier.graphicsLayer { alpha = backdropAlpha }
-        )
-    }
-    // frost / tint (lighter than before so the movie colours glow through)
+    // Premium frosted glass background without stretched low-res video frame artifacts
     Box(
         modifier = Modifier
             .matchParentSize()
-            .background(Brush.verticalGradient(listOf(Color(0x8C161E30), Color(0xB30A0E17))))
+            .background(Color(0xF0141822))
+    )
+    Box(
+        modifier = Modifier
+            .matchParentSize()
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        Color(0x332A3B5C),
+                        Color(0x00101726),
+                        Color(0x4D0D111A)
+                    )
+                )
+            )
     )
     // specular highlight from the top-left corner
     Box(
@@ -140,7 +132,7 @@ private fun BoxScope.GlassLayers(backdrop: ImageBitmap?, geometry: BackdropGeome
             .matchParentSize()
             .background(
                 Brush.linearGradient(
-                    colors = listOf(Color(0x2EFFFFFF), Color.Transparent, Color(0x0FFFFFFF))
+                    colors = listOf(Color(0x26FFFFFF), Color.Transparent, Color(0x08FFFFFF))
                 )
             )
     )
@@ -340,8 +332,8 @@ fun BoxScope.PlayerOverflowMenu(
         val menuTop = 56.dp
         AnimatedVisibility(
             visible = visible,
-            enter = fadeIn(tween(160)) + scaleIn(initialScale = 0.92f, transformOrigin = TransformOrigin(1f, 0f), animationSpec = tween(160)),
-            exit = fadeOut(tween(120)) + scaleOut(targetScale = 0.92f, transformOrigin = TransformOrigin(1f, 0f), animationSpec = tween(120)),
+            enter = fadeIn(tween(140)) + scaleIn(initialScale = 0.94f, transformOrigin = TransformOrigin(1f, 0f), animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMediumLow)),
+            exit = fadeOut(tween(90)) + scaleOut(targetScale = 0.94f, transformOrigin = TransformOrigin(1f, 0f), animationSpec = tween(90)),
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .padding(top = menuTop, end = menuEnd)
@@ -352,12 +344,9 @@ fun BoxScope.PlayerOverflowMenu(
                     .width(menuWidth)
                     .heightIn(max = screenH - menuTop - 16.dp)
                     .clip(shape)
+                    .background(Color(0xE61C2028))
                     .border(width = 1.dp, brush = GlassBorder, shape = shape)
             ) {
-                GlassLayers(
-                    backdrop = backdrop,
-                    geometry = BackdropGeometry(screenW, screenH, screenW - menuEnd - menuWidth, menuTop)
-                )
                 Column(
                     modifier = Modifier
                         .verticalScroll(rememberScrollState())
@@ -533,7 +522,34 @@ fun AudioTrackBottomSheet(
     onTrackSelected: (AudioTrackInfo) -> Unit
 ) {
     if (tracks.isEmpty()) {
-        Text("No alternate audio tracks available", color = Color(0x80FFFFFF), fontSize = 14.sp)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 24.dp, horizontal = 16.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Icon(
+                    imageVector = Icons.Default.Audiotrack,
+                    contentDescription = null,
+                    tint = Color(0x66FFFFFF),
+                    modifier = Modifier.size(40.dp)
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    text = "No alternate audio tracks available",
+                    color = Color(0xB3FFFFFF),
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "This video contains only the primary audio stream.",
+                    color = Color(0x80FFFFFF),
+                    fontSize = 12.sp
+                )
+            }
+        }
     } else {
         val audioLabels = uniqueLabels(tracks.map { it.label })
         tracks.forEachIndexed { index, track ->

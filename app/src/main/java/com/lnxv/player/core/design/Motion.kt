@@ -31,20 +31,25 @@ fun Modifier.bouncyClickable(pressedScale: Float = 0.985f, onLongClick: (() -> U
         ),
         label = "precision_press_scale"
     )
-    return this
-        .graphicsLayer {
-            scaleX = scale
-            scaleY = scale
-        }
-        .combinedClickable(
+    val graphicMod = this.graphicsLayer {
+        scaleX = scale
+        scaleY = scale
+    }
+    return if (onLongClick != null) {
+        graphicMod.combinedClickable(
             interactionSource = interactionSource,
             indication = null,
-            onLongClick = onLongClick?.let { cb ->
-                {
-                    haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
-                    cb()
-                }
+            onLongClick = {
+                haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                onLongClick()
             },
             onClick = onClick
         )
+    } else {
+        graphicMod.clickable(
+            interactionSource = interactionSource,
+            indication = null,
+            onClick = onClick
+        )
+    }
 }

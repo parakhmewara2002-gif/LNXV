@@ -99,7 +99,7 @@ class MediaStoreScanner(private val context: Context) {
                 }
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            android.util.Log.w("MediaStoreScanner", "Failed to query media store", e)
         }
 
         videoList

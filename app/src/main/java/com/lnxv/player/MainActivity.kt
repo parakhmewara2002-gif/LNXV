@@ -89,6 +89,23 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         splash.setKeepOnScreenCondition { prefsState.value == null }
+        splash.setOnExitAnimationListener { splashScreenView ->
+            val iconView = splashScreenView.iconView
+            val scaleX = android.animation.ObjectAnimator.ofFloat(iconView, android.view.View.SCALE_X, 1f, 1.25f, 0.8f, 0f)
+            val scaleY = android.animation.ObjectAnimator.ofFloat(iconView, android.view.View.SCALE_Y, 1f, 1.25f, 0.8f, 0f)
+            val alpha = android.animation.ObjectAnimator.ofFloat(splashScreenView.view, android.view.View.ALPHA, 1f, 0f)
+            val animatorSet = android.animation.AnimatorSet().apply {
+                playTogether(scaleX, scaleY, alpha)
+                duration = 320L
+                interpolator = android.view.animation.AccelerateDecelerateInterpolator()
+                addListener(object : android.animation.AnimatorListenerAdapter() {
+                    override fun onAnimationEnd(animation: android.animation.Animator) {
+                        splashScreenView.remove()
+                    }
+                })
+            }
+            animatorSet.start()
+        }
         // Build ExoPlayer + codec renderers while the main thread is idle on Home, so the first video does not pay for it.
         android.os.Looper.myQueue().addIdleHandler {
             if (!isFinishing && !isDestroyed) runCatching { (application as LNXVApplication).playerManager }
@@ -128,6 +145,7 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
         if (savedInstanceState == null) handleViewIntent(intent)
 
         setContent {
+            val navController = rememberNavController()
             val prefs by prefsState.collectAsState()
             val p = prefs
             if (p != null) {
@@ -149,7 +167,6 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
                     systemAnimationsOff = systemAnimationsDisabled()
                 )
                 LNXVTheme(darkTheme = darkTheme, amoled = p.isAmoled, dynamicColor = p.dynamicColor, reduceEffects = reduce, glassProfile = glassProfile) {
-                    val navController = rememberNavController()
                     LNXVNavigationHost(navController = navController)
                 }
             }

@@ -1,5 +1,7 @@
 package com.lnxv.player.ui.player
 
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Size
 import android.app.Activity
 import android.content.Context
 import android.media.AudioManager
@@ -230,23 +232,22 @@ fun IosPlayerControls(
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
                 .windowInsetsPadding(WindowInsets.displayCutout)
-                .navigationBarsPadding()
-                .padding(horizontal = 20.dp, vertical = 12.dp)
+                .padding(horizontal = 20.dp, vertical = 8.dp)
         ) {
             val video = uiState.currentVideo
             val folder = video?.folderName
             if (!folder.isNullOrBlank()) {
-                Text(folder, color = SoftWhite, fontSize = 13.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(folder, color = SoftWhite, fontSize = 12.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             Text(
                 text = video?.title ?: "Video Playback",
                 color = Color.White,
-                fontSize = 26.sp,
+                fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(2.dp))
 
             ScrubSection(viewModel, playbackState, video, reduceEffects)
 
@@ -463,14 +464,17 @@ private fun ThinTrack(
                 .height(trackHeight)
                 .clip(CircleShape)
                 .background(Color(0x40FFFFFF))
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .fillMaxWidth(fraction.coerceIn(0f, 1f))
-                    .background(Color.White)
-            )
-        }
+                .drawWithContent {
+                    drawContent()
+                    val progressWidth = this.size.width * fraction.coerceIn(0f, 1f)
+                    if (progressWidth > 0f) {
+                        drawRect(
+                            color = Color.White,
+                            size = Size(progressWidth, this.size.height)
+                        )
+                    }
+                }
+        )
     }
 }
 
@@ -482,10 +486,30 @@ private fun VolumePill(modifier: Modifier = Modifier) {
     val maxVol = remember { audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1) }
     var fraction by remember { mutableFloatStateOf(audio.getStreamVolume(AudioManager.STREAM_MUSIC) / maxVol.toFloat()) }
     var touching by remember { mutableStateOf(false) }
+
+    androidx.compose.runtime.DisposableEffect(context) {
+        val receiver = object : android.content.BroadcastReceiver() {
+            override fun onReceive(c: Context?, intent: android.content.Intent?) {
+                if (!touching) {
+                    fraction = audio.getStreamVolume(AudioManager.STREAM_MUSIC) / maxVol.toFloat()
+                }
+            }
+        }
+        val filter = android.content.IntentFilter("android.media.VOLUME_CHANGED_ACTION")
+        try {
+            context.registerReceiver(receiver, filter)
+        } catch (_: Exception) {}
+        onDispose {
+            try {
+                context.unregisterReceiver(receiver)
+            } catch (_: Exception) {}
+        }
+    }
+
     LaunchedEffect(Unit) {
         while (true) {
             if (!touching) fraction = audio.getStreamVolume(AudioManager.STREAM_MUSIC) / maxVol.toFloat()
-            delay(400)
+            delay(100)
         }
     }
     GlassPill(modifier) {

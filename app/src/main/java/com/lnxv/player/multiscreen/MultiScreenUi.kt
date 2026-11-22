@@ -83,22 +83,11 @@ fun VideoSlice(player: ExoPlayer, rect: DpRect, modifier: Modifier = Modifier) {
 fun MultiScreenHostHooks(player: ExoPlayer, onRestore: () -> Unit) {
     val host by MultiScreen.hostFlow.collectAsState()
     val h = host ?: return
-    val ui by h.ui.collectAsState()
     val cfg = LocalConfiguration.current
     LaunchedEffect(h, cfg.screenWidthDp, cfg.screenHeightDp) {
         h.setScreenDp(cfg.screenWidthDp.toFloat(), cfg.screenHeightDp.toFloat())
     }
     DisposableEffect(h) { onDispose { MultiScreen.stopHost() } }
-    if (ui.mode == MsMode.SPAN && ui.connected && ui.clientW > 0f && ui.hostW > 0f) {
-        DisposableEffect(Unit) {
-            onDispose { Handler(Looper.getMainLooper()).post { onRestore() } }
-        }
-        val rect = SpanGeometry.span(
-            DpSize2(ui.hostW, ui.hostH), DpSize2(ui.clientW, ui.clientH),
-            ui.stacked, ui.hostFirst, ui.bezelDp.toFloat(), ui.aspect
-        )
-        VideoSlice(player, rect, Modifier.fillMaxSize())
-    }
 }
 
 @Composable
@@ -161,33 +150,16 @@ fun MultiScreenHostDialog(player: ExoPlayer, onDismiss: () -> Unit) {
                     )
                     Text("Mode", color = appColors.textSecondary, fontSize = 12.sp)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        MsChip("Speaker", ui.mode == MsMode.SPEAKER, { h.setMode(MsMode.SPEAKER) })
                         MsChip("Mirror", ui.mode == MsMode.MIRROR, { h.setMode(MsMode.MIRROR) })
-                        MsChip("Span", ui.mode == MsMode.SPAN, { h.setMode(MsMode.SPAN) })
+                        MsChip("Speaker", ui.mode == MsMode.SPEAKER, { h.setMode(MsMode.SPEAKER) })
                     }
                     Text(
                         when (ui.mode) {
-                            MsMode.SPEAKER -> "The other phone plays only the sound."
-                            MsMode.MIRROR -> "Both phones show the full picture and play the sound."
-                            MsMode.SPAN -> "The picture is split across both screens. Put the phones edge to edge, both in landscape."
+                            MsMode.MIRROR -> "Both phones show the video and play the sound in sync."
+                            MsMode.SPEAKER -> "The other phone plays the audio as a remote speaker."
                         },
                         color = appColors.textSecondary, fontSize = 12.sp
                     )
-                    if (ui.mode == MsMode.SPAN) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            MsChip("One above the other", ui.stacked, { h.setStacked(true) })
-                            MsChip("Side by side", !ui.stacked, { h.setStacked(false) })
-                        }
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            MsChip(if (ui.stacked) "This phone: top" else "This phone: left", ui.hostFirst, { h.setHostFirst(true) })
-                            MsChip(if (ui.stacked) "This phone: bottom" else "This phone: right", !ui.hostFirst, { h.setHostFirst(false) })
-                        }
-                        MsStepper(
-                            "Gap between screens (bezel)", "${ui.bezelDp} dp",
-                            { h.setBezel(ui.bezelDp - 5) }, { h.setBezel(ui.bezelDp + 5) }
-                        )
-                        Text("Adjust the gap until lines continue straight across both phones.", color = appColors.textSecondary, fontSize = 12.sp)
-                    }
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Text("Mute this phone", color = appColors.textPrimary, fontSize = 14.sp, modifier = Modifier.weight(1f))
                         GlassSwitch(checked = ui.hostMuted, onCheckedChange = { h.setHostMuted(it) })

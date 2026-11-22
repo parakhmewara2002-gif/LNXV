@@ -35,10 +35,7 @@ data class RxUi(
     val status: RxStatus = RxStatus.IDLE,
     val message: String? = null,
     val title: String = "",
-    val mode: MsMode = MsMode.SPEAKER,
-    val stacked: Boolean = true,
-    val hostFirst: Boolean = true,
-    val bezelDp: Int = 40,
+    val mode: MsMode = MsMode.MIRROR,
     val hostW: Float = 0f,
     val hostH: Float = 0f,
     val aspect: Float = 16f / 9f,
@@ -174,11 +171,11 @@ class MsReceiver(private val context: Context) {
                 if (rtt <= bestRtt + 5L || bestRtt == Long.MAX_VALUE) { offsetMs = SyncMath.clockOffset(c0, c1, h); bestRtt = rtt } else bestRtt += 2L
             }
             "cfg" -> {
-                val mode = try { MsMode.valueOf(j.optString("mode")) } catch (e: Exception) { MsMode.SPEAKER }
+                val mode = try { MsMode.valueOf(j.optString("mode")) } catch (e: Exception) { MsMode.MIRROR }
                 _ui.update {
                     it.copy(
-                        mode = mode, stacked = j.optBoolean("stacked", true), hostFirst = j.optBoolean("hostFirst", true),
-                        bezelDp = j.optInt("bezel", 40), hostW = j.optDouble("hostW", 0.0).toFloat(), hostH = j.optDouble("hostH", 0.0).toFloat()
+                        mode = mode,
+                        hostW = j.optDouble("hostW", 0.0).toFloat(), hostH = j.optDouble("hostH", 0.0).toFloat()
                     )
                 }
                 main.post { applyMode(mode) }

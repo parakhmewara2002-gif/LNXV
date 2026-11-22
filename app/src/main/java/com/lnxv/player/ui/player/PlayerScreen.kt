@@ -199,6 +199,12 @@ fun PlayerScreen(
         onBackClick()
     }
 
+    // Panic Mode / Flip-to-Hide: turning phone face down pauses, mutes, closes player instantly
+    com.lnxv.player.playback.gestures.FlipToHideEffect(enabled = true) {
+        viewModel.closePlayer()
+        onBackClick()
+    }
+
     // Real immersive fullscreen: hide system bars, keep screen on, draw into display cutout.
     // Re-applied on every resume so bars cannot stay visible after dialogs / returning from PiP.
     val lifecycleOwner = LocalLifecycleOwner.current

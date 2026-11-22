@@ -154,6 +154,8 @@ class VaultViewModel(
                 viewModelScope.launch {
                     when (val r = vaultRepo.verifyPin(pin)) {
                         is VerifyResult.Success -> {
+                            // Brief success delay so success green flash / unlock animation is felt
+                            delay(120)
                             _uiState.value = _uiState.value.copy(
                                 authState = VaultAuthState.AUTHENTICATED, enteredPin = "", busy = false, errorMessage = null
                             )

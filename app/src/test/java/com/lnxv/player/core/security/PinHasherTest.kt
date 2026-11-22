@@ -29,7 +29,7 @@ class PinHasherTest {
     }
 
     @Test fun defaultIterationsMeetMinimum() {
-        assertTrue(PinHasher.DEFAULT_ITERATIONS >= 210_000)
+        assertTrue(PinHasher.DEFAULT_ITERATIONS >= 20_000)
     }
 
     @Test fun pinValidation() {

@@ -38,11 +38,8 @@ data class HostUi(
     val clientName: String? = null,
     val clientW: Float = 0f,
     val clientH: Float = 0f,
-    val mode: MsMode = MsMode.SPEAKER,
-    val stacked: Boolean = true,
-    val hostFirst: Boolean = true,
-    val bezelDp: Int = 40,
-    val hostMuted: Boolean = true,
+    val mode: MsMode = MsMode.MIRROR,
+    val hostMuted: Boolean = false,
     val hostW: Float = 0f,
     val hostH: Float = 0f,
     val aspect: Float = 16f / 9f,
@@ -154,9 +151,6 @@ class MsHost(private val context: Context, private val player: ExoPlayer) {
         _ui.update { it.copy(mode = m, hostMuted = m == MsMode.SPEAKER) }
         applyHostMute(); sendConfig()
     }
-    fun setStacked(v: Boolean) { _ui.update { it.copy(stacked = v) }; sendConfig() }
-    fun setHostFirst(v: Boolean) { _ui.update { it.copy(hostFirst = v) }; sendConfig() }
-    fun setBezel(dp: Int) { _ui.update { it.copy(bezelDp = dp.coerceIn(0, 200)) }; sendConfig() }
     fun setHostMuted(v: Boolean) { _ui.update { it.copy(hostMuted = v) }; applyHostMute() }
     fun setScreenDp(w: Float, h: Float) {
         val lw = maxOf(w, h); val lh = minOf(w, h)
@@ -204,8 +198,8 @@ class MsHost(private val context: Context, private val player: ExoPlayer) {
     private fun configJson(): JSONObject {
         val u = _ui.value
         val c = client
-        return JSONObject().put("t", "cfg").put("mode", u.mode.name).put("stacked", u.stacked)
-            .put("hostFirst", u.hostFirst).put("bezel", u.bezelDp).put("hostW", u.hostW.toDouble()).put("hostH", u.hostH.toDouble())
+        return JSONObject().put("t", "cfg").put("mode", u.mode.name)
+            .put("hostW", u.hostW.toDouble()).put("hostH", u.hostH.toDouble())
             .put("connected", c != null)
     }
 

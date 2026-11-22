@@ -1,5 +1,14 @@
 package com.lnxv.player.ui.vault
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.FastOutSlowInEasing
 import com.lnxv.player.core.design.GlassProgress
 import com.lnxv.player.core.design.GlassDialog
 import com.lnxv.player.core.design.GlassDialogButton
@@ -207,8 +216,8 @@ fun VaultScreen(
                     VaultPill(text = "Change PIN", color = appColors.textSecondary, onClick = viewModel::openChangePin)
                     Spacer(modifier = Modifier.width(8.dp))
                     VaultPill(text = "Lock", color = appColors.accent, onClick = {
+                        // Animate transition smoothly back to keypad, then lock
                         viewModel.lock()
-                        onBackClick()
                     })
                 }
             }
@@ -219,303 +228,334 @@ fun VaultScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            if (uiState.authState == VaultAuthState.AUTHENTICATED) {
-                // Display Vault Videos List
-                Column(modifier = Modifier.fillMaxSize()) {
-                if (job.isRunning) {
-                    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
-                        Text(
-                            text = (if (job.restoring) "Restoring " else "Encrypting ") + job.title +
-                                if (job.queued > 0) " (+${job.queued} queued)" else "",
-                            color = appColors.textPrimary, fontSize = 13.sp, maxLines = 1
-                        )
-                        Spacer(Modifier.height(6.dp))
-                        GlassProgress(progress = { job.progress }, modifier = Modifier.fillMaxWidth())
-                        TextButton(onClick = viewModel::cancelTransfers) { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.action_cancel)) }
+            AnimatedContent(
+                targetState = uiState.authState == VaultAuthState.AUTHENTICATED,
+                transitionSpec = {
+                    if (targetState) {
+                        // Unlocking: Vault videos scale/fade in, keypad scales/fades out
+                        (fadeIn(tween(300, easing = FastOutSlowInEasing)) + scaleIn(tween(350, easing = FastOutSlowInEasing), initialScale = 0.94f))
+                            .togetherWith(fadeOut(tween(200, easing = FastOutSlowInEasing)) + scaleOut(tween(200, easing = FastOutSlowInEasing), targetScale = 1.05f))
+                    } else {
+                        // Locking: Keypad smoothly scales and fades back in, vault list scales down and fades out
+                        (fadeIn(tween(300, easing = FastOutSlowInEasing)) + scaleIn(tween(350, easing = FastOutSlowInEasing), initialScale = 1.05f))
+                            .togetherWith(fadeOut(tween(220, easing = FastOutSlowInEasing)) + scaleOut(tween(220, easing = FastOutSlowInEasing), targetScale = 0.94f))
                     }
-                }
-                if (legacyCount > 0 && !job.isRunning) {
-                    GlassPanel(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-                        shape = RoundedCornerShape(20.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 10.dp, top = 10.dp, bottom = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
+                },
+                label = "VaultAuthContentTransition"
+            ) { isAuthenticated ->
+                if (isAuthenticated) {
+                    // Display Vault Videos List
+                    Column(modifier = Modifier.fillMaxSize()) {
+                    if (job.isRunning) {
+                        Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
                             Text(
-                                text = "$legacyCount video(s) are hidden but not encrypted.",
-                                color = appColors.textSecondary, fontSize = 13.sp, modifier = Modifier.weight(1f).padding(end = 10.dp)
+                                text = (if (job.restoring) "Restoring " else "Encrypting ") + job.title +
+                                    if (job.queued > 0) " (+${job.queued} queued)" else "",
+                                color = appColors.textPrimary, fontSize = 13.sp, maxLines = 1
                             )
-                            GlassButton(text = "Encrypt now", onClick = viewModel::encryptLegacyItems, isPrimary = true)
+                            Spacer(Modifier.height(6.dp))
+                            GlassProgress(progress = { job.progress }, modifier = Modifier.fillMaxWidth())
+                            TextButton(onClick = viewModel::cancelTransfers) { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.action_cancel)) }
                         }
                     }
-                }
-                if (vaultVideos.isEmpty()) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
+                    if (legacyCount > 0 && !job.isRunning) {
+                        GlassPanel(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                            shape = RoundedCornerShape(20.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 10.dp, top = 10.dp, bottom = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "$legacyCount video(s) are hidden but not encrypted.",
+                                    color = appColors.textSecondary, fontSize = 13.sp, modifier = Modifier.weight(1f).padding(end = 10.dp)
+                                )
+                                GlassButton(text = "Encrypt now", onClick = viewModel::encryptLegacyItems, isPrimary = true)
+                            }
+                        }
+                    }
+                    if (vaultVideos.isEmpty()) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(
+                                    imageVector = Icons.Default.Lock,
+                                    contentDescription = null,
+                                    tint = appColors.textTertiary,
+                                    modifier = Modifier.size(64.dp)
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Text(
+                                    text = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.vault_empty_title),
+                                    color = appColors.textPrimary,
+                                    style = Typography.titleMedium,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.vault_empty_hint),
+                                    color = appColors.textTertiary,
+                                    fontSize = 13.sp
+                                )
+                            }
+                        }
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            items(vaultVideos, key = { it.id }) { video ->
+                                GlassPanel(
+                                    modifier = Modifier
+                                        .animateItem()
+                                        .fillMaxWidth()
+                                        .clickable { onVideoClick(video) },
+                                    shape = RoundedCornerShape(24.dp),
+                                    backgroundColor = appColors.glassFill
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(14.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        val thumb by produceState<ImageBitmap?>(null, video.id, video.vaultFile) {
+                                            value = withContext(Dispatchers.IO) {
+                                                viewModel.loadThumbnail(video.id)?.let { b ->
+                                                    BitmapFactory.decodeByteArray(b, 0, b.size)?.asImageBitmap()
+                                                }
+                                            }
+                                        }
+                                        thumb?.let {
+                                            Image(
+                                                bitmap = it,
+                                                contentDescription = null,
+                                                contentScale = ContentScale.Crop,
+                                                modifier = Modifier.size(width = 80.dp, height = 48.dp).clip(RoundedCornerShape(14.dp))
+                                            )
+                                            Spacer(Modifier.width(12.dp))
+                                        }
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = video.title,
+                                                color = appColors.textPrimary,
+                                                style = Typography.titleSmall
+                                            )
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Text(
+                                                text = "${video.durationFormatted} • ${video.sizeFormatted}",
+                                                color = appColors.textTertiary,
+                                                fontSize = 12.sp
+                                            )
+                                        }
+                                        GlassIconButton(
+                                            icon = Icons.Default.Restore,
+                                            contentDescription = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.vault_restore),
+                                            onClick = { viewModel.restoreFromVault(video) },
+                                            tint = appColors.accent,
+                                            size = 40.dp
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    }
+                } else {
+                    // PIN Verification & Setup Keypad
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 32.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
                     ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Box(
+                            modifier = Modifier
+                                .size(72.dp)
+                                .liquidGlassSurface(
+                                    shape = CircleShape,
+                                    backgroundColor = appColors.accent.copy(alpha = 0.15f),
+                                    borderColor = appColors.accent.copy(alpha = 0.5f)
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
                             Icon(
                                 imageVector = Icons.Default.Lock,
                                 contentDescription = null,
-                                tint = appColors.textTertiary,
-                                modifier = Modifier.size(64.dp)
-                            )
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Text(
-                                text = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.vault_empty_title),
-                                color = appColors.textPrimary,
-                                style = Typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.vault_empty_hint),
-                                color = appColors.textTertiary,
-                                fontSize = 13.sp
+                                tint = appColors.accent,
+                                modifier = Modifier.size(36.dp)
                             )
                         }
-                    }
-                } else {
-                    LazyColumn(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        items(vaultVideos, key = { it.id }) { video ->
-                            GlassPanel(
-                                modifier = Modifier
-                                    .animateItem()
-                                    .fillMaxWidth()
-                                    .clickable { onVideoClick(video) },
-                                shape = RoundedCornerShape(24.dp),
-                                backgroundColor = appColors.glassFill
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(14.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    val thumb by produceState<ImageBitmap?>(null, video.id, video.vaultFile) {
-                                        value = withContext(Dispatchers.IO) {
-                                            viewModel.loadThumbnail(video.id)?.let { b ->
-                                                BitmapFactory.decodeByteArray(b, 0, b.size)?.asImageBitmap()
-                                            }
-                                        }
-                                    }
-                                    thumb?.let {
-                                        Image(
-                                            bitmap = it,
-                                            contentDescription = null,
-                                            contentScale = ContentScale.Crop,
-                                            modifier = Modifier.size(width = 80.dp, height = 48.dp).clip(RoundedCornerShape(14.dp))
-                                        )
-                                        Spacer(Modifier.width(12.dp))
-                                    }
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = video.title,
-                                            color = appColors.textPrimary,
-                                            style = Typography.titleSmall
-                                        )
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        Text(
-                                            text = "${video.durationFormatted} • ${video.sizeFormatted}",
-                                            color = appColors.textTertiary,
-                                            fontSize = 12.sp
-                                        )
-                                    }
-                                    GlassIconButton(
-                                        icon = Icons.Default.Restore,
-                                        contentDescription = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.vault_restore),
-                                        onClick = { viewModel.restoreFromVault(video) },
-                                        tint = appColors.accent,
-                                        size = 40.dp
-                                    )
-                                }
-                            }
+
+                        Spacer(modifier = Modifier.height(24.dp))
+
+                        val promptText = when (uiState.authState) {
+                            VaultAuthState.SETUP_PIN -> "Create a Vault PIN (4-8 digits, 6 recommended)"
+                            VaultAuthState.CONFIRM_PIN -> "Confirm your PIN"
+                            VaultAuthState.ENTER_PIN -> "Enter your Vault PIN"
+                            VaultAuthState.AUTHENTICATED -> ""
                         }
-                    }
-                }
-                }
-            } else {
-                // PIN Verification & Setup Keypad
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 32.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(72.dp)
-                            .liquidGlassSurface(
-                                shape = CircleShape,
-                                backgroundColor = appColors.accent.copy(alpha = 0.15f),
-                                borderColor = appColors.accent.copy(alpha = 0.5f)
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Lock,
-                            contentDescription = null,
-                            tint = appColors.accent,
-                            modifier = Modifier.size(36.dp)
-                        )
-                    }
 
-                    Spacer(modifier = Modifier.height(24.dp))
-
-                    val promptText = when (uiState.authState) {
-                        VaultAuthState.SETUP_PIN -> "Create a Vault PIN (4-8 digits, 6 recommended)"
-                        VaultAuthState.CONFIRM_PIN -> "Confirm your PIN"
-                        VaultAuthState.ENTER_PIN -> "Enter your Vault PIN"
-                        VaultAuthState.AUTHENTICATED -> ""
-                    }
-
-                    Text(
-                        text = promptText,
-                        color = appColors.textPrimary,
-                        style = Typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-
-                    Spacer(modifier = Modifier.height(28.dp))
-
-                    // PIN dots (shake on a wrong PIN; translation is animated in a graphicsLayer lambda)
-                    val shake = remember { Animatable(0f) }
-                    LaunchedEffect(uiState.shakeCount) {
-                        if (uiState.shakeCount > 0) {
-                            for (t in listOf(-24f, 24f, -16f, 16f, -8f, 0f)) shake.animateTo(t, tween(45))
-                        }
-                    }
-                    val dotCount = if (uiState.authState == VaultAuthState.ENTER_PIN) uiState.pinLength
-                    else maxOf(6, uiState.enteredPin.length)
-                    Row(
-                        modifier = Modifier.graphicsLayer { translationX = shake.value },
-                        horizontalArrangement = Arrangement.spacedBy(14.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        repeat(dotCount) { index ->
-                            val isFilled = index < uiState.enteredPin.length
-                            Box(
-                                modifier = Modifier
-                                    .size(16.dp)
-                                    .clip(CircleShape)
-                                    .background(
-                                        if (isFilled) appColors.accent else appColors.glassBorder
-                                    )
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    AnimatedVisibility(visible = uiState.errorMessage != null || uiState.lockoutRemainingSec > 0) {
                         Text(
-                            text = if (uiState.lockoutRemainingSec > 0)
-                                "Locked. Try again in ${uiState.lockoutRemainingSec / 60}:${"%02d".format(uiState.lockoutRemainingSec % 60)}"
-                            else uiState.errorMessage ?: "",
-                            color = CrimsonAlert,
-                            fontSize = 13.sp
+                            text = promptText,
+                            color = appColors.textPrimary,
+                            style = Typography.titleLarge,
+                            fontWeight = FontWeight.Bold
                         )
-                    }
-                    if (uiState.needsConfirmButton) {
-                        GlassButton(text = "OK", onClick = viewModel::submit, isPrimary = true, enabled = uiState.enteredPin.length >= 4)
-                    }
-                    if (uiState.authState == VaultAuthState.ENTER_PIN && uiState.biometricEnabled && uiState.lockoutRemainingSec == 0L &&
-                        com.lnxv.player.core.security.BiometricGate.canAuthenticate(androidx.compose.ui.platform.LocalContext.current)
-                    ) {
-                        TextButton(onClick = {
-                            (activity as? androidx.fragment.app.FragmentActivity)?.let { a ->
-                                val cipher = viewModel.biometricCipher()
-                                if (cipher != null) {
-                                    com.lnxv.player.core.security.BiometricGate.promptCrypto(a, cipher, "Unlock vault", "Use PIN", { c -> viewModel.unlockWithBiometric(c) })
+
+                        Spacer(modifier = Modifier.height(28.dp))
+
+                        // PIN dots (shake on a wrong PIN; translation is animated in a graphicsLayer lambda)
+                        val shake = remember { Animatable(0f) }
+                        LaunchedEffect(uiState.shakeCount) {
+                            if (uiState.shakeCount > 0) {
+                                for (t in listOf(-24f, 24f, -16f, 16f, -8f, 0f)) shake.animateTo(t, tween(45))
+                            }
+                        }
+                        val dotCount = if (uiState.authState == VaultAuthState.ENTER_PIN) uiState.pinLength
+                        else maxOf(6, uiState.enteredPin.length)
+                        Row(
+                            modifier = Modifier.graphicsLayer { translationX = shake.value },
+                            horizontalArrangement = Arrangement.spacedBy(14.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            repeat(dotCount) { index ->
+                                val isFilled = index < uiState.enteredPin.length
+                                Box(
+                                    modifier = Modifier
+                                        .size(16.dp)
+                                        .clip(CircleShape)
+                                        .background(
+                                            if (isFilled) (if (uiState.busy) appColors.accent.copy(alpha = 0.5f) else appColors.accent)
+                                            else appColors.glassBorder
+                                        ),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    if (uiState.busy && isFilled) {
+                                        // Subtle pulse or indicator when busy verifying
+                                    }
                                 }
                             }
-                        }) { Text("Use biometrics", color = appColors.accent, fontSize = 13.sp) }
-                    }
-                    if (uiState.authState == VaultAuthState.ENTER_PIN) {
-                        TextButton(onClick = viewModel::requestForgotPin) {
-                            Text("Forgot PIN?", color = appColors.textTertiary, fontSize = 12.sp)
                         }
-                    }
 
-                    Spacer(modifier = Modifier.height(36.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
 
-                    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
-                    // Numeric Pad (1 to 9, 0, Backspace)
-                    val keys = listOf(
-                        listOf("1", "2", "3"),
-                        listOf("4", "5", "6"),
-                        listOf("7", "8", "9"),
-                        listOf("", "0", "DEL")
-                    )
+                        if (uiState.busy) {
+                            Box(modifier = Modifier.height(20.dp), contentAlignment = Alignment.Center) {
+                                com.lnxv.player.core.design.GlassProgress(
+                                    progress = { -1f },
+                                    modifier = Modifier.width(60.dp)
+                                )
+                            }
+                        } else {
+                            AnimatedVisibility(visible = uiState.errorMessage != null || uiState.lockoutRemainingSec > 0) {
+                                Text(
+                                    text = if (uiState.lockoutRemainingSec > 0)
+                                        "Locked. Try again in ${uiState.lockoutRemainingSec / 60}:${"%02d".format(uiState.lockoutRemainingSec % 60)}"
+                                    else uiState.errorMessage ?: "",
+                                    color = CrimsonAlert,
+                                    fontSize = 13.sp
+                                )
+                            }
+                        }
+                        if (uiState.needsConfirmButton) {
+                            GlassButton(text = "OK", onClick = viewModel::submit, isPrimary = true, enabled = uiState.enteredPin.length >= 4)
+                        }
+                        if (uiState.authState == VaultAuthState.ENTER_PIN && uiState.biometricEnabled && uiState.lockoutRemainingSec == 0L &&
+                            com.lnxv.player.core.security.BiometricGate.canAuthenticate(androidx.compose.ui.platform.LocalContext.current)
+                        ) {
+                            TextButton(onClick = {
+                                (activity as? androidx.fragment.app.FragmentActivity)?.let { a ->
+                                    val cipher = viewModel.biometricCipher()
+                                    if (cipher != null) {
+                                        com.lnxv.player.core.security.BiometricGate.promptCrypto(a, cipher, "Unlock vault", "Use PIN", { c -> viewModel.unlockWithBiometric(c) })
+                                    }
+                                }
+                            }) { Text("Use biometrics", color = appColors.accent, fontSize = 13.sp) }
+                        }
+                        if (uiState.authState == VaultAuthState.ENTER_PIN) {
+                            TextButton(onClick = viewModel::requestForgotPin) {
+                                Text("Forgot PIN?", color = appColors.textTertiary, fontSize = 12.sp)
+                            }
+                        }
 
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        keys.forEach { row ->
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(24.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                row.forEach { key ->
-                                    if (key.isEmpty()) {
-                                        Spacer(modifier = Modifier.size(68.dp))
-                                    } else if (key == "DEL") {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(68.dp)
-                                                .semantics {
-                                                    role = androidx.compose.ui.semantics.Role.Button
-                                                    contentDescription = "Delete last digit"
-                                                }
-                                                .bouncyClickable(pressedScale = 0.88f) {
-                                                    haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
-                                                    viewModel.deleteDigit()
-                                                },
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Backspace,
-                                                contentDescription = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.action_delete),
-                                                tint = appColors.textPrimary
-                                            )
-                                        }
-                                    } else {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(68.dp)
-                                                .semantics {
-                                                    role = androidx.compose.ui.semantics.Role.Button
-                                                    contentDescription = "Enter digit $key"
-                                                }
-                                                .bouncyClickable(pressedScale = 0.88f) {
-                                                    haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
-                                                    viewModel.enterDigit(key)
-                                                }
-                                                .liquidGlassSurface(
-                                                    shape = CircleShape,
-                                                    backgroundColor = appColors.glassSubtle,
-                                                    borderColor = appColors.glassBorder
-                                                ),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Text(
-                                                text = key,
-                                                color = appColors.textPrimary,
-                                                fontSize = 24.sp,
-                                                fontWeight = FontWeight.SemiBold
-                                            )
+                        Spacer(modifier = Modifier.height(36.dp))
+
+                        val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+                        // Numeric Pad (1 to 9, 0, Backspace)
+                        val keys = listOf(
+                            listOf("1", "2", "3"),
+                            listOf("4", "5", "6"),
+                            listOf("7", "8", "9"),
+                            listOf("", "0", "DEL")
+                        )
+
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            keys.forEach { row ->
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(24.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    row.forEach { key ->
+                                        if (key.isEmpty()) {
+                                            Spacer(modifier = Modifier.size(68.dp))
+                                        } else if (key == "DEL") {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(68.dp)
+                                                    .semantics {
+                                                        role = androidx.compose.ui.semantics.Role.Button
+                                                        contentDescription = "Delete last digit"
+                                                    }
+                                                    .bouncyClickable(pressedScale = 0.88f) {
+                                                        haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+                                                        viewModel.deleteDigit()
+                                                    },
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Backspace,
+                                                    contentDescription = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.action_delete),
+                                                    tint = appColors.textPrimary
+                                                )
+                                            }
+                                        } else {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(68.dp)
+                                                    .semantics {
+                                                        role = androidx.compose.ui.semantics.Role.Button
+                                                        contentDescription = "Enter digit $key"
+                                                    }
+                                                    .bouncyClickable(pressedScale = 0.88f) {
+                                                        haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+                                                        viewModel.enterDigit(key)
+                                                    }
+                                                    .liquidGlassSurface(
+                                                        shape = CircleShape,
+                                                        backgroundColor = appColors.glassSubtle,
+                                                        borderColor = appColors.glassBorder
+                                                    ),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Text(
+                                                    text = key,
+                                                    color = appColors.textPrimary,
+                                                    fontSize = 24.sp,
+                                                    fontWeight = FontWeight.SemiBold
+                                                )
+                                            }
                                         }
                                     }
                                 }

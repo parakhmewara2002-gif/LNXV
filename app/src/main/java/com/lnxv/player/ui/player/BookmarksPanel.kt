@@ -1,6 +1,12 @@
 package com.lnxv.player.ui.player
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -41,22 +47,31 @@ fun ColumnScope.BookmarksContent(
         val time = BookmarkList.formatTime(b.positionMs)
         val jumpDesc = stringResource(R.string.bookmarks_jump_to, time)
         val removeDesc = stringResource(R.string.bookmarks_remove_at, time)
+        val shape = RoundedCornerShape(16.dp)
         Row(
-            Modifier.fillMaxWidth().padding(vertical = 2.dp),
+            Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp)
+                .clip(shape)
+                .background(Color(0x331C1F26))
+                .clickable { onJump(b.positionMs) }
+                .padding(horizontal = 14.dp, vertical = 10.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = if (b.label.isEmpty()) time else "$time  ${b.label}",
-                color = Color.White,
-                modifier = Modifier
-                    .weight(1f)
-                    .clickable { onJump(b.positionMs) }
-                    .padding(vertical = 10.dp)
-                    .semantics { contentDescription = jumpDesc }
-            )
-            TextButton(onClick = { onRemove(b.positionMs) }, modifier = Modifier.semantics { contentDescription = removeDesc }) {
-                Text(stringResource(R.string.bookmarks_remove))
+            Column(modifier = Modifier.weight(1f).semantics { contentDescription = jumpDesc }) {
+                Text(
+                    text = if (b.label.isEmpty()) time else "$time  ${b.label}",
+                    color = com.lnxv.player.core.design.NeonCyan,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            TextButton(
+                onClick = { onRemove(b.positionMs) },
+                modifier = Modifier.semantics { contentDescription = removeDesc }
+            ) {
+                Text(stringResource(R.string.bookmarks_remove), color = com.lnxv.player.core.design.DestructiveRed)
             }
         }
     }

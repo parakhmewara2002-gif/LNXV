@@ -87,19 +87,19 @@ enum class FeatureFlag(val title: String, val description: String, val defaultEn
         false
     ),
     CAST(
-        "Cast (Chromecast)",
-        "Adds 'Cast' to the player menu for network (http/https) videos in the sideload build: send the video to a Chromecast. Local files cannot be cast. Needs Google Play services. Not tested with real devices.",
-        false
+        "Cast (Chromecast & TV)",
+        "Adds 'Cast' to the player menu for videos: send the video to a Chromecast or Smart TV. Needs Google Play services.",
+        true
     ),
     BOOKMARKS(
         "Bookmarks",
         "Adds 'Bookmarks' to the player menu: save positions in a video, jump between them. Stored on this device only, per library video (never for vault or network videos).",
-        false
+        true
     ),
     EQUALIZER(
-        "Equalizer presets",
-        "Adds an Audio effects sheet to the player menu: equalizer presets, Bass Boost and Virtualizer, remembered separately for speaker, headphones, Bluetooth and HDMI. Uses system audio effects; may be unsupported on some devices.",
-        false
+        "Equalizer presets & Clear Voice",
+        "Adds an Audio effects sheet to the player menu: Clear Voice / Dialogue enhancer, equalizer presets, Bass Boost and Virtualizer, remembered separately for speaker, headphones, Bluetooth and HDMI. Uses system audio effects; may be unsupported on some devices.",
+        true
     ),
     SKIP_SILENCE(
         "Skip silence",

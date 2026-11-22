@@ -39,8 +39,17 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.ui.PlayerView
+import androidx.compose.ui.viewinterop.AndroidView
+import android.view.ViewGroup
+import android.widget.FrameLayout
+import androidx.media3.ui.AspectRatioFrameLayout
 import com.lnxv.player.core.design.GlassDialogButton
+import com.lnxv.player.core.design.GlassTopBar
+import com.lnxv.player.core.design.ambientBackground
 import com.lnxv.player.core.design.appColors
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.OutlinedTextFieldDefaults
 
 /** "Join screen": this phone becomes the speaker / second screen of another LNXV phone. */
 @androidx.annotation.OptIn(UnstableApi::class)
@@ -85,68 +94,121 @@ fun MultiScreenReceiverScreen(onBack: () -> Unit) {
     }
     BackHandler { onBack() }
 
-    Box(Modifier.fillMaxSize().background(Color.Black)) {
-        if (showsVideo) {
-            val self = DpSize2(cfg.screenWidthDp.toFloat(), cfg.screenHeightDp.toFloat())
-            val rect = if (ui.mode == MsMode.SPAN && ui.hostW > 0f) {
-                SpanGeometry.span(
-                    DpSize2(maxOf(self.w, self.h), minOf(self.w, self.h)), DpSize2(ui.hostW, ui.hostH),
-                    ui.stacked, !ui.hostFirst, ui.bezelDp.toFloat(), ui.aspect
-                )
-            } else SpanGeometry.mirror(self, ui.aspect)
-            VideoSlice(rx.player, rect, Modifier.fillMaxSize())
+    if (showsVideo) {
+        Box(Modifier.fillMaxSize().background(Color.Black)) {
+            AndroidView(
+                factory = { c ->
+                    PlayerView(c).apply {
+                        player = rx.player
+                        useController = false
+                        resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
+                        layoutParams = FrameLayout.LayoutParams(
+                            ViewGroup.LayoutParams.MATCH_PARENT,
+                            ViewGroup.LayoutParams.MATCH_PARENT
+                        )
+                    }
+                },
+                update = { pv ->
+                    if (pv.player !== rx.player) {
+                        pv.player = rx.player
+                    }
+                },
+                modifier = Modifier.fillMaxSize()
+            )
             Box(Modifier.fillMaxSize().clickable(indication = null, interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }) { showControls = !showControls })
             if (showControls) ReceiverControls(ui, rx, onBack, Modifier.align(Alignment.BottomCenter))
-        } else if (connected) {
-            Column(
-                Modifier.fillMaxSize().statusBarsPadding().padding(24.dp),
-                verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(if (ui.mode == MsMode.SPEAKER) "Speaker mode" else "Connected", color = appColors.textPrimary, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
-                Text(if (ui.title.isNotEmpty()) ui.title else "Waiting for the movie…", color = appColors.textSecondary, fontSize = 14.sp, modifier = Modifier.padding(top = 8.dp, bottom = 24.dp))
-                ReceiverControls(ui, rx, onBack, Modifier)
+        }
+    } else {
+        Scaffold(
+            modifier = Modifier.fillMaxSize().ambientBackground(),
+            containerColor = Color.Transparent,
+            topBar = {
+                GlassTopBar(
+                    title = "Join screen",
+                    onBack = onBack,
+                    hazeState = null
+                )
             }
-        } else {
-            Column(Modifier.fillMaxSize().statusBarsPadding().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("Join screen", color = appColors.textPrimary, fontSize = 26.sp, fontWeight = FontWeight.Bold)
-                Text(
-                    "On the other phone play a movie, open ⋮ → Second screen and tap Start sharing. Both phones must be on the same Wi-Fi.",
-                    color = appColors.textSecondary, fontSize = 13.sp
-                )
-                if (ui.found.isNotEmpty()) {
-                    Text("Found nearby", color = appColors.textSecondary, fontSize = 12.sp)
-                    ui.found.forEach { f ->
-                        Box(
-                            Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(appColors.glassSubtle)
-                                .clickable { address = "${f.ip}:${f.port}" }.padding(14.dp)
-                        ) { Text("${f.name}  (${f.ip}:${f.port})", color = appColors.textPrimary, fontSize = 14.sp) }
-                    }
+        ) { paddingValues ->
+            if (connected) {
+                Column(
+                    Modifier.fillMaxSize().padding(paddingValues).padding(24.dp),
+                    verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(if (ui.mode == MsMode.SPEAKER) "Speaker mode" else "Connected", color = appColors.textPrimary, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
+                    Text(if (ui.title.isNotEmpty()) ui.title else "Waiting for the movie…", color = appColors.textSecondary, fontSize = 14.sp, modifier = Modifier.padding(top = 8.dp, bottom = 24.dp))
+                    ReceiverControls(ui, rx, onBack, Modifier)
                 }
-                OutlinedTextField(
-                    value = address, onValueChange = { address = it }, singleLine = true,
-                    label = { Text("Address (shown on the other phone)") }, modifier = Modifier.fillMaxWidth()
-                )
-                OutlinedTextField(
-                    value = pin, onValueChange = { pin = it.filter { c -> c.isDigit() }.take(4) }, singleLine = true,
-                    label = { Text("PIN") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-                    modifier = Modifier.fillMaxWidth()
-                )
-                ui.message?.let { Text(it, color = Color(0xFFFF6B6B), fontSize = 13.sp) }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    GlassDialogButton(
-                        if (ui.status == RxStatus.CONNECTING) "Connecting…" else "Connect",
-                        {
-                            val ip = address.substringBefore(':').trim()
-                            val port = address.substringAfter(':', "").trim().toIntOrNull()
-                            if (ip.isEmpty() || port == null) {
-                                android.widget.Toast.makeText(ctx, "Enter the address like 192.168.1.5:40000", android.widget.Toast.LENGTH_LONG).show()
-                            } else {
-                                rx.connect(ip, port, pin, cfg.screenWidthDp.toFloat(), cfg.screenHeightDp.toFloat())
-                            }
-                        },
-                        enabled = ui.status != RxStatus.CONNECTING && pin.length == 4, primary = true
+            } else {
+                Column(
+                    Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues)
+                        .verticalScroll(rememberScrollState())
+                        .padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Text(
+                        "On the other phone play a movie, open ⋮ → Second screen and tap Start sharing. Both phones must be on the same Wi-Fi.",
+                        color = appColors.textSecondary, fontSize = 14.sp
                     )
-                    GlassDialogButton("Back", onBack)
+                    if (ui.found.isNotEmpty()) {
+                        Text("Found nearby", color = appColors.textSecondary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                        ui.found.forEach { f ->
+                            Box(
+                                Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(appColors.glassFill)
+                                    .clickable { address = "${f.ip}:${f.port}" }.padding(14.dp)
+                            ) { Text("${f.name}  (${f.ip}:${f.port})", color = appColors.textPrimary, fontSize = 14.sp) }
+                        }
+                    }
+                    OutlinedTextField(
+                        value = address,
+                        onValueChange = { address = it },
+                        singleLine = true,
+                        label = { Text("Address (shown on the other phone)") },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = appColors.textPrimary,
+                            unfocusedTextColor = appColors.textPrimary,
+                            focusedBorderColor = appColors.accent,
+                            unfocusedBorderColor = appColors.glassBorder,
+                            focusedLabelColor = appColors.accent,
+                            unfocusedLabelColor = appColors.textSecondary
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = pin,
+                        onValueChange = { pin = it.filter { c -> c.isDigit() }.take(4) },
+                        singleLine = true,
+                        label = { Text("PIN") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = appColors.textPrimary,
+                            unfocusedTextColor = appColors.textPrimary,
+                            focusedBorderColor = appColors.accent,
+                            unfocusedBorderColor = appColors.glassBorder,
+                            focusedLabelColor = appColors.accent,
+                            unfocusedLabelColor = appColors.textSecondary
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    ui.message?.let { Text(it, color = Color(0xFFFF6B6B), fontSize = 13.sp) }
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        GlassDialogButton(
+                            if (ui.status == RxStatus.CONNECTING) "Connecting…" else "Connect",
+                            {
+                                val ip = address.substringBefore(':').trim()
+                                val port = address.substringAfter(':', "").trim().toIntOrNull()
+                                if (ip.isEmpty() || port == null) {
+                                    android.widget.Toast.makeText(ctx, "Enter the address like 192.168.1.5:40000", android.widget.Toast.LENGTH_LONG).show()
+                                } else {
+                                    rx.connect(ip, port, pin, cfg.screenWidthDp.toFloat(), cfg.screenHeightDp.toFloat())
+                                }
+                            },
+                            enabled = ui.status != RxStatus.CONNECTING && pin.length == 4, primary = true
+                        )
+                        GlassDialogButton("Back", onBack)
+                    }
                 }
             }
         }

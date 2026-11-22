@@ -110,8 +110,13 @@ class VaultRepository(
             else -> false
         }
         if (ok) {
-            if (prefs.vaultPinDerived.isEmpty()) setPin(entered) // migrate legacy hash to PBKDF2
-            else { keys.ensureKey(); keys.unlock() }
+            if (prefs.vaultPinDerived.isEmpty() || prefs.vaultPinIterations != PinHasher.DEFAULT_ITERATIONS) {
+                // Migrate legacy hash or upgrade/re-tune older high iteration PBKDF2 to mobile-tuned iterations
+                setPin(entered)
+            } else {
+                keys.ensureKey()
+                keys.unlock()
+            }
             dataStore.saveLockout(LockoutPolicy.onSuccess())
             VerifyResult.Success
         } else {

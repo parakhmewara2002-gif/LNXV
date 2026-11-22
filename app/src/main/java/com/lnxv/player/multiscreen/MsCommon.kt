@@ -7,7 +7,7 @@ import java.io.InputStream
 import java.net.Inet4Address
 import java.net.NetworkInterface
 
-enum class MsMode { SPEAKER, MIRROR, SPAN }
+enum class MsMode { SPEAKER, MIRROR }
 
 /** Shared wire/config values. Messages are one JSON object per line over TCP; media is plain HTTP on the same port. */
 object MsProto {
