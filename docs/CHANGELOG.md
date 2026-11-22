@@ -11,6 +11,7 @@ Unreleased changes from the phased work (each is its own pull request; none veri
 - Bookmarks per video (flag) (#19).
 - Audio effects: Bass Boost, Virtualizer, per-output (speaker/wired/Bluetooth/HDMI) memory (flag) (#27).
 - Recycle bin via system trash (flag) (#29), WebDAV browser, https only (flag) (#30), chapters (flag) (#31).
+- Popup window (#34), SMB (#35) and Cast (#36), all flagged and sideload-only; render tests and string parity guard (#33).
 - Design tokens, `docs/DESIGN_SYSTEM.md`, WCAG contrast tests (#20).
 - Data-driven settings search (#21).
 
