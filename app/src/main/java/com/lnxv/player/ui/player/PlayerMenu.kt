@@ -26,8 +26,16 @@ fun PlayerMoreMenuItems(
     closeMenu: () -> Unit,
     openSleepTimer: () -> Unit,
     onRotateVideo: () -> Unit,
-    onFlipVideo: () -> Unit
+    onFlipVideo: () -> Unit,
+    onMultiScreen: () -> Unit = {}
 ) {
+        PlayerMenuItem(
+            text = { Text("Second screen (Wi-Fi)") },
+            onClick = {
+                closeMenu()
+                onMultiScreen()
+            }
+        )
         PlayerMenuItem(
             text = { Text(if (playbackState.sleepTimerRemainingSeconds != null) "Sleep Timer (active)" else "Sleep Timer") },
             onClick = {

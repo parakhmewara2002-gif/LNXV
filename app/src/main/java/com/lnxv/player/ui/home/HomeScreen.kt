@@ -18,6 +18,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.runtime.LaunchedEffect
 import com.lnxv.player.core.design.icons.VideoLibrary
+import com.lnxv.player.core.design.icons.GraphicEq
 import androidx.compose.foundation.border
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.animateFloatAsState
@@ -115,7 +116,8 @@ fun HomeScreen(
     onVideoClick: (VideoItem) -> Unit,
     onFolderClick: (FolderItem) -> Unit,
     onVaultClick: () -> Unit,
-    onSettingsClick: () -> Unit
+    onSettingsClick: () -> Unit,
+    onReceiveClick: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val selection by viewModel.selection.collectAsState()
@@ -527,6 +529,7 @@ topBar = {
                             IosPillIcon(Icons.Default.Delete, androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.trash_title), { showTrash = true })
                         }
                         IosPillIcon(Icons.Default.Link, "Open network stream", { showStreamDialog = true })
+                        IosPillIcon(Icons.Default.GraphicEq, "Join screen", onReceiveClick)
                         IosPillIcon(Icons.Default.Lock, "Private Vault", onVaultClick)
                         IosPillIcon(Icons.Default.Settings, "Settings", onSettingsClick)
                     }

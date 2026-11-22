@@ -128,3 +128,11 @@ See [`docs/IOS_VISUAL_REDESIGN.md`](docs/IOS_VISUAL_REDESIGN.md) for exact chang
 
 ## Readable track names (NOT DEVICE-TESTED)
 - Audio/subtitle panels now show "English · Stereo · AAC" / "English · SRT · Forced" (`playback/engine/TrackNames.kt`, unit-tested) instead of the container title, which is often only a release tag like "(Movies4u.Foo).". Title is used only when the language is unknown; repeats are still numbered (1), (2).
+
+## Second screen over Wi-Fi (multiscreen)
+- Host: player ⋮ menu → "Second screen (Wi-Fi)". Receiver: Home → Join screen (speaker icon).
+- One TCP port per host: JSON-lines control + HTTP range server for the current local video. PIN-paired, one follower, vault / SMB / WebDAV videos are never shared. Same Wi-Fi or hotspot (Bluetooth cannot carry video).
+- Modes: Speaker (follower plays audio only), Mirror, Span (stacked or side by side, adjustable bezel gap, host top/bottom or left/right).
+- Sync: host state every 500 ms, ping/pong clock offset, seek above 250 ms drift, ±3% speed nudge above 40 ms, manual "play earlier by" delay on the follower.
+- Follower streams through `LanDataSource` (raw socket) because the app forbids cleartext HTTP.
+- Pure maths (`SpanGeometry`, `SyncMath`) unit-tested. NOT tested on two real phones yet.

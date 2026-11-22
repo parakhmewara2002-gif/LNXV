@@ -114,6 +114,9 @@ fun LNXVNavigationHost(navController: NavHostController) {
                 },
                 onSettingsClick = {
                     navController.navigate(Screen.Settings.route)
+                },
+                onReceiveClick = {
+                    navController.navigate(Screen.Receive.route)
                 }
             )
           }
@@ -180,6 +183,10 @@ fun LNXVNavigationHost(navController: NavHostController) {
                 onBackClick = { navController.popBackStack() },
                 onOpenLicenses = { navController.navigate(Screen.Licenses.route) }
             )
+        }
+
+        composable(Screen.Receive.route) {
+            com.lnxv.player.multiscreen.MultiScreenReceiverScreen(onBack = { navController.popBackStack() })
         }
 
         composable(Screen.Licenses.route) {
