@@ -71,11 +71,25 @@ jobs:
             decoders/src/main/jniLibs
           key: native-decoders-${{ runner.os }}-${{ hashFiles('decoders/tools/**') }}
 
+      # Robolectric downloads its android-all jar from Maven at test time; cache it so a Maven hiccup cannot fail the build.
+      - name: Cache Robolectric android-all jars
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: ~/.m2/repository/org/robolectric
+          key: robolectric-${{ runner.os }}-${{ hashFiles('app/build.gradle.kts') }}
+
       - name: Run unit tests
         run: |
           set +e
           ./gradlew testSideloadDebugUnitTest --console=plain > test.log 2>&1
           code=$?
+          # One retry only when the failure is the Robolectric artifact download (network), never for real test failures.
+          if [ $code -ne 0 ] && grep -q "MavenArtifactFetcher" test.log; then
+            echo "Robolectric artifact download failed; retrying once"
+            sleep 20
+            ./gradlew testSideloadDebugUnitTest --console=plain > test.log 2>&1
+            code=$?
+          fi
           python3 .github/scripts/test_summary.py
           if [ $code -ne 0 ]; then
             grep -A3 -E "^e: |FAILED|What went wrong|Execution failed|AssertionError|expected" test.log | head -30 | while IFS= read -r l; do echo "::error::${l:0:400}"; done
