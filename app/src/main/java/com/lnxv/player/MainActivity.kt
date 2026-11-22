@@ -91,8 +91,9 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
         splash.setKeepOnScreenCondition { prefsState.value == null }
         splash.setOnExitAnimationListener { splashScreenView ->
             val iconView = splashScreenView.iconView
-            val scaleX = android.animation.ObjectAnimator.ofFloat(iconView, android.view.View.SCALE_X, 1f, 1.25f, 0.8f, 0f)
-            val scaleY = android.animation.ObjectAnimator.ofFloat(iconView, android.view.View.SCALE_Y, 1f, 1.25f, 0.8f, 0f)
+            val targetView = iconView ?: splashScreenView.view
+            val scaleX = android.animation.ObjectAnimator.ofFloat(targetView, android.view.View.SCALE_X, 1f, 1.25f, 0.8f, 0f)
+            val scaleY = android.animation.ObjectAnimator.ofFloat(targetView, android.view.View.SCALE_Y, 1f, 1.25f, 0.8f, 0f)
             val alpha = android.animation.ObjectAnimator.ofFloat(splashScreenView.view, android.view.View.ALPHA, 1f, 0f)
             val animatorSet = android.animation.AnimatorSet().apply {
                 playTogether(scaleX, scaleY, alpha)
