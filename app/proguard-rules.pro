@@ -24,3 +24,18 @@
 -keep class androidx.media3.decoder.ffmpeg.FfmpegLibrary { *; }
 -keep class androidx.media3.decoder.av1.Dav1dLibrary { *; }
 -keep class com.lnxv.player.decoders.Av1SoftwareGate { *; }
+
+# SMB (smbj, sideload build only). Rules are harmless in the store build where the classes are absent.
+-keep class com.hierynomus.** { *; }
+-keep class net.engio.mbassy.** { *; }
+-keep class org.bouncycastle.** { *; }
+-dontwarn javax.el.**
+-dontwarn org.ietf.jgss.**
+-dontwarn org.slf4j.**
+-dontwarn javax.security.auth.**
+-dontwarn sun.security.**
+-dontwarn com.sun.**
+-dontwarn java.lang.management.**
+-dontwarn org.bouncycastle.**
+-dontwarn com.hierynomus.**
+-dontwarn net.engio.mbassy.**

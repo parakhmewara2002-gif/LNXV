@@ -81,6 +81,11 @@ enum class FeatureFlag(val title: String, val description: String, val defaultEn
         "Adds 'Popup window' to the player menu: plays the video in a small floating window over other apps (sideload build only). Asks you to allow 'Display over other apps'. Not tested on real devices.",
         false
     ),
+    SMB(
+        "SMB shares",
+        "Adds 'Browse SMB' to the network stream dialog (sideload build, Android 8+): sign in to a Windows/NAS share, browse folders and play videos. The password is kept in memory for this session only. Not tested against real servers.",
+        false
+    ),
     BOOKMARKS(
         "Bookmarks",
         "Adds 'Bookmarks' to the player menu: save positions in a video, jump between them. Stored on this device only, per library video (never for vault or network videos).",

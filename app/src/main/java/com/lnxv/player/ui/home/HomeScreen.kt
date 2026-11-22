@@ -183,6 +183,11 @@ fun HomeScreen(
     val recentStreams by viewModel.recentStreams.collectAsState()
     val webDavOn by viewModel.webDavEnabled.collectAsState()
     var showWebDav by remember { mutableStateOf(false) }
+    val smbOn by viewModel.smbEnabled.collectAsState()
+    var showSmb by remember { mutableStateOf(false) }
+    if (showSmb) {
+        SmbDialog(onDismiss = { showSmb = false }, onPlay = { url, title -> viewModel.openSmb(url, title) })
+    }
     if (showWebDav) {
         WebDavDialog(onDismiss = { showWebDav = false }, onPlay = { viewModel.openStream(it, remember = false) })
     }
@@ -200,6 +205,11 @@ fun HomeScreen(
                         placeholder = "https://, HLS (.m3u8), DASH (.mpd), rtsp://",
                         errorText = error
                     )
+                    if (smbOn) {
+                        androidx.compose.material3.TextButton(onClick = { showStreamDialog = false; showSmb = true }) {
+                            Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.smb_browse), fontSize = 13.sp)
+                        }
+                    }
                     if (webDavOn) {
                         androidx.compose.material3.TextButton(onClick = { showStreamDialog = false; showWebDav = true }) {
                             Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.webdav_browse), fontSize = 13.sp)

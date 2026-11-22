@@ -122,6 +122,8 @@ kotlin {
 }
 
 dependencies {
+    // SMB browsing/playback: sideload build only (store build ships no SMB code). Apache-2.0; pulls in BouncyCastle (MIT-style).
+    "sideloadImplementation"("com.hierynomus:smbj:0.13.0")
     testImplementation("junit:junit:4.13.2")
     // org.json is a stub in android.jar; the real implementation is needed for JVM unit tests (tests only, never shipped).
     testImplementation("org.json:json:20240303")

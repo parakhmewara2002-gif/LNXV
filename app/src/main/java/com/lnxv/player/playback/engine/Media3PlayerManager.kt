@@ -154,7 +154,12 @@ class Media3PlayerManager(private val context: Context) : PlayerController, Play
             DefaultMediaSourceFactory(
                 VaultRoutingDataSource.Factory(
                     androidx.media3.datasource.ResolvingDataSource.Factory(
-                        androidx.media3.datasource.DefaultDataSource.Factory(context),
+                        androidx.media3.datasource.DataSource.Factory {
+                            com.lnxv.player.core.smb.SmbRoutingDataSource(
+                                androidx.media3.datasource.DefaultDataSource.Factory(context).createDataSource(),
+                                com.lnxv.player.core.smb.SmbBackends.instance?.newDataSource()
+                            )
+                        },
                         androidx.media3.datasource.ResolvingDataSource.Resolver { spec -> com.lnxv.player.core.webdav.WebDavAuth.resolve(spec) }
                     ),
                     EncryptedDataSource.Factory(

@@ -311,6 +311,23 @@ class HomeViewModel(
         .map { it.isEnabled(com.lnxv.player.core.flags.FeatureFlag.WEBDAV) }
         .stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5000), false)
 
+    val smbEnabled: kotlinx.coroutines.flow.StateFlow<Boolean> = dataStore.userPreferencesFlow
+        .map { it.isEnabled(com.lnxv.player.core.flags.FeatureFlag.SMB) && com.lnxv.player.core.smb.SmbBackends.instance != null }
+        .stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5000), false)
+
+    /** Plays a file from an SMB share the user signed in to; [url] was built by SmbPath so it is already validated. */
+    fun openSmb(url: String, title: String) {
+        session.transientVideo = VideoItem(
+            id = LNXVApplication.TRANSIENT_VIDEO_ID,
+            title = title,
+            uri = android.net.Uri.parse(url),
+            path = "", durationMs = 0L, sizeBytes = 0L, width = 0, height = 0,
+            mimeType = "video/*", dateAddedSec = System.currentTimeMillis() / 1000,
+            folderPath = "Network Streams", folderName = "Network"
+        )
+        session.pendingOpenVideoId.value = LNXVApplication.TRANSIENT_VIDEO_ID
+    }
+
     val recycleBinEnabled: kotlinx.coroutines.flow.StateFlow<Boolean> = dataStore.userPreferencesFlow
         .map { it.isEnabled(com.lnxv.player.core.flags.FeatureFlag.RECYCLE_BIN) && android.os.Build.VERSION.SDK_INT >= 30 }
         .stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5000), false)

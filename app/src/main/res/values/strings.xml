@@ -294,4 +294,11 @@
     <string name="popup_close">Close popup</string>
     <string name="popup_restore">Back to full screen</string>
     <string name="popup_need_permission">Allow “Display over other apps” for LNXV, then choose Popup window again.</string>
+    <!-- SMB (Phase 4g) -->
+    <string name="smb_title">SMB share</string>
+    <string name="smb_browse">Browse SMB…</string>
+    <string name="smb_url_hint">smb://server/share/folder</string>
+    <string name="smb_domain">Domain (optional)</string>
+    <string name="smb_note">Needs the share name in the address. The password is kept in memory until you disconnect or close the app, and is never saved. SMB traffic may not be encrypted on older servers; use it only on networks you trust.</string>
+    <string name="smb_bad_address">Enter an address like smb://server/share</string>
 </resources>

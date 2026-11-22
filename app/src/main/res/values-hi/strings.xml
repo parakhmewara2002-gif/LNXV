@@ -290,4 +290,11 @@
     <string name="popup_close">पॉपअप बंद करें</string>
     <string name="popup_restore">फ़ुल स्क्रीन पर वापस</string>
     <string name="popup_need_permission">LNXV के लिए “दूसरे ऐप्स के ऊपर दिखाएँ” की अनुमति दें, फिर दोबारा पॉपअप विंडो चुनें।</string>
+    <!-- SMB (Phase 4g) -->
+    <string name="smb_title">SMB शेयर</string>
+    <string name="smb_browse">SMB ब्राउज़ करें…</string>
+    <string name="smb_url_hint">smb://server/share/folder</string>
+    <string name="smb_domain">डोमेन (वैकल्पिक)</string>
+    <string name="smb_note">पते में शेयर का नाम ज़रूरी है। पासवर्ड डिस्कनेक्ट करने या ऐप बंद करने तक सिर्फ़ मेमोरी में रहता है, कभी सेव नहीं होता। पुराने सर्वर पर SMB ट्रैफ़िक एन्क्रिप्टेड नहीं हो सकता; इसे सिर्फ़ भरोसेमंद नेटवर्क पर इस्तेमाल करें।</string>
+    <string name="smb_bad_address">smb://server/share जैसा पता दर्ज करें</string>
 </resources>
