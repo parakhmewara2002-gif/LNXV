@@ -86,6 +86,11 @@ enum class FeatureFlag(val title: String, val description: String, val defaultEn
         "Adds 'Browse SMB' to the network stream dialog (sideload build, Android 8+): sign in to a Windows/NAS share, browse folders and play videos. The password is kept in memory for this session only. Not tested against real servers.",
         false
     ),
+    CAST(
+        "Cast (Chromecast)",
+        "Adds 'Cast' to the player menu for network (http/https) videos in the sideload build: send the video to a Chromecast. Local files cannot be cast. Needs Google Play services. Not tested with real devices.",
+        false
+    ),
     BOOKMARKS(
         "Bookmarks",
         "Adds 'Bookmarks' to the player menu: save positions in a video, jump between them. Stored on this device only, per library video (never for vault or network videos).",

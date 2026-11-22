@@ -301,4 +301,6 @@
     <string name="smb_domain">Domain (optional)</string>
     <string name="smb_note">Needs the share name in the address. The password is kept in memory until you disconnect or close the app, and is never saved. SMB traffic may not be encrypted on older servers; use it only on networks you trust.</string>
     <string name="smb_bad_address">Enter an address like smb://server/share</string>
+    <!-- Cast (Phase 4h) -->
+    <string name="menu_cast">Cast to TV…</string>
 </resources>

@@ -2,4 +2,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Popup window only. Sideload build only; the store build does not request it. The user must still allow it in system settings. -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+
+    <application>
+        <!-- Google Cast (sideload build only): uses the Default Media Receiver. -->
+        <meta-data
+            android:name="com.google.android.gms.cast.framework.OPTIONS_PROVIDER_CLASS_NAME"
+            android:value="com.lnxv.player.core.cast.LnxvCastOptionsProvider" />
+    </application>
 </manifest>
