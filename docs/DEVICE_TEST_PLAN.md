@@ -42,6 +42,19 @@ Record device model, Android version, RAM, and result for each line. Mark failur
 - [ ] MKV and M4B with chapters: "Chapters..." appears in the player menu, list is correct, tap jumps, current chapter highlighted.
 - [ ] A video without chapters: no menu item.
 
+## Popup window (sideload, enable POPUP_WINDOW)
+- [ ] Menu > Popup window asks for "Display over other apps"; after allowing, a floating window plays the same video.
+- [ ] Drag works, tap pauses/plays, close button closes, "back to full screen" restores the app and the video still renders.
+- [ ] Store build: no menu item and no overlay permission.
+
+## SMB (sideload, Android 8+, enable SMB)
+- [ ] Network stream dialog > Browse SMB: smb://server/share, sign in, browse, play, seek. Wrong password shows an error.
+- [ ] Store build: no SMB entry.
+
+## Cast (sideload, enable CAST, needs Google Play services)
+- [ ] An https video: Menu > Cast to TV opens the device chooser; the Chromecast plays it; local player pauses.
+- [ ] Local files and WebDAV/SMB videos: no Cast item.
+
 ## Updater
 - [ ] On an older build, "Update available" appears and installs the newest release.
 
