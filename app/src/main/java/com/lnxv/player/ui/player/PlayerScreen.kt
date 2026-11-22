@@ -159,6 +159,7 @@ fun PlayerScreen(
     var overlayState by remember { mutableStateOf(GestureOverlayState()) }
     var isMoreMenuOpen by remember { mutableStateOf(false) }
     var showSleepDialog by remember { mutableStateOf(false) }
+    var showMultiScreen by remember { mutableStateOf(false) }
     var orientationMode by remember { mutableIntStateOf(0) }
     var videoRotation by remember { mutableIntStateOf(0) }
     var videoFlip by remember { mutableStateOf(false) }
@@ -357,6 +358,17 @@ fun PlayerScreen(
         )
         }
 
+        com.lnxv.player.multiscreen.MultiScreenHostHooks(
+            player = playerManager.exoPlayer,
+            onRestore = { playerViewRef?.let { v -> v.player = null; v.player = playerManager.exoPlayer } }
+        )
+        if (showMultiScreen) {
+            com.lnxv.player.multiscreen.MultiScreenHostDialog(
+                player = playerManager.exoPlayer,
+                onDismiss = { showMultiScreen = false }
+            )
+        }
+
         val audioOnlyActive by viewModel.audioOnly.collectAsState()
         if (audioOnlyActive) {
             Box(
@@ -521,7 +533,8 @@ fun PlayerScreen(
                 closeMenu = { isMoreMenuOpen = false },
                 openSleepTimer = { showSleepDialog = true },
                 onRotateVideo = { videoRotation = (videoRotation + 90) % 360 },
-                onFlipVideo = { videoFlip = !videoFlip }
+                onFlipVideo = { videoFlip = !videoFlip },
+                onMultiScreen = { showMultiScreen = true }
             )
         }
 
