@@ -77,6 +77,8 @@ jobs:
         with:
           path: ~/.m2/repository/org/robolectric
           key: robolectric-${{ runner.os }}-${{ hashFiles('app/build.gradle.kts') }}
+          restore-keys: |
+            robolectric-${{ runner.os }}-
 
       - name: Run unit tests
         run: |
