@@ -85,9 +85,9 @@ jobs:
           set +e
           ./gradlew testSideloadDebugUnitTest --console=plain > test.log 2>&1
           code=$?
-          # One retry only when the failure is the Robolectric artifact download (network), never for real test failures.
-          if [ $code -ne 0 ] && grep -q "MavenArtifactFetcher" test.log; then
-            echo "Robolectric artifact download failed; retrying once"
+          # Retry when the failure is a transient dependency/Robolectric download issue (network), never for real test failures.
+          if [ $code -ne 0 ] && grep -q -E "MavenArtifactFetcher|Could not download|Could not resolve all files" test.log; then
+            echo "Transient dependency download failed; retrying with --stacktrace"
             sleep 20
             ./gradlew testSideloadDebugUnitTest --console=plain > test.log 2>&1
             code=$?
