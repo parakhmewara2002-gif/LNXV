@@ -289,4 +289,9 @@
     <string name="webdav_up">Up one folder</string>
     <string name="webdav_empty">No folders or videos here.</string>
     <string name="webdav_note">Only https:// servers are supported. The password is kept in memory until you disconnect or close the app, and is never saved.</string>
+    <!-- Popup window (Phase 4f) -->
+    <string name="menu_popup">Popup window</string>
+    <string name="popup_close">Close popup</string>
+    <string name="popup_restore">Back to full screen</string>
+    <string name="popup_need_permission">Allow “Display over other apps” for LNXV, then choose Popup window again.</string>
 </resources>

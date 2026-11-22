@@ -76,6 +76,11 @@ enum class FeatureFlag(val title: String, val description: String, val defaultEn
         "Adds 'Browse WebDAV' to the network stream dialog: sign in to your own WebDAV server (https only), browse folders and play videos. The password is kept in memory for this session only. Not tested against real servers.",
         false
     ),
+    POPUP_WINDOW(
+        "Popup window",
+        "Adds 'Popup window' to the player menu: plays the video in a small floating window over other apps (sideload build only). Asks you to allow 'Display over other apps'. Not tested on real devices.",
+        false
+    ),
     BOOKMARKS(
         "Bookmarks",
         "Adds 'Bookmarks' to the player menu: save positions in a video, jump between them. Stored on this device only, per library video (never for vault or network videos).",
