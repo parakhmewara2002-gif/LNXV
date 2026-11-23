@@ -53,6 +53,8 @@ class KeystoreKeyWrapper(private val alias: String = "lnxv_vault_wrap_v1") : Key
     }
 
     override fun unwrap(wrapped: ByteArray): ByteArray {
+        // 12-byte GCM IV + 32-byte master key + 16-byte authentication tag.
+        if (wrapped.size != 60) throw java.io.IOException("Corrupt wrapped vault key")
         val c = Cipher.getInstance("AES/GCM/NoPadding")
         c.init(Cipher.DECRYPT_MODE, key(), GCMParameterSpec(128, wrapped, 0, 12))
         return c.doFinal(wrapped, 12, wrapped.size - 12)
@@ -93,7 +95,12 @@ class VaultKeyManager(private val keyFile: File, private val wrapper: KeyWrapper
     @Synchronized
     fun unlock() {
         if (sessionKey != null) return
-        sessionKey = wrapper.unwrap(keyFile.readBytes())
+        val raw = wrapper.unwrap(keyFile.readBytes())
+        if (raw.size != 32) {
+            raw.fill(0)
+            throw java.io.IOException("Invalid vault master key length")
+        }
+        sessionKey = raw
     }
 
     /** Unlocks with an already unwrapped 32-byte master key (biometric path). The array is copied, callers should zero theirs. */
