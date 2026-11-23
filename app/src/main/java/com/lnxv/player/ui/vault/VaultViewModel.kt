@@ -85,6 +85,7 @@ class VaultViewModel(
     }
 
     private fun onAuthenticated() {
+        transfers.resumeAccepting()
         viewModelScope.launch { vaultRepo.cleanupOrphans() }
     }
 
