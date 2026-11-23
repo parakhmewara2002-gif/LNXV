@@ -15,8 +15,7 @@ class OnlineSubtitleStore(context: Context) {
     private fun keyFor(videoId: Long): String =
         MessageDigest.getInstance("SHA-256").digest("video:$videoId".toByteArray()).joinToString("") { "%02x".format(it) }.take(32)
 
-    @Synchronized
-    fun save(videoId: Long, srt: ByteArray): File {
+    fun save(videoId: Long, srt: ByteArray): File = synchronized(STORAGE_LOCK) {
         if (srt.isEmpty() || srt.size > MAX_SUBTITLE_BYTES) throw IOException("Subtitle file is empty or too large")
         if (!dir.exists() && !dir.mkdirs()) throw IOException("Could not create subtitle storage")
         val file = File(dir, keyFor(videoId) + ".srt")
@@ -28,27 +27,26 @@ class OnlineSubtitleStore(context: Context) {
                 output.fd.sync()
             }
             if (!temp.renameTo(file)) throw IOException("Could not save subtitle file")
-            return file
+            file
         } finally {
             if (temp.exists()) temp.delete()
         }
     }
 
-    @Synchronized
-    fun find(videoId: Long): File? =
+    fun find(videoId: Long): File? = synchronized(STORAGE_LOCK) {
         File(dir, keyFor(videoId) + ".srt").takeIf { it.isFile && it.length() in 1..MAX_SUBTITLE_BYTES.toLong() }
+    }
 
-    @Synchronized
-    fun forget(videoId: Long) {
+    fun forget(videoId: Long) = synchronized(STORAGE_LOCK) {
         val file = File(dir, keyFor(videoId) + ".srt")
         file.delete()
         File(dir, file.name + ".tmp").delete()
     }
 
-    @Synchronized
-    fun clearAll() { dir.listFiles()?.forEach { it.delete() } }
+    fun clearAll() = synchronized(STORAGE_LOCK) { dir.listFiles()?.forEach { it.delete() } }
 
     companion object {
         private const val MAX_SUBTITLE_BYTES = 4 * 1024 * 1024
+        private val STORAGE_LOCK = Any()
     } }
 }
