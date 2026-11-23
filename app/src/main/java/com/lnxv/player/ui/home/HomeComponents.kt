@@ -1,5 +1,7 @@
 package com.lnxv.player.ui.home
 
+import com.lnxv.player.R
+
 import com.lnxv.player.core.design.GlassButton
 import com.lnxv.player.core.design.DestructiveRed
 import com.lnxv.player.core.design.GlassDropdownMenu
