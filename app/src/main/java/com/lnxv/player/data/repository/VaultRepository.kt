@@ -358,9 +358,10 @@ class VaultRepository(
                 if (deleted > 0) {
                     OriginalDeleteResult.Deleted
                 } else {
-                    val stillExists = context.contentResolver.query(
+                    val cursor = context.contentResolver.query(
                         uri, arrayOf(MediaStore.Video.Media._ID), null, null, null
-                    )?.use { it.moveToFirst() } == true
+                    ) ?: return OriginalDeleteResult.Failed
+                    val stillExists = cursor.use { it.moveToFirst() }
                     if (stillExists) OriginalDeleteResult.Failed else OriginalDeleteResult.Deleted
                 }
             }
