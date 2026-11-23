@@ -161,10 +161,13 @@ class VaultRepository(
         var stored: ByteArray? = null
         var iv: ByteArray? = null
         try {
-            ciphertext = cipher.doFinal(key)
-            iv = cipher.iv
-            stored = iv + ciphertext
-            bioFile.writeBytes(stored)
+            val encryptedKey = cipher.doFinal(key)
+            val nonce = cipher.iv
+            val wrappedKey = nonce + encryptedKey
+            ciphertext = encryptedKey
+            iv = nonce
+            stored = wrappedKey
+            bioFile.writeBytes(wrappedKey)
             true
         } catch (e: Exception) {
             clearBiometric(); false
