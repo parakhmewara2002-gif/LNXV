@@ -591,7 +591,7 @@ fun VideoGridCard(
                             }
                         )
                         DropdownMenuItem(
-                            text = { Text("Delete", color = DestructiveRed) },
+                            text = { Text(stringResource(R.string.remove_from_library), color = DestructiveRed) },
                             onClick = {
                                 onDelete()
                                 isMenuOpen = false
