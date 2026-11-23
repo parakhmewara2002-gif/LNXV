@@ -48,5 +48,5 @@ class OnlineSubtitleStore(context: Context) {
     companion object {
         private const val MAX_SUBTITLE_BYTES = 4 * 1024 * 1024
         private val STORAGE_LOCK = Any()
-    } }
+    }
 }
