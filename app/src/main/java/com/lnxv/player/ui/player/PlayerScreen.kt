@@ -315,27 +315,20 @@ fun PlayerScreen(
                             )
                             settings.javaScriptEnabled = true
                             settings.domStorageEnabled = true
+                            settings.databaseEnabled = true
                             settings.mediaPlaybackRequiresUserGesture = false
                             settings.userAgentString = "Mozilla/5.0 (Linux; Android 11; TECNO CG7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
                             webChromeClient = android.webkit.WebChromeClient()
-                            webViewClient = android.webkit.WebViewClient()
-                            val embedHtml = """
-                                <!DOCTYPE html>
-                                <html>
-                                <head>
-                                <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-                                <style>
-                                  * { box-sizing: border-box; }
-                                  body, html { margin: 0; padding: 0; width: 100%; height: 100%; background-color: #000; overflow: hidden; }
-                                  iframe { border: none; width: 100%; height: 100%; position: absolute; top: 0; left: 0; }
-                                </style>
-                                </head>
-                                <body>
-                                <iframe src="https://www.youtube.com/embed/$yId?autoplay=1&playsinline=1&controls=1&enablejsapi=1&fs=1&rel=0" allow="autoplay; fullscreen; encrypted-media; picture-in-picture" allowfullscreen></iframe>
-                                </body>
-                                </html>
-                            """.trimIndent()
-                            loadDataWithBaseURL("https://www.youtube.com", embedHtml, "text/html", "UTF-8", null)
+                            webViewClient = object : android.webkit.WebViewClient() {
+                                override fun shouldOverrideUrlLoading(view: android.webkit.WebView?, request: android.webkit.WebResourceRequest?): Boolean {
+                                    return false
+                                }
+                            }
+                            val cookieManager = android.webkit.CookieManager.getInstance()
+                            cookieManager.setAcceptCookie(true)
+                            cookieManager.setAcceptThirdPartyCookies(this, true)
+                            // Load direct mobile web watch page so NO restrictions apply, exactly like Chrome!
+                            loadUrl("https://m.youtube.com/watch?v=$yId")
                         }
                     }
                 )
