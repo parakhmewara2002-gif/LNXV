@@ -20,7 +20,7 @@ class SmbjBackend : SmbBackend {
                     val session = try {
                         conn.authenticate(AuthenticationContext(creds.user, password, creds.domain))
                     } finally {
-                        password.fill('\\u0000')
+                        password.fill('\u0000')
                     }
                     (session.connectShare(path.share) as? DiskShare)?.use { share ->
                         val entries = share.list(path.path.replace('/', '\\')).mapNotNull { f ->
