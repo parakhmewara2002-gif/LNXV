@@ -209,7 +209,7 @@ fun GlassButton(
     val reduceEffects = LocalReduceEffects.current
     val scale by animateFloatAsState(
         targetValue = if (!reduceEffects && isPressed) 0.92f else 1.0f,
-        animationSpec = spring(
+        animationSpec = if (reduceEffects) androidx.compose.animation.core.tween(0) else spring(
             dampingRatio = 0.70f,
             stiffness = 380f
         ),
