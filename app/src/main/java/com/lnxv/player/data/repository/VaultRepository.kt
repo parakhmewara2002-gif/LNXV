@@ -421,7 +421,6 @@ class VaultRepository(
             key.fill(0)
         }
         // Restore succeeded: drop the encrypted copy and the vault row (rescan re-adds the video).
-        videoDao.deleteThumb(videoId)
         videoDao.deleteVideo(videoId)
         enc.delete()
         onProgress(1f)
