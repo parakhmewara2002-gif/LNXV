@@ -43,7 +43,7 @@ LNXV is an advanced, production-ready Android video player built with **Jetpack 
 * Sorting (Date, Title, Size, Duration) and real-time search.
 
 ### Private Vault & Security Model
-* **Encryption:** videos moved to the vault are copied into `filesDir/lnxv_vault/<uuid>.lnxv` as chunked AES-256-GCM (64 KB chunks, per-chunk nonce and AAD, truncation/reordering detected). The original is deleted from MediaStore after a full decrypt-and-hash verification. Playback decrypts in memory through a custom Media3 `DataSource`; plaintext is never written to disk or cache.
+* **Encryption:** videos moved to the vault are copied into `filesDir/lnxv_vault/<uuid>.lnxv` as chunked AES-256-GCM (256 KB encryption chunks, 96-bit per-file nonce base with per-chunk counter and AAD, truncation/reordering detected; legacy vault files remain readable). The original is deleted from MediaStore after a full decrypt-and-hash verification. Playback decrypts in memory through a custom Media3 `DataSource`; plaintext is never written to disk or cache.
 * **Keys:** a random 32-byte master key is wrapped by an Android Keystore AES-GCM key (StrongBox when available). The key is only in memory while the vault is unlocked and is zeroed on lock.
 * **PIN:** 4-8 digits (6 recommended), PBKDF2WithHmacSHA256 (25,000 iterations) with a random per-install salt, constant-time comparison, persisted lockout after 5 wrong attempts (30 s, 1 m, 5 m, 15 m, 1 h).
 * **Session:** auto-lock on background (immediately / 30 s / 1 m / 5 m) and screen-off; FLAG_SECURE on vault screens and vault playback; optional "Block screenshots everywhere".
