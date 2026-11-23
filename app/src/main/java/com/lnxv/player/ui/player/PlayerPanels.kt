@@ -154,12 +154,13 @@ fun BoxScope.PlayerSidePanel(
     backdrop: ImageBitmap? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
+    val reduceEffects = com.lnxv.player.core.design.LocalReduceEffects.current
     BackHandler(enabled = visible) { onDismiss() }
 
     AnimatedVisibility(
         visible = visible,
-        enter = fadeIn(tween(200)),
-        exit = fadeOut(tween(160)),
+        enter = fadeIn(tween(if (reduceEffects) 0 else 200)),
+        exit = fadeOut(tween(if (reduceEffects) 0 else 160)),
         modifier = Modifier.matchParentSize()
     ) {
         Box(
@@ -183,10 +184,10 @@ fun BoxScope.PlayerSidePanel(
             val shape = RoundedCornerShape(topStart = 28.dp, bottomStart = 28.dp)
             AnimatedVisibility(
                 visible = visible,
-                enter = slideInHorizontally(
+                enter = if (reduceEffects) fadeIn(tween(0)) else slideInHorizontally(
                     animationSpec = spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessMediumLow, visibilityThreshold = IntOffset.VisibilityThreshold)
                 ) { it } + fadeIn(tween(180)),
-                exit = slideOutHorizontally(animationSpec = tween(200)) { it } + fadeOut(tween(160)),
+                exit = if (reduceEffects) fadeOut(tween(0)) else slideOutHorizontally(animationSpec = tween(200)) { it } + fadeOut(tween(160)),
                 modifier = Modifier.align(Alignment.CenterEnd)
             ) {
                 PanelSurface(
@@ -205,10 +206,10 @@ fun BoxScope.PlayerSidePanel(
             val shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
             AnimatedVisibility(
                 visible = visible,
-                enter = slideInVertically(
+                enter = if (reduceEffects) fadeIn(tween(0)) else slideInVertically(
                     animationSpec = spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessMediumLow, visibilityThreshold = IntOffset.VisibilityThreshold)
                 ) { it } + fadeIn(tween(180)),
-                exit = slideOutVertically(animationSpec = tween(200)) { it } + fadeOut(tween(160)),
+                exit = if (reduceEffects) fadeOut(tween(0)) else slideOutVertically(animationSpec = tween(200)) { it } + fadeOut(tween(160)),
                 modifier = Modifier.align(Alignment.BottomCenter)
             ) {
                 PanelSurface(
@@ -305,12 +306,13 @@ fun BoxScope.PlayerOverflowMenu(
     backdrop: ImageBitmap? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
+    val reduceEffects = com.lnxv.player.core.design.LocalReduceEffects.current
     BackHandler(enabled = visible) { onDismiss() }
 
     AnimatedVisibility(
         visible = visible,
-        enter = fadeIn(tween(120)),
-        exit = fadeOut(tween(120)),
+        enter = fadeIn(tween(if (reduceEffects) 0 else 120)),
+        exit = fadeOut(tween(if (reduceEffects) 0 else 120)),
         modifier = Modifier.matchParentSize()
     ) {
         Box(
@@ -332,8 +334,8 @@ fun BoxScope.PlayerOverflowMenu(
         val menuTop = 56.dp
         AnimatedVisibility(
             visible = visible,
-            enter = fadeIn(tween(140)) + scaleIn(initialScale = 0.94f, transformOrigin = TransformOrigin(1f, 0f), animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMediumLow)),
-            exit = fadeOut(tween(90)) + scaleOut(targetScale = 0.94f, transformOrigin = TransformOrigin(1f, 0f), animationSpec = tween(90)),
+            enter = if (reduceEffects) fadeIn(tween(0)) else fadeIn(tween(140)) + scaleIn(initialScale = 0.94f, transformOrigin = TransformOrigin(1f, 0f), animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMediumLow)),
+            exit = if (reduceEffects) fadeOut(tween(0)) else fadeOut(tween(90)) + scaleOut(targetScale = 0.94f, transformOrigin = TransformOrigin(1f, 0f), animationSpec = tween(90)),
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .padding(top = menuTop, end = menuEnd)
