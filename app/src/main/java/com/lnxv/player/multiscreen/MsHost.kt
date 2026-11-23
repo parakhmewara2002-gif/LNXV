@@ -28,7 +28,6 @@ import java.net.Socket
 import java.net.SocketTimeoutException
 import java.security.SecureRandom
 import java.util.concurrent.ArrayBlockingQueue
-import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
@@ -93,7 +92,7 @@ class MsHost(private val context: Context, private val player: ExoPlayer) {
     private var regListener: NsdManager.RegistrationListener? = null
     private val originalVolume = player.volume
     private data class AuthWindow(val startedAtMs: Long, var failures: Int)
-    private val failedPinAttempts = ConcurrentHashMap<String, AuthWindow>()
+    private val failedPinAttempts = mutableMapOf<String, AuthWindow>()
 
     private val playerListener = object : Player.Listener {
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) { refreshMedia(); broadcastState() }
@@ -311,29 +310,30 @@ class MsHost(private val context: Context, private val player: ExoPlayer) {
         }
     }
 
+    @Synchronized
     private fun recordPinAttempt(ip: String, success: Boolean): Boolean {
         val now = SystemClock.elapsedRealtime()
-        var blocked = false
-        failedPinAttempts.compute(ip) { _, previous ->
-            val window = if (previous == null || now - previous.startedAtMs > 60_000L) {
-                AuthWindow(now, 0)
-            } else {
-                previous
-            }
-            if (window.failures >= 5) {
-                blocked = true
-                window
-            } else if (success) {
-                null
-            } else {
-                window.failures++
-                window
-            }
+        val previous = failedPinAttempts[ip]
+        val window = if (previous == null || now - previous.startedAtMs > 60_000L) {
+            AuthWindow(now, 0)
+        } else {
+            previous
         }
+        if (window.failures >= 5) return false
+        if (success) {
+            failedPinAttempts.remove(ip)
+            return true
+        }
+        window.failures++
+        failedPinAttempts[ip] = window
         if (failedPinAttempts.size > 128) {
-            failedPinAttempts.entries.removeIf { now - it.value.startedAtMs > 60_000L }
+            val iterator = failedPinAttempts.iterator()
+            while (iterator.hasNext()) {
+                val entry = iterator.next()
+                if (now - entry.value.startedAtMs > 60_000L) iterator.remove()
+            }
         }
-        return !blocked
+        return true
     }
 
     private fun control(s: Socket, input: InputStream, firstLine: String) {
