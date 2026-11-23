@@ -30,6 +30,8 @@ class WebDavParserTest {
     @Test fun rejectsSameHostPathsOutsideConfiguredRoot() {
         assertTrue(WebDavParser.parse(response("/private/clip.mp4"), "https://nas.local/dav/").isEmpty())
         assertTrue(WebDavParser.parse(response("/dav2/clip.mp4"), "https://nas.local/dav/").isEmpty())
+        assertTrue(WebDavParser.parse(response("/dav/%2e%2e%2fsecret.mp4"), "https://nas.local/dav/").isEmpty())
+        assertTrue(WebDavParser.parse(response("/dav/%2e%2e/secret.mp4"), "https://nas.local/dav/").isEmpty())
     }
 
     @Test fun rejectsOtherOriginsSchemesAndPorts() {
