@@ -9,6 +9,7 @@ import com.lnxv.player.core.design.ambientBackground
 import com.lnxv.player.core.design.appColors
 import com.lnxv.player.core.design.bouncyClickable
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.runtime.LaunchedEffect
 import com.lnxv.player.core.design.icons.VideoLibrary
@@ -245,7 +246,7 @@ fun VideoItemRow(
                         }
                     )
                     DropdownMenuItem(
-                        text = { Text("Delete", color = DestructiveRed) },
+                        text = { Text(stringResource(R.string.remove_from_library), color = DestructiveRed) },
                         onClick = {
                             onDelete()
                             isMenuOpen = false
