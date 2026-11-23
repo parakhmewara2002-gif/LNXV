@@ -68,6 +68,10 @@ class VaultRepository(
 ) {
     private val vaultDir: File get() = VaultFiles.dir(context)
 
+    private companion object {
+        const val MAX_THUMBNAIL_BYTES = 4 * 1024 * 1024
+    }
+
     val isUnlocked: Boolean get() = keys.isUnlocked
 
     val vaultVideosFlow: Flow<List<VideoItem>> = videoDao.getVaultVideos().map { entities ->
@@ -445,6 +449,7 @@ class VaultRepository(
         val key = keys.requireKey()
         try {
             ChunkedAead.Reader(ChunkedAead.BytesSource(enc), key).use { r ->
+                if (r.plainSize !in 1..MAX_THUMBNAIL_BYTES.toLong()) return@withContext null
                 val out = ByteArray(r.plainSize.toInt())
                 var pos = 0
                 while (pos < out.size) {
