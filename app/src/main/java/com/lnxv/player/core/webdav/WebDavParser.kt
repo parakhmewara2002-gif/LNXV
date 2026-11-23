@@ -38,7 +38,7 @@ object WebDavParser {
             if (resolved.scheme != base.scheme ||
                 !resolved.host.equals(base.host, ignoreCase = true) ||
                 resolved.port != base.port ||
-                resolved.userInfo != null
+                (resolved.userInfo != null && resolved.userInfo != base.userInfo)
             ) continue // same origin only; never follow another host, scheme or port
             val path = resolved.path ?: continue
             val normalizedPath = normPath(path)
