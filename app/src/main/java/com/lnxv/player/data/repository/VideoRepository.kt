@@ -62,7 +62,7 @@ class VideoRepository(
         // Remove videos that no longer exist on the device (vault items are kept)
         val scannedIds = scanned.mapTo(HashSet()) { it.id }
         // Safeguard against transient MediaStore scanner drops / partial unmounts:
-        // Only prune missing videos if scanner returned a substantial portion (>50% of existing library)
+        // Only prune missing videos if scanner returned at least 80% of the existing library
         val candidates = existing.values.filter { !it.isVault }
         // Android 14+ can return only user-selected videos. A partial grant is never a complete
         // library snapshot, even when the library is small, so it must not prune hidden rows.
@@ -72,10 +72,8 @@ class VideoRepository(
             ContextCompat.checkSelfPermission(context, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
         }
         if (scanned.isEmpty()) {
-            // A successful full-access query with zero videos is a real empty library, not a scanner failure.
-            if (hasFullAccess) {
-                candidates.map { it.id }.chunked(500).forEach { videoDao.deleteVideosByIds(it) }
-                subtitleStore.clearAll()
+            if (hasFullAccess && candidates.isNotEmpty()) {
+                android.util.Log.w("VideoRepository", "Empty full-access scan; preserving existing library metadata")
             }
             return@withContext
         }
