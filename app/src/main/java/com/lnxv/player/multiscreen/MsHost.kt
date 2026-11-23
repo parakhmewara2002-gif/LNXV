@@ -27,7 +27,11 @@ import java.net.ServerSocket
 import java.net.Socket
 import java.net.SocketTimeoutException
 import java.security.SecureRandom
+import java.util.concurrent.ArrayBlockingQueue
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ExecutorService
+import java.util.concurrent.ThreadPoolExecutor
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.Executors
 
 data class HostUi(
@@ -74,7 +78,10 @@ object MultiScreen {
  */
 class MsHost(private val context: Context, private val player: ExoPlayer) {
     private val main = Handler(Looper.getMainLooper())
-    private val pool: ExecutorService = Executors.newCachedThreadPool()
+    // Bound concurrent socket handlers and queued handshakes; LAN peers must not create unbounded threads.
+    private val pool: ExecutorService = ThreadPoolExecutor(
+        4, 4, 0L, TimeUnit.MILLISECONDS, ArrayBlockingQueue(8), ThreadPoolExecutor.AbortPolicy()
+    )
     private val _ui = MutableStateFlow(HostUi())
     val ui: StateFlow<HostUi> = _ui.asStateFlow()
 
@@ -86,6 +93,8 @@ class MsHost(private val context: Context, private val player: ExoPlayer) {
     private var nsd: NsdManager? = null
     private var regListener: NsdManager.RegistrationListener? = null
     private val originalVolume = player.volume
+    private data class AuthWindow(val startedAtMs: Long, var failures: Int)
+    private val failedPinAttempts = ConcurrentHashMap<String, AuthWindow>()
 
     private val playerListener = object : Player.Listener {
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) { refreshMedia(); broadcastState() }
@@ -112,7 +121,7 @@ class MsHost(private val context: Context, private val player: ExoPlayer) {
         return try {
             val ss = ServerSocket(0)
             server = ss
-            val pin = (1000 + SecureRandom().nextInt(9000)).toString()
+            val pin = (100000 + SecureRandom().nextInt(900000)).toString()
             token = randomToken()
             _ui.value = _ui.value.copy(running = true, ip = localLanIp(), port = ss.localPort, pin = pin, hostMuted = _ui.value.mode == MsMode.SPEAKER)
             pool.execute { acceptLoop(ss) }
@@ -303,11 +312,39 @@ class MsHost(private val context: Context, private val player: ExoPlayer) {
         }
     }
 
+    private fun recordPinAttempt(ip: String, success: Boolean): Boolean {
+        val now = SystemClock.elapsedRealtime()
+        var blocked = false
+        failedPinAttempts.compute(ip) { _, previous ->
+            val window = if (previous == null || now - previous.startedAtMs > 60_000L) {
+                AuthWindow(now, 0)
+            } else {
+                previous
+            }
+            if (success) {
+                null
+            } else if (window.failures >= 5) {
+                blocked = true
+                window
+            } else {
+                window.failures++
+                window
+            }
+        }
+        if (failedPinAttempts.size > 128) {
+            failedPinAttempts.entries.removeIf { now - it.value.startedAtMs > 60_000L }
+        }
+        return !blocked
+    }
+
     private fun control(s: Socket, input: InputStream, firstLine: String) {
         val out = s.getOutputStream()
         val hello = try { JSONObject(firstLine) } catch (e: Exception) { s.close(); return }
         fun reply(j: JSONObject) { out.write((j.toString() + "\n").toByteArray()); out.flush() }
-        if (hello.optString("t") != "hello" || hello.optString("pin") != _ui.value.pin) {
+        val peerIp = s.inetAddress?.hostAddress.orEmpty()
+        val isHello = hello.optString("t") == "hello"
+        val pinMatches = isHello && hello.optString("pin") == _ui.value.pin
+        if (!recordPinAttempt(peerIp, pinMatches) || !pinMatches) {
             reply(JSONObject().put("t", "deny")); s.close(); return
         }
         if (client != null) { reply(JSONObject().put("t", "busy")); s.close(); return }
