@@ -93,6 +93,8 @@ class LNXVApplication : Application(), ImageLoaderFactory {
         appScope.launch(Dispatchers.Main) {
             if (!vaultKeyManager.isUnlocked) return@launch
             vaultTransfers.cancelAllAndJoin()
+            // Close the separate overlay window too; Activity FLAG_SECURE does not protect it.
+            com.lnxv.player.playback.popup.PopupWindowController.hide()
             if (playingVaultItem && isPlayerInitialized) playerManager.stopPlayback()
             vaultRepository.lock()
             playingVaultItem = false
