@@ -72,6 +72,11 @@ fun PlayerGestureDetector(
 
     val latestDuration by rememberUpdatedState(durationMs)
     val latestPosition by rememberUpdatedState(currentPositionProvider)
+    val latestSingleTap by rememberUpdatedState(onSingleTap)
+    val latestDoubleTapSeek by rememberUpdatedState(onDoubleTapSeek)
+    val latestDoubleTapCenter by rememberUpdatedState(onDoubleTapCenter)
+    val latestLongPressStart by rememberUpdatedState(onLongPressStart)
+    val latestLongPressEnd by rememberUpdatedState(onLongPressEnd)
     val latestOverlayCallback by rememberUpdatedState(onOverlayStateChanged)
     val latestSeekCommit by rememberUpdatedState(onSeekCommitted)
     val latestBrightnessEnabled by rememberUpdatedState(brightnessEnabled)
@@ -89,7 +94,7 @@ fun PlayerGestureDetector(
             .fillMaxSize()
             .pointerInput(isLocked) {
                 if (isLocked) {
-                    detectTapGestures(onTap = { onSingleTap() })
+                    detectTapGestures(onTap = { latestSingleTap() })
                     return@pointerInput
                 }
 
@@ -99,22 +104,22 @@ fun PlayerGestureDetector(
                         tryAwaitRelease()
                         if (longPressed) {
                             longPressed = false
-                            onLongPressEnd()
+                            latestLongPressEnd()
                         }
                     },
-                    onTap = { onSingleTap() },
+                    onTap = { latestSingleTap() },
                     onDoubleTap = { offset ->
                         val screenWidth = size.width
                         when {
-                            offset.x < screenWidth * 0.35f -> onDoubleTapSeek(-latestDoubleTapMs)
-                            offset.x > screenWidth * 0.65f -> onDoubleTapSeek(latestDoubleTapMs)
-                            else -> onDoubleTapCenter()
+                            offset.x < screenWidth * 0.35f -> latestDoubleTapSeek(-latestDoubleTapMs)
+                            offset.x > screenWidth * 0.65f -> latestDoubleTapSeek(latestDoubleTapMs)
+                            else -> latestDoubleTapCenter()
                         }
                     },
                     onLongPress = {
                         if (latestLongPressEnabled) {
                             longPressed = true
-                            onLongPressStart()
+                            latestLongPressStart()
                         }
                     }
                 )
