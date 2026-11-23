@@ -16,7 +16,7 @@ object WebDavAuth {
         return try {
             "Basic " + base64(bytes)
         } finally {
-            bytes.fill('\\u0000')
+            bytes.fill('\u0000')
         }
     }
 
