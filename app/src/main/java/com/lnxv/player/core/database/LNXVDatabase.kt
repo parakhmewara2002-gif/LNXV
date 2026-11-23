@@ -66,7 +66,7 @@ abstract class LNXVDatabase : RoomDatabase() {
                     "lnxv_database"
                 )
                     .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
-                    .fallbackToDestructiveMigrationOnDowngrade()
+                    // Do not silently erase the user's library when an older APK is installed.
                     .build()
                 INSTANCE = instance
                 instance

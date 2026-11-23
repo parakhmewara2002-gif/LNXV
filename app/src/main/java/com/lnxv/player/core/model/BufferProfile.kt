@@ -10,7 +10,7 @@ data class BufferProfile(
 )
 
 object BufferProfiles {
-    private val NETWORK_SCHEMES = setOf("http", "https", "rtsp")
+    private val NETWORK_SCHEMES = setOf("http", "https", "rtsp", "smb")
     private const val MB = 1024 * 1024
 
     fun isNetwork(scheme: String?): Boolean = scheme != null && scheme.lowercase() in NETWORK_SCHEMES

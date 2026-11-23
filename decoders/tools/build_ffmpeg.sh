@@ -11,7 +11,7 @@ SRC="${THIRD_PARTY}/ffmpeg"
 fetch_pinned "${FFMPEG_REPO}" "${FFMPEG_TAG}" "${FFMPEG_COMMIT}" "${SRC}"
 
 JOBS="$(nproc 2>/dev/null || echo 4)"
-LINK_FLAGS="-Wl,-z,max-page-size=16384"
+LINK_FLAGS="-Wl,-z,max-page-size=16384 -Wl,-z,common-page-size=16384"
 
 for abi in $(abi_list "$@"); do
   case "${abi}" in

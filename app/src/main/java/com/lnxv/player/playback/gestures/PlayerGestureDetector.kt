@@ -3,6 +3,7 @@ package com.lnxv.player.playback.gestures
 import androidx.compose.runtime.Immutable
 import android.app.Activity
 import android.content.Context
+import android.content.ContextWrapper
 import android.media.AudioManager
 import android.view.WindowManager
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -26,6 +27,15 @@ import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import kotlin.math.abs
+
+private fun Context.findActivity(): Activity? {
+    var current: Context = this
+    while (true) {
+        if (current is Activity) return current
+        if (current !is ContextWrapper) return null
+        current = current.baseContext
+    }
+}
 
 enum class GestureType {
     NONE,
@@ -68,10 +78,15 @@ fun PlayerGestureDetector(
 ) {
     val context = LocalContext.current
     val audioManager = remember { context.getSystemService(Context.AUDIO_SERVICE) as AudioManager }
-    val activity = remember { context as? Activity }
+    val activity = remember(context) { context.findActivity() }
 
     val latestDuration by rememberUpdatedState(durationMs)
     val latestPosition by rememberUpdatedState(currentPositionProvider)
+    val latestSingleTap by rememberUpdatedState(onSingleTap)
+    val latestDoubleTapSeek by rememberUpdatedState(onDoubleTapSeek)
+    val latestDoubleTapCenter by rememberUpdatedState(onDoubleTapCenter)
+    val latestLongPressStart by rememberUpdatedState(onLongPressStart)
+    val latestLongPressEnd by rememberUpdatedState(onLongPressEnd)
     val latestOverlayCallback by rememberUpdatedState(onOverlayStateChanged)
     val latestSeekCommit by rememberUpdatedState(onSeekCommitted)
     val latestBrightnessEnabled by rememberUpdatedState(brightnessEnabled)
@@ -89,7 +104,7 @@ fun PlayerGestureDetector(
             .fillMaxSize()
             .pointerInput(isLocked) {
                 if (isLocked) {
-                    detectTapGestures(onTap = { onSingleTap() })
+                    detectTapGestures(onTap = { latestSingleTap() })
                     return@pointerInput
                 }
 
@@ -99,22 +114,22 @@ fun PlayerGestureDetector(
                         tryAwaitRelease()
                         if (longPressed) {
                             longPressed = false
-                            onLongPressEnd()
+                            latestLongPressEnd()
                         }
                     },
-                    onTap = { onSingleTap() },
+                    onTap = { latestSingleTap() },
                     onDoubleTap = { offset ->
                         val screenWidth = size.width
                         when {
-                            offset.x < screenWidth * 0.35f -> onDoubleTapSeek(-latestDoubleTapMs)
-                            offset.x > screenWidth * 0.65f -> onDoubleTapSeek(latestDoubleTapMs)
-                            else -> onDoubleTapCenter()
+                            offset.x < screenWidth * 0.35f -> latestDoubleTapSeek(-latestDoubleTapMs)
+                            offset.x > screenWidth * 0.65f -> latestDoubleTapSeek(latestDoubleTapMs)
+                            else -> latestDoubleTapCenter()
                         }
                     },
                     onLongPress = {
                         if (latestLongPressEnabled) {
                             longPressed = true
-                            onLongPressStart()
+                            latestLongPressStart()
                         }
                     }
                 )

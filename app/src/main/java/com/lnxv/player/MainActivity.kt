@@ -1,6 +1,7 @@
 package com.lnxv.player
 
 import android.Manifest
+import android.app.Activity
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -47,6 +48,7 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
     @Volatile private var autoLockMs = 0L
     @Volatile private var autoLockEnabled = true
     private var globalSecure = false
+    private val secureWindowReasons = mutableSetOf<String>()
     private var lockJob: Job? = null
     private val deviceSpecs: com.lnxv.player.core.design.DeviceTier.Specs by lazy {
         @Suppress("DEPRECATION")
@@ -79,7 +81,13 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
     /** MediaStore delete confirmation for the original video after it was encrypted into the vault. */
     private val deleteConsentLauncher = registerForActivityResult(
         ActivityResultContracts.StartIntentSenderForResult()
-    ) {
+    ) { result ->
+        val message = if (result.resultCode == Activity.RESULT_OK) {
+            "Original video removed from shared storage."
+        } else {
+            "Original video remains outside Vault; it was not deleted."
+        }
+        Toast.makeText(this, message, Toast.LENGTH_LONG).show()
         val app = application as LNXVApplication
         app.appScope.launch(Dispatchers.IO) { app.videoRepository.refreshLibrary() }
     }
@@ -88,8 +96,15 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
         val splash = installSplashScreen()
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        val app = application as LNXVApplication
+        if (app.playingVaultItem || app.screenshotsBlockedGlobally) {
+            window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        }
         splash.setKeepOnScreenCondition { prefsState.value == null }
         splash.setOnExitAnimationListener { splashScreenView ->
+            if (systemAnimationsDisabled()) {
+                splashScreenView.remove()
+            } else {
             val iconView = splashScreenView.iconView
             val targetView = iconView ?: splashScreenView.view
             val scaleX = android.animation.ObjectAnimator.ofFloat(targetView, android.view.View.SCALE_X, 1f, 1.25f, 0.8f, 0f)
@@ -106,6 +121,7 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
                 })
             }
             animatorSet.start()
+            }
         }
         // Build ExoPlayer + codec renderers while the main thread is idle on Home, so the first video does not pay for it.
         android.os.Looper.myQueue().addIdleHandler {
@@ -115,8 +131,6 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
 
         requestHighestRefreshRate()
         checkAndRequestPermissions()
-
-        val app = application as LNXVApplication
 
         lifecycleScope.launch {
             app.dataStore.userPreferencesFlow.collect {
@@ -260,14 +274,24 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
         }
     }
 
-    private fun applyGlobalSecure(enabled: Boolean) {
-        (application as LNXVApplication).screenshotsBlockedGlobally = enabled
-        if (enabled) {
+    /** Multiple UI surfaces may require FLAG_SECURE at once; one surface must not clear another's protection. */
+    fun setSecureWindowReason(reason: String, enabled: Boolean) {
+        if (enabled) secureWindowReasons.add(reason) else secureWindowReasons.remove(reason)
+        refreshSecureWindowFlag()
+    }
+
+    private fun refreshSecureWindowFlag() {
+        if (globalSecure || secureWindowReasons.isNotEmpty()) {
             window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
-        } else if (globalSecure) {
+        } else {
             window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
         }
+    }
+
+    private fun applyGlobalSecure(enabled: Boolean) {
+        (application as LNXVApplication).screenshotsBlockedGlobally = enabled
         globalSecure = enabled
+        refreshSecureWindowFlag()
     }
 
     @Suppress("DEPRECATION")
@@ -340,6 +364,8 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
         // If playing video, enter PiP mode automatically
         val app = application as LNXVApplication
         if (!app.isPlayerInitialized) return
+        // Private vault videos must never be surfaced in the system PiP window.
+        if (app.playingVaultItem) return
         // Only auto-enter PiP from the video screen, and only if the user enabled it
         if (!app.playerManager.isVideoScreenActive || !autoPipEnabled) return
         val player = app.playerManager.exoPlayer
@@ -389,4 +415,17 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
         }
         super.onDestroy()
     }
+}
+
+
+/** Unwrap Compose/ContextThemeWrapper layers so security flags always reach the owning Activity. */
+fun findLnxvMainActivity(context: android.content.Context): MainActivity? {
+    var current = context
+    while (current is android.content.ContextWrapper) {
+        if (current is MainActivity) return current
+        val base = current.baseContext
+        if (base === current) break
+        current = base
+    }
+    return current as? MainActivity
 }

@@ -48,7 +48,7 @@ data class RxUi(
 @UnstableApi
 class MsReceiver(private val context: Context) {
     private val main = Handler(Looper.getMainLooper())
-    private val io = Executors.newCachedThreadPool()
+    private val io = Executors.newSingleThreadExecutor()
     private val _ui = MutableStateFlow(RxUi())
     val ui: StateFlow<RxUi> = _ui.asStateFlow()
 
@@ -67,6 +67,8 @@ class MsReceiver(private val context: Context) {
     }
 
     @Volatile private var socket: Socket? = null
+    @Volatile private var pendingSocket: Socket? = null
+    @Volatile private var connectionGeneration = 0L
     @Volatile private var closed = false
     @Volatile private var hostIp = ""
     @Volatile private var hostPort = 0
@@ -81,16 +83,23 @@ class MsReceiver(private val context: Context) {
 
     fun connect(ip: String, port: Int, pin: String, screenW: Float, screenH: Float) {
         disconnect(quiet = true)
+        val generation = connectionGeneration
         closed = false
         hostIp = ip.trim(); hostPort = port
         bestRtt = Long.MAX_VALUE; lastMediaUrl = ""
         _ui.update { it.copy(status = RxStatus.CONNECTING, message = null, hasMedia = false) }
         io.execute {
+            var connectingSocket: Socket? = null
             try {
                 val s = Socket()
+                connectingSocket = s
+                pendingSocket = s
+                if (closed || generation != connectionGeneration) { s.close(); return@execute }
                 s.connect(InetSocketAddress(hostIp, hostPort), 5000)
+                if (closed || generation != connectionGeneration) { s.close(); return@execute }
                 s.soTimeout = 10000
                 s.tcpNoDelay = true
+                pendingSocket = null
                 socket = s
                 out = s.getOutputStream()
                 sendRaw(
@@ -100,10 +109,11 @@ class MsReceiver(private val context: Context) {
                 val input = BufferedInputStream(s.getInputStream())
                 var firstReply = true
                 var lastPing = 0L
-                while (!closed) {
+                while (!closed && generation == connectionGeneration) {
                     val now = SystemClock.elapsedRealtime()
                     if (now - lastPing > 2000L) { lastPing = now; sendRaw(JSONObject().put("t", "ping").put("c", now)) }
                     val line: String? = try { readAsciiLine(input) } catch (e: SocketTimeoutException) { "" }
+                    if (closed || generation != connectionGeneration) return@execute
                     if (line == null) break
                     if (line.isEmpty()) continue
                     val j = try { JSONObject(line) } catch (e: Exception) { continue }
@@ -120,18 +130,29 @@ class MsReceiver(private val context: Context) {
                     }
                     handle(j)
                 }
-                if (!closed) fail("Connection lost")
+                if (!closed && generation == connectionGeneration) fail("Connection lost")
             } catch (e: Exception) {
-                if (!closed) fail("Could not connect: ${e.message ?: "network error"}")
+                if (!closed && generation == connectionGeneration) fail("Could not connect: ${e.message ?: "network error"}")
+            } finally {
+                if (pendingSocket === connectingSocket) pendingSocket = null
+                if (generation != connectionGeneration || closed) {
+                    if (socket === connectingSocket) socket = null
+                    if (pendingSocket == null && socket == null) out = null
+                    runCatching { connectingSocket?.close() }
+                }
             }
         }
     }
 
     fun disconnect(quiet: Boolean = false) {
+        connectionGeneration++
         closed = true
         try { sendRaw(JSONObject().put("t", "bye")) } catch (_: Exception) {}
+        try { pendingSocket?.close() } catch (_: Exception) {}
+        pendingSocket = null
         try { socket?.close() } catch (_: Exception) {}
         socket = null
+        out = null
         main.post { try { player.stop(); player.clearMediaItems() } catch (_: Exception) {} }
         if (!quiet) _ui.update { it.copy(status = RxStatus.IDLE, message = null, hasMedia = false) }
     }
@@ -147,7 +168,11 @@ class MsReceiver(private val context: Context) {
 
     private fun fail(msg: String) {
         _ui.update { it.copy(status = RxStatus.ERROR, message = msg, hasMedia = false) }
+        try { pendingSocket?.close() } catch (_: Exception) {}
+        pendingSocket = null
         try { socket?.close() } catch (_: Exception) {}
+        socket = null
+        out = null
         main.post { try { player.stop() } catch (_: Exception) {} }
     }
 
@@ -187,8 +212,12 @@ class MsReceiver(private val context: Context) {
                 main.post { loadMedia(url, local) }
             }
             "st" -> {
-                val pos = j.optLong("pos"); val play = j.optBoolean("play"); val speed = j.optDouble("speed", 1.0).toFloat()
-                val hostNow = j.optLong("hostNow"); val ended = j.optBoolean("ended")
+                val pos = j.optLong("pos").coerceIn(0L, 7L * 24 * 60 * 60 * 1000)
+                val play = j.optBoolean("play")
+                val requestedSpeed = j.optDouble("speed", 1.0).toFloat()
+                val speed = requestedSpeed.takeIf { it.isFinite() && it in 0.25f..4f } ?: 1f
+                val hostNow = j.optLong("hostNow").coerceIn(0L, 365L * 24 * 60 * 60 * 1000)
+                val ended = j.optBoolean("ended")
                 main.post { onHostState(pos, play, speed, hostNow, ended) }
             }
         }

@@ -206,9 +206,10 @@ fun GlassButton(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
+    val reduceEffects = LocalReduceEffects.current
     val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.92f else 1.0f,
-        animationSpec = spring(
+        targetValue = if (!reduceEffects && isPressed) 0.92f else 1.0f,
+        animationSpec = if (reduceEffects) androidx.compose.animation.core.tween(0) else spring(
             dampingRatio = 0.70f,
             stiffness = 380f
         ),
@@ -278,9 +279,10 @@ fun GlassIconButton(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
+    val reduceEffects = LocalReduceEffects.current
     val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.88f else 1.0f,
-        animationSpec = spring(
+        targetValue = if (!reduceEffects && isPressed) 0.88f else 1.0f,
+        animationSpec = if (reduceEffects) androidx.compose.animation.core.tween(0) else spring(
             dampingRatio = 0.70f,
             stiffness = 400f
         ),

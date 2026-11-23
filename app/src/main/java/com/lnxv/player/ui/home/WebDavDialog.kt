@@ -46,8 +46,14 @@ fun WebDavDialog(onDismiss: () -> Unit, onPlay: (String) -> String?) {
     var error by remember { mutableStateOf<String?>(null) }
     var loading by remember { mutableStateOf(false) }
     var rootUrl by remember { mutableStateOf<String?>(null) }
+    var handedOffToPlayer by remember { mutableStateOf(false) }
     var currentUrl by remember { mutableStateOf("") }
     var entries by remember { mutableStateOf<List<WebDavEntry>>(emptyList()) }
+
+    fun dismiss() {
+        if (!handedOffToPlayer) WebDavAuth.clear()
+        onDismiss()
+    }
 
     fun load(target: String, first: Boolean) {
         loading = true
@@ -78,7 +84,7 @@ fun WebDavDialog(onDismiss: () -> Unit, onPlay: (String) -> String?) {
     }
 
     GlassDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = ::dismiss,
         title = { Text(stringResource(R.string.webdav_title)) },
         text = {
             Column(Modifier.heightIn(max = 380.dp).verticalScroll(rememberScrollState())) {
@@ -101,7 +107,10 @@ fun WebDavDialog(onDismiss: () -> Unit, onPlay: (String) -> String?) {
                         Row(Modifier.fillMaxWidth().clickable {
                             if (e.isDir) load(e.url, false) else {
                                 val err = onPlay(e.url)
-                                if (err == null) onDismiss() else error = err
+                                if (err == null) {
+                                    handedOffToPlayer = true
+                                    dismiss()
+                                } else error = err
                             }
                         }.padding(vertical = 10.dp)) {
                             Text(if (e.isDir) "📁 ${e.name}" else e.name, color = appColors.textPrimary, fontSize = 14.sp, maxLines = 2)
@@ -115,10 +124,10 @@ fun WebDavDialog(onDismiss: () -> Unit, onPlay: (String) -> String?) {
                 GlassDialogButton(text = stringResource(R.string.webdav_connect), primary = true, onClick = { if (!loading) load(url.trim(), true) })
             } else {
                 GlassDialogButton(text = stringResource(R.string.webdav_disconnect), primary = true, onClick = {
-                    WebDavAuth.clear(); rootUrl = null; entries = emptyList(); pass = ""
+                    WebDavAuth.clear(); rootUrl = null; handedOffToPlayer = false; entries = emptyList(); pass = ""
                 })
             }
         },
-        dismissButton = { GlassDialogButton(text = stringResource(R.string.trash_close), onClick = onDismiss) }
+        dismissButton = { GlassDialogButton(text = stringResource(R.string.trash_close), onClick = ::dismiss) }
     )
 }

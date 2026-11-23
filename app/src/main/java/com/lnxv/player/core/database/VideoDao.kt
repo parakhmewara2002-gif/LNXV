@@ -5,6 +5,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
+import androidx.room.Transaction
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -23,7 +24,29 @@ interface VideoDao {
     suspend fun getAllVideosOnce(): List<VideoEntity>
 
     @Query("DELETE FROM videos WHERE id IN (:ids)")
-    suspend fun deleteVideosByIds(ids: List<Long>)
+    suspend fun deleteVideoRowsByIds(ids: List<Long>)
+
+    @Query("DELETE FROM playback_history WHERE videoId IN (:ids)")
+    suspend fun deleteHistoryForVideos(ids: List<Long>)
+
+    @Query("DELETE FROM playlist_items WHERE videoId IN (:ids)")
+    suspend fun deletePlaylistItemsForVideos(ids: List<Long>)
+
+    @Query("DELETE FROM video_playback_prefs WHERE videoId IN (:ids)")
+    suspend fun deletePlaybackPrefsForVideos(ids: List<Long>)
+
+    @Query("DELETE FROM vault_thumbs WHERE videoId IN (:ids)")
+    suspend fun deleteThumbsForVideos(ids: List<Long>)
+
+    @Transaction
+    suspend fun deleteVideosByIds(ids: List<Long>) {
+        if (ids.isEmpty()) return
+        deleteHistoryForVideos(ids)
+        deletePlaylistItemsForVideos(ids)
+        deletePlaybackPrefsForVideos(ids)
+        deleteThumbsForVideos(ids)
+        deleteVideoRowsByIds(ids)
+    }
 
     @Query("SELECT * FROM videos WHERE isVault = 0 AND lastPlayedTimestamp > 0 AND lastPositionMs > 5000 ORDER BY lastPlayedTimestamp DESC LIMIT 1")
     suspend fun getLastUnfinished(): VideoEntity?
@@ -61,6 +84,19 @@ interface VideoDao {
     @Query("UPDATE videos SET isVault = :isVault, vaultFile = :vaultFile WHERE id = :videoId")
     suspend fun setVaultState(videoId: Long, isVault: Boolean, vaultFile: String?)
 
+    @Transaction
+    suspend fun clearVaultStateWithThumb(videoId: Long) {
+        setVaultState(videoId, false, null)
+        deleteThumb(videoId)
+    }
+
+    /** Atomically publishes the encrypted file reference and its optional encrypted thumbnail. */
+    @Transaction
+    suspend fun setVaultStateWithThumb(videoId: Long, vaultFile: String, thumb: VaultThumbEntity?) {
+        setVaultState(videoId, true, vaultFile)
+        if (thumb != null) insertThumb(thumb)
+    }
+
     @Query("SELECT vaultFile FROM videos WHERE vaultFile IS NOT NULL")
     suspend fun getAllVaultFileNames(): List<String>
 
@@ -82,11 +118,34 @@ interface VideoDao {
     @Query("DELETE FROM vault_thumbs")
     suspend fun clearThumbs()
 
+    @Query("SELECT id FROM videos WHERE isVault = 1")
+    suspend fun getVaultVideoIds(): List<Long>
+
     @Query("DELETE FROM videos WHERE isVault = 1")
-    suspend fun deleteAllVaultRows()
+    suspend fun deleteVaultVideoRows()
+
+    @Transaction
+    suspend fun deleteAllVaultRows() {
+        val ids = getVaultVideoIds()
+        if (ids.isEmpty()) return
+        deleteHistoryForVideos(ids)
+        deletePlaylistItemsForVideos(ids)
+        deletePlaybackPrefsForVideos(ids)
+        deleteThumbsForVideos(ids)
+        deleteVaultVideoRows()
+    }
 
     @Query("DELETE FROM videos WHERE id = :videoId")
-    suspend fun deleteVideo(videoId: Long)
+    suspend fun deleteVideoRow(videoId: Long)
+
+    @Transaction
+    suspend fun deleteVideo(videoId: Long) {
+        deleteHistory(videoId)
+        deletePlaylistItemsForVideos(listOf(videoId))
+        deletePlaybackPrefsForVideos(listOf(videoId))
+        deleteThumb(videoId)
+        deleteVideoRow(videoId)
+    }
 
     @Query("SELECT * FROM playback_history ORDER BY lastWatchedTimestamp DESC")
     fun getPlaybackHistory(): Flow<List<PlaybackHistoryEntity>>

@@ -1,6 +1,7 @@
 package com.lnxv.player.core.subtitle.online
 
 import android.content.Context
+import android.os.ParcelFileDescriptor
 import com.lnxv.player.core.model.VideoItem
 import com.lnxv.player.core.subtitle.OpenSubtitlesApi
 import com.lnxv.player.core.subtitle.OpenSubtitlesHash
@@ -8,8 +9,8 @@ import com.lnxv.player.core.subtitle.OsError
 import com.lnxv.player.core.subtitle.OsSubtitle
 import com.lnxv.player.core.subtitle.SubtitleQueryBuilder
 import java.io.File
-import java.io.FileInputStream
 import java.nio.ByteBuffer
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -18,6 +19,8 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -47,17 +50,32 @@ class OnlineSubtitlesController(
         settings.config.stateIn(scope, SharingStarted.Eagerly, OnlineSubtitleConfig())
 
     private var job: Job? = null
+    private var requestGeneration = 0L
 
     fun defaultQueryFor(video: VideoItem?): String =
-        video?.let { SubtitleQueryBuilder.parse(it.title.ifBlank { File(it.path).name }).query }.orEmpty()
+        if (video == null || video.isVault) "" else SubtitleQueryBuilder.parse(video.title.ifBlank { File(video.path).name }).query
 
-    fun cancel() { job?.cancel(); _state.value = _state.value.copy(loading = false, downloadingId = null) }
+    fun cancel() {
+        requestGeneration++
+        job?.cancel()
+        job = null
+        _state.value = _state.value.copy(loading = false, downloadingId = null)
+    }
 
-    fun reset() { cancel(); _state.value = OnlineSubtitlesUi() }
+    fun reset() {
+        cancel()
+        _state.value = OnlineSubtitlesUi()
+    }
 
     /** Local library files get a hash search first; the text query is used when there is no hash, no match, or [useHash] is false. */
     fun search(video: VideoItem?, text: String, languages: List<String>, useHash: Boolean) {
+        val generation = ++requestGeneration
         job?.cancel()
+        // Never send a private vault filename or hash to a third-party subtitle service.
+        if (video?.isVault == true) {
+            _state.value = OnlineSubtitlesUi(searched = true)
+            return
+        }
         _state.value = OnlineSubtitlesUi(loading = true)
         job = scope.launch {
             try {
@@ -74,28 +92,50 @@ class OnlineSubtitlesController(
                         OpenSubtitlesApi.SearchQuery(query = parsed.query, languages = languages, season = parsed.season, episode = parsed.episode)
                     )
                 }
-                _state.value = OnlineSubtitlesUi(searched = true, results = results, usedHash = usedHash)
+                currentCoroutineContext().ensureActive()
+                if (generation == requestGeneration) {
+                    _state.value = OnlineSubtitlesUi(searched = true, results = results, usedHash = usedHash)
+                }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: OsError) {
-                _state.value = OnlineSubtitlesUi(searched = true, error = e)
+                if (generation == requestGeneration) _state.value = OnlineSubtitlesUi(searched = true, error = e)
+            } catch (e: Exception) {
+                if (generation == requestGeneration) _state.value = OnlineSubtitlesUi(searched = true, error = OsError.BadResponse)
             }
         }
     }
 
     /** Downloads one result and hands the saved file to [onReady]. Library videos remember it for next time. */
     fun download(video: VideoItem?, sub: OsSubtitle, onReady: (File) -> Unit) {
+        val generation = ++requestGeneration
         job?.cancel()
+        if (video?.isVault == true) {
+            _state.value = _state.value.copy(downloadingId = null)
+            return
+        }
         _state.value = _state.value.copy(downloadingId = sub.fileId, error = null)
         job = scope.launch {
+            var bytes: ByteArray? = null
             try {
-                val (bytes, _) = client.download(sub.fileId)
+                bytes = client.download(sub.fileId).first
                 val file = withContext(Dispatchers.IO) {
-                    if (video != null && rememberable(video)) store.save(video.id, bytes)
-                    else File(context.cacheDir, "os_${sub.fileId}.srt").also { it.writeBytes(bytes) }
+                    if (video != null && rememberable(video)) store.save(video.id, bytes!!)
+                    else File(context.cacheDir, "os_${sub.fileId}.srt").also { it.writeBytes(bytes!!) }
                 }
-                _state.value = _state.value.copy(downloadingId = null)
-                onReady(file)
+                currentCoroutineContext().ensureActive()
+                if (generation == requestGeneration) {
+                    _state.value = _state.value.copy(downloadingId = null)
+                    onReady(file)
+                }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: OsError) {
-                _state.value = _state.value.copy(downloadingId = null, error = e)
+                if (generation == requestGeneration) _state.value = _state.value.copy(downloadingId = null, error = e)
+            } catch (e: Exception) {
+                if (generation == requestGeneration) _state.value = _state.value.copy(downloadingId = null, error = OsError.BadResponse)
+            } finally {
+                bytes?.fill(0)
             }
         }
     }
@@ -108,19 +148,25 @@ class OnlineSubtitlesController(
         if (video.isVault || video.uri.scheme.let { it != "content" && it != "file" }) return null
         return withContext(Dispatchers.IO) {
             try {
-                context.contentResolver.openFileDescriptor(video.uri, "r")?.use { pfd ->
-                    val channel = FileInputStream(pfd.fileDescriptor).channel
-                    OpenSubtitlesHash.compute(pfd.statSize) { offset, length ->
-                        val buf = ByteBuffer.allocate(length)
-                        var pos = offset
-                        while (buf.hasRemaining()) {
-                            val n = channel.read(buf, pos)
-                            if (n <= 0) break
-                            pos += n
+                context.contentResolver.openFileDescriptor(video.uri, "r")?.let { pfd ->
+                    val size = pfd.statSize
+                    ParcelFileDescriptor.AutoCloseInputStream(pfd).use { stream ->
+                        val channel = stream.channel
+                        OpenSubtitlesHash.compute(size) { offset, length ->
+                            val buf = ByteBuffer.allocate(length)
+                            var pos = offset
+                            while (buf.hasRemaining()) {
+                                val n = channel.read(buf, pos)
+                                if (n < 0) throw java.io.EOFException("Video changed while hashing")
+                                if (n == 0) continue
+                                pos += n
+                            }
+                            buf.array().copyOf(buf.position()).also { buf.array().fill(0) }
                         }
-                        buf.array().copyOf(buf.position())
                     }
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 null
             }

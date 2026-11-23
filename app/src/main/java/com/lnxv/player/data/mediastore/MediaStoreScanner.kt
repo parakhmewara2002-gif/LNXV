@@ -12,10 +12,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 
+data class MediaStoreScanResult(val videos: List<VideoEntity>, val succeeded: Boolean)
+
 class MediaStoreScanner(private val context: Context) {
 
-    suspend fun scanLocalVideos(): List<VideoEntity> = withContext(Dispatchers.IO) {
+    suspend fun scanLocalVideos(): MediaStoreScanResult = withContext(Dispatchers.IO) {
         val videoList = mutableListOf<VideoEntity>()
+        var succeeded = false
 
         val collection = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL)
@@ -48,7 +51,11 @@ class MediaStoreScanner(private val context: Context) {
                 sortOrder
             )
 
-            cursor?.use { c ->
+            if (cursor == null) {
+                android.util.Log.w("MediaStoreScanner", "MediaStore returned a null cursor")
+            } else {
+                succeeded = true
+                cursor.use { c ->
                 val idCol = c.getColumnIndexOrThrow(MediaStore.Video.Media._ID)
                 val nameCol = c.getColumnIndexOrThrow(MediaStore.Video.Media.DISPLAY_NAME)
                 val dataCol = c.getColumnIndexOrThrow(MediaStore.Video.Media.DATA)
@@ -97,12 +104,14 @@ class MediaStoreScanner(private val context: Context) {
                         )
                     )
                 }
+                }
             }
         } catch (e: Exception) {
+            succeeded = false
             android.util.Log.w("MediaStoreScanner", "Failed to query media store", e)
         }
 
-        videoList
+        MediaStoreScanResult(videoList, succeeded)
     }
 
     companion object {

@@ -28,9 +28,13 @@ class SmbPathTest {
         assertNull(SmbPath.parse("smb://user:pw@host/share"))
         assertNull(SmbPath.parse("smb://host:abc/share"))
         assertNull(SmbPath.parse("smb://host:0/share"))
+        assertNull(SmbPath.parse("smb://host#fragment/share"))
+        assertNull(SmbPath.parse("smb://host?query/share"))
         assertNull(SmbPath.parse("smb://host/share/../etc"))
         assertNull(SmbPath.parse("smb://host/share/a%2Fb%5Cc/.."))
         assertNull(SmbPath.parse("smb://host/share/%zz"))
+        assertNull(SmbPath.parse("smb://host/share/%2e%2e%2fsecret"))
+        assertNull(SmbPath.parse("smb://host/share/a%2fb"))
     }
 
     @Test fun childParentAndUrlRoundTrip() {

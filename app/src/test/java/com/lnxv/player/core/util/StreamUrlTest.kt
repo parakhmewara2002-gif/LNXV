@@ -29,6 +29,14 @@ class StreamUrlTest {
         assertFalse(StreamUrl.stripCredentials("rtsp://admin:secret@10.0.0.2:554/s").contains("secret"))
     }
 
+    @Test fun queryCredentialsAreNeverPersistedInRecents() {
+        assertTrue(StreamUrl.hasSensitiveQuery("https://a.com/x?access_token=secret"))
+        assertTrue(StreamUrl.hasSensitiveQuery("https://a.com/x?X-Amz-Signature=secret"))
+        assertTrue(StreamUrl.hasSensitiveQuery("https://a.com/x?api%5Fkey=secret"))
+        assertFalse(StreamUrl.hasSensitiveQuery("https://a.com/x?t=1&quality=1080p"))
+        assertFalse(StreamUrl.hasSensitiveQuery("https://a.com/x"))
+    }
+
     @Test fun recentListDedupAndCap() {
         var l = emptyList<String>()
         for (i in 1..12) l = StreamUrl.addRecent(l, "https://a.com/$i")

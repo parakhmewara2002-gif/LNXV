@@ -31,25 +31,40 @@ object PinHasher {
     fun newSalt(): ByteArray = ByteArray(SALT_BYTES).also { random.nextBytes(it) }
 
     fun hash(pin: String, salt: ByteArray, iterations: Int = DEFAULT_ITERATIONS): ByteArray {
+        require(salt.size == SALT_BYTES) { "salt must be $SALT_BYTES bytes" }
         require(iterations > 0) { "iterations must be positive" }
-        val spec = PBEKeySpec(pin.toCharArray(), salt, iterations, HASH_BYTES * 8)
+        val pinChars = pin.toCharArray()
         try {
-            return SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(spec).encoded
+            val spec = PBEKeySpec(pinChars, salt, iterations, HASH_BYTES * 8)
+            try {
+                return SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(spec).encoded
+            } finally {
+                spec.clearPassword()
+            }
         } finally {
-            spec.clearPassword()
+            pinChars.fill('\u0000')
         }
     }
 
     fun verify(pin: String, salt: ByteArray, expected: ByteArray, iterations: Int): Boolean {
-        if (salt.isEmpty() || expected.isEmpty()) return false
+        if (salt.size != SALT_BYTES || expected.size != HASH_BYTES) return false
         val actual = hash(pin, salt, iterations)
-        return MessageDigest.isEqual(actual, expected)
+        return try {
+            MessageDigest.isEqual(actual, expected)
+        } finally {
+            actual.fill(0)
+        }
     }
 
     /** Legacy SHA-256 scheme with a static salt; only used to migrate old installs. */
     fun legacyHash(pin: String): String {
-        val digest = MessageDigest.getInstance("SHA-256").digest("LNXV_SALT_$pin".toByteArray())
-        return digest.joinToString("") { "%02x".format(it) }
+        val input = "LNXV_SALT_$pin".toByteArray()
+        val digest = try {
+            MessageDigest.getInstance("SHA-256").digest(input)
+        } finally {
+            input.fill(0)
+        }
+        return digest.joinToString("") { "%02x".format(it) }.also { digest.fill(0) }
     }
 
     fun verifyLegacy(pin: String, storedHex: String): Boolean {

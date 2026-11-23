@@ -60,9 +60,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import android.app.Activity
 import android.graphics.BitmapFactory
-import android.view.WindowManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import androidx.compose.material3.Icon
@@ -95,22 +93,17 @@ fun VaultScreen(
     onBackClick: () -> Unit,
     onVideoClick: (VideoItem) -> Unit
 ) {
+    val reduceEffects = com.lnxv.player.core.design.LocalReduceEffects.current
     val uiState by viewModel.uiState.collectAsState()
     val vaultVideos by viewModel.vaultVideos.collectAsState()
     val legacyCount by viewModel.legacyCount.collectAsState()
     val job by viewModel.jobState.collectAsState()
 
     // FLAG_SECURE on the vault screen: no screenshots / recents thumbnail of vault content.
-    val activity = LocalContext.current as? Activity
+    val activity = com.lnxv.player.findLnxvMainActivity(LocalContext.current)
     DisposableEffect(activity) {
-        activity?.window?.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
-        onDispose {
-            activity?.window?.let { w ->
-                if (!com.lnxv.player.LNXVApplication.instance.screenshotsBlockedGlobally) {
-                    w.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
-                }
-            }
-        }
+        activity?.setSecureWindowReason("vault-screen", true)
+        onDispose { activity?.setSecureWindowReason("vault-screen", false) }
     }
 
     if (uiState.showChangePin) {
@@ -231,7 +224,9 @@ fun VaultScreen(
             AnimatedContent(
                 targetState = uiState.authState == VaultAuthState.AUTHENTICATED,
                 transitionSpec = {
-                    if (targetState) {
+                    if (reduceEffects) {
+                        fadeIn(tween(0)).togetherWith(fadeOut(tween(0)))
+                    } else if (targetState) {
                         // Unlocking: Vault videos scale/fade in, keypad scales/fades out
                         (fadeIn(tween(300, easing = FastOutSlowInEasing)) + scaleIn(tween(350, easing = FastOutSlowInEasing), initialScale = 0.94f))
                             .togetherWith(fadeOut(tween(200, easing = FastOutSlowInEasing)) + scaleOut(tween(200, easing = FastOutSlowInEasing), targetScale = 1.05f))
@@ -313,7 +308,7 @@ fun VaultScreen(
                             items(vaultVideos, key = { it.id }) { video ->
                                 GlassPanel(
                                     modifier = Modifier
-                                        .animateItem()
+                                        .then(if (reduceEffects) Modifier else Modifier.animateItem())
                                         .fillMaxWidth()
                                         .clickable { onVideoClick(video) },
                                     shape = RoundedCornerShape(24.dp),
@@ -328,8 +323,12 @@ fun VaultScreen(
                                     ) {
                                         val thumb by produceState<ImageBitmap?>(null, video.id, video.vaultFile) {
                                             value = withContext(Dispatchers.IO) {
-                                                viewModel.loadThumbnail(video.id)?.let { b ->
-                                                    BitmapFactory.decodeByteArray(b, 0, b.size)?.asImageBitmap()
+                                                viewModel.loadThumbnail(video.id)?.let { bytes ->
+                                                    try {
+                                                        BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
+                                                    } finally {
+                                                        bytes.fill(0)
+                                                    }
                                                 }
                                             }
                                         }
@@ -415,8 +414,10 @@ fun VaultScreen(
 
                         // PIN dots (shake on a wrong PIN; translation is animated in a graphicsLayer lambda)
                         val shake = remember { Animatable(0f) }
-                        LaunchedEffect(uiState.shakeCount) {
-                            if (uiState.shakeCount > 0) {
+                        LaunchedEffect(uiState.shakeCount, reduceEffects) {
+                            if (reduceEffects) {
+                                shake.snapTo(0f)
+                            } else if (uiState.shakeCount > 0) {
                                 for (t in listOf(-24f, 24f, -16f, 16f, -8f, 0f)) shake.animateTo(t, tween(45))
                             }
                         }
@@ -456,7 +457,11 @@ fun VaultScreen(
                                 )
                             }
                         } else {
-                            AnimatedVisibility(visible = uiState.errorMessage != null || uiState.lockoutRemainingSec > 0) {
+                            AnimatedVisibility(
+                                visible = uiState.errorMessage != null || uiState.lockoutRemainingSec > 0,
+                                enter = if (reduceEffects) androidx.compose.animation.fadeIn(tween(0)) else androidx.compose.animation.fadeIn(),
+                                exit = if (reduceEffects) androidx.compose.animation.fadeOut(tween(0)) else androidx.compose.animation.fadeOut()
+                            ) {
                                 Text(
                                     text = if (uiState.lockoutRemainingSec > 0)
                                         "Locked. Try again in ${uiState.lockoutRemainingSec / 60}:${"%02d".format(uiState.lockoutRemainingSec % 60)}"

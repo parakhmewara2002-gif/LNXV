@@ -59,38 +59,53 @@ class OpenSubtitlesClient(
     }
 
     private fun http(url: String, method: String, body: String?, apiKey: String?, token: String?, maxBytes: Int): ByteArray {
-        val conn = (URL(url).openConnection() as HttpURLConnection)
-        try {
-            conn.requestMethod = method
-            conn.connectTimeout = TIMEOUT_MS
-            conn.readTimeout = TIMEOUT_MS
-            conn.instanceFollowRedirects = true
-            conn.setRequestProperty("User-Agent", userAgent)
-            conn.setRequestProperty("Accept", "*/*")
-            if (apiKey != null) {
-                conn.setRequestProperty("Api-Key", apiKey)
-                conn.setRequestProperty("Accept", "application/json")
+        var currentUrl = try { java.net.URI(url) } catch (e: Exception) { throw OsError.BadResponse }
+        for (redirect in 0..MAX_REDIRECTS) {
+            val conn = currentUrl.toURL().openConnection() as HttpURLConnection
+            try {
+                conn.requestMethod = method
+                conn.connectTimeout = TIMEOUT_MS
+                conn.readTimeout = TIMEOUT_MS
+                // Never let HttpURLConnection forward Api-Key or Bearer headers to a redirect target.
+                conn.instanceFollowRedirects = false
+                conn.setRequestProperty("User-Agent", userAgent)
+                conn.setRequestProperty("Accept", "*/*")
+                if (apiKey != null) {
+                    conn.setRequestProperty("Api-Key", apiKey)
+                    conn.setRequestProperty("Accept", "application/json")
+                }
+                if (token != null) conn.setRequestProperty("Authorization", "Bearer $token")
+                if (body != null) {
+                    conn.doOutput = true
+                    conn.setRequestProperty("Content-Type", "application/json")
+                    conn.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
+                }
+                val code = conn.responseCode
+                if (code in 300..399) {
+                    // Authenticated API calls must never redirect. Unauthenticated file downloads may
+                    // follow a short chain, but every hop must remain HTTPS on an allowed host.
+                    if (apiKey != null || token != null || redirect == MAX_REDIRECTS) throw OsError.Disallowed
+                    val location = conn.getHeaderField("Location") ?: throw OsError.BadResponse
+                    val next = try { currentUrl.resolve(location) } catch (e: Exception) { throw OsError.Disallowed }
+                    if (!OpenSubtitlesApi.isAllowedDownloadLink(next.toString())) throw OsError.Disallowed
+                    currentUrl = next
+                    continue
+                }
+                if (code !in 200..299) throw OsError.fromStatus(code)
+                return conn.inputStream.use { readLimited(it, maxBytes) }
+            } catch (e: SocketTimeoutException) {
+                throw OsError.Timeout
+            } catch (e: UnknownHostException) {
+                throw OsError.NoNetwork
+            } catch (e: ConnectException) {
+                throw OsError.NoNetwork
+            } catch (e: IOException) {
+                throw OsError.NoNetwork
+            } finally {
+                conn.disconnect()
             }
-            if (token != null) conn.setRequestProperty("Authorization", "Bearer $token")
-            if (body != null) {
-                conn.doOutput = true
-                conn.setRequestProperty("Content-Type", "application/json")
-                conn.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
-            }
-            val code = conn.responseCode
-            if (code !in 200..299) throw OsError.fromStatus(code)
-            return conn.inputStream.use { readLimited(it, maxBytes) }
-        } catch (e: SocketTimeoutException) {
-            throw OsError.Timeout
-        } catch (e: UnknownHostException) {
-            throw OsError.NoNetwork
-        } catch (e: ConnectException) {
-            throw OsError.NoNetwork
-        } catch (e: IOException) {
-            throw OsError.NoNetwork
-        } finally {
-            conn.disconnect()
         }
+        throw OsError.Disallowed
     }
 
     private fun readLimited(input: InputStream, max: Int): ByteArray {
@@ -109,5 +124,6 @@ class OpenSubtitlesClient(
         const val TIMEOUT_MS = 15_000
         const val MAX_JSON = 2 * 1024 * 1024
         const val MAX_FILE = 4 * 1024 * 1024
+        const val MAX_REDIRECTS = 3
     }
 }

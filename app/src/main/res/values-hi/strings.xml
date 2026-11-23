@@ -297,6 +297,7 @@
     <string name="smb_domain">डोमेन (वैकल्पिक)</string>
     <string name="smb_note">पते में शेयर का नाम ज़रूरी है। पासवर्ड डिस्कनेक्ट करने या ऐप बंद करने तक सिर्फ़ मेमोरी में रहता है, कभी सेव नहीं होता। पुराने सर्वर पर SMB ट्रैफ़िक एन्क्रिप्टेड नहीं हो सकता; इसे सिर्फ़ भरोसेमंद नेटवर्क पर इस्तेमाल करें।</string>
     <string name="smb_bad_address">smb://server/share जैसा पता दर्ज करें</string>
+    <string name="remove_from_library">लाइब्रेरी से हटाएँ</string>
     <!-- Cast (Phase 4h) -->
     <string name="menu_cast">TV पर कास्ट करें…</string>
 </resources>

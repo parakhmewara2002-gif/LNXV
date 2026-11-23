@@ -1,6 +1,5 @@
 package com.lnxv.player.core.security
 
-import android.content.Context
 import android.os.Build
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
@@ -39,11 +38,20 @@ class KeystoreKeyWrapper(private val alias: String = "lnxv_vault_wrap_v1") : Key
             if (strongBox && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) b.setIsStrongBoxBacked(true)
             return KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore")
                 .apply { init(b.build()) }.generateKey()
-        } catch (e: Exception) {
-            // StrongBox unavailable (StrongBoxUnavailableException) -> fall back to TEE-backed key.
-            if (strongBox) return generate(strongBox = false)
+        } catch (e: RuntimeException) {
+            // Avoid linking the API-28 exception class on the API-23 minimum; only this exact failure permits fallback.
+            if (strongBox && isStrongBoxUnavailable(e)) return generate(strongBox = false)
             throw e
         }
+    }
+
+    private fun isStrongBoxUnavailable(error: Throwable): Boolean {
+        var cause: Throwable? = error
+        while (cause != null) {
+            if (cause.javaClass.name == "android.security.keystore.StrongBoxUnavailableException") return true
+            cause = cause.cause
+        }
+        return false
     }
 
     override fun wrap(plain: ByteArray): ByteArray {
@@ -53,6 +61,8 @@ class KeystoreKeyWrapper(private val alias: String = "lnxv_vault_wrap_v1") : Key
     }
 
     override fun unwrap(wrapped: ByteArray): ByteArray {
+        // 12-byte GCM IV + 32-byte master key + 16-byte authentication tag.
+        if (wrapped.size != 60) throw java.io.IOException("Corrupt wrapped vault key")
         val c = Cipher.getInstance("AES/GCM/NoPadding")
         c.init(Cipher.DECRYPT_MODE, key(), GCMParameterSpec(128, wrapped, 0, 12))
         return c.doFinal(wrapped, 12, wrapped.size - 12)
@@ -80,12 +90,13 @@ class VaultKeyManager(private val keyFile: File, private val wrapper: KeyWrapper
     fun ensureKey(): Boolean {
         if (hasKey()) return false
         val raw = ByteArray(32).also { SecureRandom().nextBytes(it) }
+        val tmp = File(keyFile.parentFile, keyFile.name + ".tmp")
         try {
-            val tmp = File(keyFile.parentFile, keyFile.name + ".tmp")
             tmp.writeBytes(wrapper.wrap(raw))
             if (!tmp.renameTo(keyFile)) throw java.io.IOException("Could not store vault key")
         } finally {
             raw.fill(0)
+            if (tmp.exists()) tmp.delete()
         }
         return true
     }
@@ -93,7 +104,20 @@ class VaultKeyManager(private val keyFile: File, private val wrapper: KeyWrapper
     @Synchronized
     fun unlock() {
         if (sessionKey != null) return
-        sessionKey = wrapper.unwrap(keyFile.readBytes())
+        if (!keyFile.isFile || keyFile.length() != 60L) {
+            throw java.io.IOException("Corrupt wrapped vault key file")
+        }
+        val wrapped = keyFile.readBytes()
+        val raw = try {
+            wrapper.unwrap(wrapped)
+        } finally {
+            wrapped.fill(0)
+        }
+        if (raw.size != 32) {
+            raw.fill(0)
+            throw java.io.IOException("Invalid vault master key length")
+        }
+        sessionKey = raw
     }
 
     /** Unlocks with an already unwrapped 32-byte master key (biometric path). The array is copied, callers should zero theirs. */

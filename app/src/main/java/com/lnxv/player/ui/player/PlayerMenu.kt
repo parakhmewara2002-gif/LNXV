@@ -113,7 +113,8 @@ fun PlayerMoreMenuItems(
         )
         if (androidx.compose.ui.res.booleanResource(com.lnxv.player.R.bool.popup_window_enabled) &&
             viewModel.userPrefs.collectAsState().value.isEnabled(com.lnxv.player.core.flags.FeatureFlag.POPUP_WINDOW) &&
-            playerView?.player != null
+            playerView?.player != null &&
+            uiState.currentVideo?.isVault != true
         ) {
             PlayerMenuItem(
                 text = { Text(androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.menu_popup)) },

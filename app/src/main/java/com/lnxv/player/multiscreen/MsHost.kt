@@ -27,8 +27,10 @@ import java.net.ServerSocket
 import java.net.Socket
 import java.net.SocketTimeoutException
 import java.security.SecureRandom
+import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.ExecutorService
-import java.util.concurrent.Executors
+import java.util.concurrent.ThreadPoolExecutor
+import java.util.concurrent.TimeUnit
 
 data class HostUi(
     val running: Boolean = false,
@@ -74,7 +76,10 @@ object MultiScreen {
  */
 class MsHost(private val context: Context, private val player: ExoPlayer) {
     private val main = Handler(Looper.getMainLooper())
-    private val pool: ExecutorService = Executors.newCachedThreadPool()
+    // Bound concurrent socket handlers and queued handshakes; LAN peers must not create unbounded threads.
+    private val pool: ExecutorService = ThreadPoolExecutor(
+        4, 4, 0L, TimeUnit.MILLISECONDS, ArrayBlockingQueue(8), ThreadPoolExecutor.AbortPolicy()
+    )
     private val _ui = MutableStateFlow(HostUi())
     val ui: StateFlow<HostUi> = _ui.asStateFlow()
 
@@ -86,6 +91,8 @@ class MsHost(private val context: Context, private val player: ExoPlayer) {
     private var nsd: NsdManager? = null
     private var regListener: NsdManager.RegistrationListener? = null
     private val originalVolume = player.volume
+    private data class AuthWindow(val startedAtMs: Long, var failures: Int)
+    private val failedPinAttempts = mutableMapOf<String, AuthWindow>()
 
     private val playerListener = object : Player.Listener {
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) { refreshMedia(); broadcastState() }
@@ -112,7 +119,7 @@ class MsHost(private val context: Context, private val player: ExoPlayer) {
         return try {
             val ss = ServerSocket(0)
             server = ss
-            val pin = (1000 + SecureRandom().nextInt(9000)).toString()
+            val pin = (100000 + SecureRandom().nextInt(900000)).toString()
             token = randomToken()
             _ui.value = _ui.value.copy(running = true, ip = localLanIp(), port = ss.localPort, pin = pin, hostMuted = _ui.value.mode == MsMode.SPEAKER)
             pool.execute { acceptLoop(ss) }
@@ -303,18 +310,53 @@ class MsHost(private val context: Context, private val player: ExoPlayer) {
         }
     }
 
+    @Synchronized
+    private fun recordPinAttempt(ip: String, success: Boolean): Boolean {
+        val now = SystemClock.elapsedRealtime()
+        val previous = failedPinAttempts[ip]
+        val window = if (previous == null || now - previous.startedAtMs > 60_000L) {
+            AuthWindow(now, 0)
+        } else {
+            previous
+        }
+        if (window.failures >= 5) return false
+        if (success) {
+            failedPinAttempts.remove(ip)
+            return true
+        }
+        window.failures++
+        failedPinAttempts[ip] = window
+        if (failedPinAttempts.size > 128) {
+            val iterator = failedPinAttempts.iterator()
+            while (iterator.hasNext()) {
+                val entry = iterator.next()
+                if (now - entry.value.startedAtMs > 60_000L) iterator.remove()
+            }
+        }
+        return true
+    }
+
     private fun control(s: Socket, input: InputStream, firstLine: String) {
         val out = s.getOutputStream()
         val hello = try { JSONObject(firstLine) } catch (e: Exception) { s.close(); return }
         fun reply(j: JSONObject) { out.write((j.toString() + "\n").toByteArray()); out.flush() }
-        if (hello.optString("t") != "hello" || hello.optString("pin") != _ui.value.pin) {
+        val peerIp = s.inetAddress?.hostAddress.orEmpty()
+        val isHello = hello.optString("t") == "hello"
+        val pinMatches = isHello && hello.optString("pin") == _ui.value.pin
+        if (!recordPinAttempt(peerIp, pinMatches) || !pinMatches) {
             reply(JSONObject().put("t", "deny")); s.close(); return
         }
         if (client != null) { reply(JSONObject().put("t", "busy")); s.close(); return }
+        val safeName = hello.optString("name", "Phone")
+            .filterNot { it.isISOControl() }
+            .take(32)
+            .ifBlank { "Phone" }
+        val clientWidth = hello.optDouble("w", 0.0).toFloat().takeIf { it.isFinite() && it in 0f..10_000f } ?: 0f
+        val clientHeight = hello.optDouble("h", 0.0).toFloat().takeIf { it.isFinite() && it in 0f..10_000f } ?: 0f
         val c = Client(s, out)
         client = c
         _ui.update {
-            it.copy(clientName = hello.optString("name", "Phone"), clientW = hello.optDouble("w", 0.0).toFloat(), clientH = hello.optDouble("h", 0.0).toFloat())
+            it.copy(clientName = safeName, clientW = clientWidth, clientH = clientHeight)
         }
         c.send(JSONObject().put("t", "ok"))
         main.post { sendConfig(); sendMedia(); broadcastState() }
@@ -336,17 +378,22 @@ class MsHost(private val context: Context, private val player: ExoPlayer) {
     }
 
     private inner class Client(val socket: Socket, val out: OutputStream) {
-        private val writer = Executors.newSingleThreadExecutor()
+        private val writer: ExecutorService = ThreadPoolExecutor(
+            1, 1, 0L, TimeUnit.MILLISECONDS, ArrayBlockingQueue(32), ThreadPoolExecutor.AbortPolicy()
+        )
         fun send(j: JSONObject) {
             try {
                 writer.execute {
                     try { out.write((j.toString() + "\n").toByteArray()); out.flush() } catch (e: IOException) { close() }
                 }
-            } catch (_: Exception) {}
+            } catch (_: Exception) {
+                // A slow or stalled peer must not create an unbounded outbound queue.
+                close()
+            }
         }
         fun close() {
             try { socket.close() } catch (_: Exception) {}
-            try { writer.shutdown() } catch (_: Exception) {}
+            try { writer.shutdownNow() } catch (_: Exception) {}
         }
     }
 

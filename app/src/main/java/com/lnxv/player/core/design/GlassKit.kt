@@ -333,7 +333,8 @@ fun IosTabBar(
     /** True when something else (the AGSL lens) already frosts what is behind the bar, so the fill can be translucent. */
     backdropHandled: Boolean = false
 ) {
-    val blurred = backdropHandled || (hazeState != null && !LocalReduceEffects.current)
+    val reduceEffects = LocalReduceEffects.current
+    val blurred = backdropHandled || (hazeState != null && !reduceEffects)
     val tap = rememberTapHaptic()
     Row(
         modifier = modifier
@@ -351,12 +352,12 @@ fun IosTabBar(
             val selected = index == selectedIndex
             val bg by animateColorAsState(
                 targetValue = if (selected) appColors.accent.copy(alpha = 0.22f) else Color.Transparent,
-                animationSpec = tween(200),
+                animationSpec = tween(if (reduceEffects) 0 else 200),
                 label = "tab_bg"
             )
             val fg by animateColorAsState(
                 targetValue = if (selected) appColors.accent else appColors.textSecondary,
-                animationSpec = tween(200),
+                animationSpec = tween(if (reduceEffects) 0 else 200),
                 label = "tab_fg"
             )
             Box(
@@ -443,7 +444,7 @@ fun GlassDialog(
         val reduceFx = LocalReduceEffects.current
         val enter by animateFloatAsState(
             targetValue = if (shown.value || reduceFx) 1f else 0f,
-            animationSpec = spring(dampingRatio = 0.75f, stiffness = 420f),
+            animationSpec = if (reduceFx) tween(0) else spring(dampingRatio = 0.75f, stiffness = 420f),
             label = "dialog_enter"
         )
         Column(
@@ -512,6 +513,7 @@ fun GlassSegmented(
     onSelect: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val reduceEffects = LocalReduceEffects.current
     val tap = rememberTapHaptic()
     Row(
         modifier = modifier
@@ -525,7 +527,7 @@ fun GlassSegmented(
             val selected = index == selectedIndex
             val bg by animateColorAsState(
                 targetValue = if (selected) appColors.accent.copy(alpha = 0.28f) else Color.Transparent,
-                animationSpec = tween(200),
+                animationSpec = tween(if (reduceEffects) 0 else 200),
                 label = "segment_bg"
             )
             Box(
@@ -629,9 +631,10 @@ fun GlassProgress(progress: () -> Float, modifier: Modifier = Modifier, height: 
 /** Glass capsule filter chip (replaces Material FilterChip): animated tint, spring press, selected semantics. */
 @Composable
 fun GlassFilterChip(selected: Boolean, label: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val reduceEffects = LocalReduceEffects.current
     val bg by animateColorAsState(
         targetValue = if (selected) appColors.accent.copy(alpha = 0.28f) else appColors.glassFill,
-        animationSpec = tween(200),
+        animationSpec = tween(if (reduceEffects) 0 else 200),
         label = "chip_bg"
     )
     Box(

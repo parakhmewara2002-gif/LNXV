@@ -24,7 +24,27 @@ object StreamUrl {
         return Result.Ok(text)
     }
 
-    /** Removes `user:password@` so credentials are never stored in the recent-URL list. */
+    private val sensitiveQueryKeys = setOf(
+        "token", "access_token", "refresh_token", "api_key", "apikey", "key",
+        "password", "passwd", "auth", "authorization", "signature", "sig", "jwt",
+        "session", "sessionid", "credential", "credentials", "x-amz-signature", "x-amz-credential"
+    )
+
+    /** True when a URL carries query-string credentials that must not be persisted in recents. */
+    fun hasSensitiveQuery(url: String): Boolean {
+        return try {
+            val query = URI(url).rawQuery ?: return false
+            query.split('&').any { part ->
+                val rawName = part.substringBefore('=')
+                val name = runCatching { java.net.URLDecoder.decode(rawName, "UTF-8") }.getOrDefault(rawName)
+                name.lowercase() in sensitiveQueryKeys
+            }
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    /** Removes user:password@ so credentials are never stored in the recent-URL list. */
     fun stripCredentials(url: String): String = try {
         val u = URI(url)
         if (u.userInfo == null) url

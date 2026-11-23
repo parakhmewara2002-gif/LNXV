@@ -365,10 +365,17 @@ bottomBar = {
                 androidx.compose.animation.AnimatedContent(
                     targetState = selection.isNotEmpty(),
                     transitionSpec = {
-                        androidx.compose.animation.ContentTransform(
-                            targetContentEnter = androidx.compose.animation.slideInVertically(tween(280)) { it / 2 } + androidx.compose.animation.fadeIn(tween(220)),
-                            initialContentExit = androidx.compose.animation.slideOutVertically(tween(200)) { it / 2 } + androidx.compose.animation.fadeOut(tween(160))
-                        )
+                        if (reduceEffects) {
+                            androidx.compose.animation.ContentTransform(
+                                targetContentEnter = androidx.compose.animation.EnterTransition.None,
+                                initialContentExit = androidx.compose.animation.ExitTransition.None
+                            )
+                        } else {
+                            androidx.compose.animation.ContentTransform(
+                                targetContentEnter = androidx.compose.animation.slideInVertically(tween(280)) { it / 2 } + androidx.compose.animation.fadeIn(tween(220)),
+                                initialContentExit = androidx.compose.animation.slideOutVertically(tween(200)) { it / 2 } + androidx.compose.animation.fadeOut(tween(160))
+                            )
+                        }
                     },
                     label = "bottom_bar"
                 ) { isSelecting ->
@@ -576,7 +583,7 @@ topBar = {
                     LazyRow(
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        items(uiState.recentlyPlayed.take(5)) { video ->
+                        items(uiState.recentlyPlayed.take(5), key = { it.id }) { video ->
                             ContinueWatchingCard(
                                 video = video,
                                 onClick = { onVideoClick(video) }
@@ -640,7 +647,7 @@ topBar = {
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            items(com.lnxv.player.core.model.SmartCollection.values().toList()) { c ->
+                            items(com.lnxv.player.core.model.SmartCollection.values().toList(), key = { it.name }) { c ->
                                 com.lnxv.player.core.design.GlassFilterChip(
                                     selected = uiState.collection == c,
                                     label = androidx.compose.ui.res.stringResource(c.labelRes),
@@ -660,7 +667,7 @@ topBar = {
                     } else if (uiState.isGridView) {
                         items(uiState.videos.chunked(gridColumns), key = { row -> row.first().id }) { row ->
                             Row(
-                                modifier = Modifier.fillMaxWidth().animateItem(),
+                                modifier = Modifier.fillMaxWidth().then(if (reduceEffects) Modifier else Modifier.animateItem()),
                                 horizontalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
                                 row.forEach { video ->
@@ -682,7 +689,7 @@ topBar = {
                     } else {
                         items(uiState.videos, key = { it.id }) { video ->
                             VideoItemRow(
-                                modifier = Modifier.animateItem(),
+                                modifier = if (reduceEffects) Modifier else Modifier.animateItem(),
                                 video = video,
                                 onClick = { if (selection.isNotEmpty()) viewModel.toggleSelect(video.id) else onVideoClick(video) },
                                 selected = video.id in selection,
@@ -726,7 +733,7 @@ topBar = {
                         } else {
                             items(uiState.folderVideos, key = { it.id }) { video ->
                                 VideoItemRow(
-                                    modifier = Modifier.animateItem(),
+                                    modifier = if (reduceEffects) Modifier else Modifier.animateItem(),
                                     video = video,
                                     onClick = { if (selection.isNotEmpty()) viewModel.toggleSelect(video.id) else onVideoClick(video) },
                                 selected = video.id in selection,
@@ -743,7 +750,7 @@ topBar = {
                     } else {
                         items(uiState.folders, key = { it.path }) { folder ->
                             FolderItemRow(
-                                modifier = Modifier.animateItem(),
+                                modifier = if (reduceEffects) Modifier else Modifier.animateItem(),
                                 folder = folder,
                                 onClick = { onFolderClick(folder) },
                                 onToggleHidden = { viewModel.setFolderHidden(folder.path, !folder.isHidden) }
@@ -757,7 +764,7 @@ topBar = {
                     } else {
                         items(uiState.recentlyPlayed, key = { it.id }) { video ->
                             VideoItemRow(
-                                modifier = Modifier.animateItem(),
+                                modifier = if (reduceEffects) Modifier else Modifier.animateItem(),
                                 video = video,
                                 onClick = { if (selection.isNotEmpty()) viewModel.toggleSelect(video.id) else onVideoClick(video) },
                                 selected = video.id in selection,
@@ -866,7 +873,7 @@ topBar = {
                     } else {
                         items(uiState.favorites, key = { it.id }) { video ->
                             VideoItemRow(
-                                modifier = Modifier.animateItem(),
+                                modifier = if (reduceEffects) Modifier else Modifier.animateItem(),
                                 video = video,
                                 onClick = { if (selection.isNotEmpty()) viewModel.toggleSelect(video.id) else onVideoClick(video) },
                                 selected = video.id in selection,

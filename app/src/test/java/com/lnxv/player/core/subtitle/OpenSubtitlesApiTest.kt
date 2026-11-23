@@ -67,6 +67,10 @@ class OpenSubtitlesApiTest {
         assertEquals(OpenSubtitlesApi.DEFAULT_HOST, OpenSubtitlesApi.host("evil.example.com"))
         assertEquals(OpenSubtitlesApi.DEFAULT_HOST, OpenSubtitlesApi.host(null))
         assertEquals(OpenSubtitlesApi.DEFAULT_HOST, OpenSubtitlesApi.host("evilopensubtitles.com.attacker.io"))
+        assertEquals(OpenSubtitlesApi.DEFAULT_HOST, OpenSubtitlesApi.host("evilopensubtitles.com"))
+        assertEquals(OpenSubtitlesApi.DEFAULT_HOST, OpenSubtitlesApi.host("https://api.opensubtitles.com.attacker.io"))
+        assertEquals(OpenSubtitlesApi.DEFAULT_HOST, OpenSubtitlesApi.host("https://user@api.opensubtitles.com"))
+        assertEquals(OpenSubtitlesApi.DEFAULT_HOST, OpenSubtitlesApi.host("http://api.opensubtitles.com"))
     }
 
     @Test fun `download parse with quota`() {
@@ -105,6 +109,8 @@ class OpenSubtitlesApiTest {
         assertFalse(OpenSubtitlesApi.isAllowedDownloadLink("http://www.opensubtitles.com/download/x"))
         assertFalse(OpenSubtitlesApi.isAllowedDownloadLink("https://opensubtitles.com.evil.io/x"))
         assertFalse(OpenSubtitlesApi.isAllowedDownloadLink("https://evil.io/opensubtitles.com"))
+        assertFalse(OpenSubtitlesApi.isAllowedDownloadLink("https://user@www.opensubtitles.com/download/x"))
+        assertFalse(OpenSubtitlesApi.isAllowedDownloadLink("https://www.opensubtitles.com:8443/download/x"))
         assertFalse(OpenSubtitlesApi.isAllowedDownloadLink("not a url"))
     }
 }

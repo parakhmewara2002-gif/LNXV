@@ -1,5 +1,7 @@
 package com.lnxv.player.ui.home
 
+import com.lnxv.player.R
+
 import com.lnxv.player.core.design.GlassButton
 import com.lnxv.player.core.design.DestructiveRed
 import com.lnxv.player.core.design.GlassDropdownMenu
@@ -9,6 +11,7 @@ import com.lnxv.player.core.design.ambientBackground
 import com.lnxv.player.core.design.appColors
 import com.lnxv.player.core.design.bouncyClickable
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.runtime.LaunchedEffect
 import com.lnxv.player.core.design.icons.VideoLibrary
@@ -245,7 +248,7 @@ fun VideoItemRow(
                         }
                     )
                     DropdownMenuItem(
-                        text = { Text("Delete", color = DestructiveRed) },
+                        text = { Text(stringResource(R.string.remove_from_library), color = DestructiveRed) },
                         onClick = {
                             onDelete()
                             isMenuOpen = false
@@ -427,11 +430,12 @@ fun EmptyStateView(
     actionLabel: String? = null,
     onAction: (() -> Unit)? = null
 ) {
+    val reduceEffects = com.lnxv.player.core.design.LocalReduceEffects.current
     var shown by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { shown = true }
     val appear by animateFloatAsState(
-        targetValue = if (shown) 1f else 0f,
-        animationSpec = tween(400),
+        targetValue = if (shown || reduceEffects) 1f else 0f,
+        animationSpec = tween(if (reduceEffects) 0 else 400),
         label = "empty_appear"
     )
     Column(
@@ -589,7 +593,7 @@ fun VideoGridCard(
                             }
                         )
                         DropdownMenuItem(
-                            text = { Text("Delete", color = DestructiveRed) },
+                            text = { Text(stringResource(R.string.remove_from_library), color = DestructiveRed) },
                             onClick = {
                                 onDelete()
                                 isMenuOpen = false

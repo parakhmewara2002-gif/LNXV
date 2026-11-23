@@ -11,8 +11,11 @@ import org.junit.Test
 class VaultKeyManagerTest {
     /** XOR "wrapper" good enough to test the manager's lifecycle without a Keystore. */
     private class FakeWrapper : KeyWrapper {
-        override fun wrap(plain: ByteArray) = ByteArray(plain.size) { (plain[it].toInt() xor 0x5a).toByte() }
-        override fun unwrap(wrapped: ByteArray) = wrap(wrapped)
+        override fun wrap(plain: ByteArray) = ByteArray(60).also { wrapped ->
+            for (i in plain.indices) wrapped[12 + i] = (plain[i].toInt() xor 0x5a).toByte()
+        }
+        override fun unwrap(wrapped: ByteArray) =
+            ByteArray(32) { (wrapped[12 + it].toInt() xor 0x5a).toByte() }
     }
 
     private fun newManager(): Pair<VaultKeyManager, File> {
@@ -44,6 +47,13 @@ class VaultKeyManagerTest {
         m.ensureKey(); m.unlock()
         m.destroy()
         assertFalse(f.exists())
+        assertFalse(m.isUnlocked)
+    }
+
+    @Test fun unlockRejectsMalformedWrappedKeyFileLength() {
+        val (m, file) = newManager()
+        file.writeBytes(ByteArray(1_000_000))
+        try { m.unlock(); fail() } catch (_: IOException) {}
         assertFalse(m.isUnlocked)
     }
 

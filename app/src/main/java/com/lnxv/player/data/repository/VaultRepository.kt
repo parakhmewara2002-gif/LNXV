@@ -1,6 +1,6 @@
 package com.lnxv.player.data.repository
 
-import android.app.RecoverableSecurityException
+import android.content.ContentUris
 import android.content.ContentValues
 import android.content.Context
 import android.content.IntentSender
@@ -49,7 +49,16 @@ class NotEnoughStorageException(val neededBytes: Long, val availableBytes: Long)
     IOException("Not enough storage: need ${neededBytes - availableBytes} more bytes")
 
 /** Result of a move: [deleteConsent] is non-null when the user must approve deleting the original. */
-data class MoveResult(val deleteConsent: IntentSender?)
+data class MoveResult(
+    val deleteConsent: IntentSender?,
+    val originalDeleteFailed: Boolean = false
+)
+
+private sealed interface OriginalDeleteResult {
+    data object Deleted : OriginalDeleteResult
+    data class NeedsConsent(val sender: IntentSender) : OriginalDeleteResult
+    data object Failed : OriginalDeleteResult
+}
 
 class VaultRepository(
     private val context: Context,
@@ -89,9 +98,14 @@ class VaultRepository(
         val salt = PinHasher.newSalt()
         val iterations = PinHasher.DEFAULT_ITERATIONS
         val derived = PinHasher.hash(pin, salt, iterations)
-        dataStore.saveVaultCredential(b64(salt), b64(derived), iterations, pin.length)
-        keys.ensureKey()
-        keys.unlock()
+        try {
+            dataStore.saveVaultCredential(b64(salt), b64(derived), iterations, pin.length)
+            keys.ensureKey()
+            keys.unlock()
+        } finally {
+            salt.fill(0)
+            derived.fill(0)
+        }
     }
 
     suspend fun verifyPin(entered: String): VerifyResult = withContext(Dispatchers.Default) {
@@ -101,11 +115,22 @@ class VaultRepository(
         if (remaining > 0) return@withContext VerifyResult.Locked(remaining)
 
         val ok = when {
-            prefs.vaultPinDerived.isNotEmpty() ->
-                PinHasher.verify(
-                    entered, Base64.decode(prefs.vaultPinSalt, Base64.NO_WRAP),
-                    Base64.decode(prefs.vaultPinDerived, Base64.NO_WRAP), prefs.vaultPinIterations
-                )
+            prefs.vaultPinDerived.isNotEmpty() -> {
+                var salt: ByteArray? = null
+                var expected: ByteArray? = null
+                try {
+                    val decodedSalt = Base64.decode(prefs.vaultPinSalt, Base64.NO_WRAP)
+                    salt = decodedSalt
+                    val decodedExpected = Base64.decode(prefs.vaultPinDerived, Base64.NO_WRAP)
+                    expected = decodedExpected
+                    PinHasher.verify(entered, decodedSalt, decodedExpected, prefs.vaultPinIterations)
+                } catch (e: IllegalArgumentException) {
+                    false
+                } finally {
+                    salt?.fill(0)
+                    expected?.fill(0)
+                }
+            }
             prefs.vaultPinHash.isNotEmpty() -> PinHasher.verifyLegacy(entered, prefs.vaultPinHash)
             else -> false
         }
@@ -131,17 +156,25 @@ class VaultRepository(
 
     private val bioFile: File get() = VaultFiles.keyFile(context).let { File(it.parentFile, it.name + ".bio") }
 
-    fun isBiometricEnrolled(): Boolean = bioFile.length() > 12
+    fun isBiometricEnrolled(): Boolean = bioFile.isFile && bioFile.length() == 60L
 
     /** DECRYPT cipher to hand to BiometricPrompt, or null when not enrolled / invalidated (enrollment is then cleared). */
     fun biometricDecryptCipher(): javax.crypto.Cipher? {
-        if (!isBiometricEnrolled()) return null
+        if (!isBiometricEnrolled()) {
+            if (bioFile.exists()) clearBiometric()
+            return null
+        }
+        val data = bioFile.readBytes()
+        val iv = data.copyOfRange(0, 12)
         return try {
-            BiometricVaultKey.decryptCipher(bioFile.readBytes().copyOfRange(0, 12))
+            BiometricVaultKey.decryptCipher(iv).also { if (it == null) clearBiometric() }
         } catch (e: android.security.keystore.KeyPermanentlyInvalidatedException) {
             clearBiometric(); null
         } catch (e: Exception) {
             null
+        } finally {
+            iv.fill(0)
+            data.fill(0)
         }
     }
 
@@ -149,14 +182,25 @@ class VaultRepository(
     suspend fun enrollBiometric(cipher: javax.crypto.Cipher): Boolean = withContext(Dispatchers.Default) {
         if (!keys.isUnlocked) return@withContext false
         val key = keys.requireKey()
+        var ciphertext: ByteArray? = null
+        var stored: ByteArray? = null
+        var iv: ByteArray? = null
         try {
-            val ct = cipher.doFinal(key)
-            bioFile.writeBytes(cipher.iv + ct)
+            val encryptedKey = cipher.doFinal(key)
+            val nonce = cipher.iv
+            val wrappedKey = nonce + encryptedKey
+            ciphertext = encryptedKey
+            iv = nonce
+            stored = wrappedKey
+            bioFile.writeBytes(wrappedKey)
             true
         } catch (e: Exception) {
             clearBiometric(); false
         } finally {
             key.fill(0)
+            ciphertext?.fill(0)
+            stored?.fill(0)
+            iv?.fill(0)
         }
     }
 
@@ -172,9 +216,22 @@ class VaultRepository(
         if (prefs.vaultPinDerived.isEmpty() || !isBiometricEnrolled()) return@withContext false
         if (LockoutPolicy.remainingMs(prefs.lockoutState, lockClock()) > 0) return@withContext false
         val data = bioFile.readBytes()
-        val raw = try { cipher.doFinal(data, 12, data.size - 12) } catch (e: Exception) { return@withContext false }
-        try { keys.unlockWithRaw(raw) } finally { raw.fill(0) }
-        true
+        val raw = try {
+            cipher.doFinal(data, 12, data.size - 12).also {
+                if (it.size != 32) throw IOException("Invalid biometric vault key length")
+            }
+        } catch (e: Exception) {
+            clearBiometric()
+            return@withContext false
+        } finally {
+            data.fill(0)
+        }
+        try {
+            keys.unlockWithRaw(raw)
+            true
+        } finally {
+            raw.fill(0)
+        }
     }
 
     /**
@@ -225,15 +282,19 @@ class VaultRepository(
                     part.outputStream().buffered(CHUNK).use { fileOut ->
                         ChunkedAead.Encryptor(fileOut, key, 256 * 1024).use { enc ->
                             val buf = ByteArray(CHUNK)
-                            var done = 0L
-                            while (true) {
-                                currentCoroutineContext().ensureActive()
-                                val n = inp.read(buf)
-                                if (n < 0) break
-                                digest.update(buf, 0, n)
-                                enc.write(buf, 0, n)
-                                done += n
-                                if (plainSize > 0) onProgress((done.toFloat() / plainSize).coerceAtMost(0.9f))
+                            try {
+                                var done = 0L
+                                while (true) {
+                                    currentCoroutineContext().ensureActive()
+                                    val n = inp.read(buf)
+                                    if (n < 0) break
+                                    digest.update(buf, 0, n)
+                                    enc.write(buf, 0, n)
+                                    done += n
+                                    if (plainSize > 0) onProgress((done.toFloat() / plainSize).coerceAtMost(0.9f))
+                                }
+                            } finally {
+                                buf.fill(0)
                             }
                         }
                     }
@@ -251,45 +312,83 @@ class VaultRepository(
 
             val thumb = buildThumbnail(source)
             try {
-                videoDao.setVaultState(videoId, true, name)
-                if (thumb != null) videoDao.insertThumb(VaultThumbEntity(videoId, thumb))
+                videoDao.setVaultStateWithThumb(
+                    videoId, name, thumb?.let { VaultThumbEntity(videoId, it) }
+                )
             } catch (t: Throwable) {
-                withContext(NonCancellable) { finalFile.delete() }
+                withContext(NonCancellable) {
+                    val rolledBack = runCatching { videoDao.clearVaultStateWithThumb(videoId) }.isSuccess
+                    if (rolledBack) {
+                        finalFile.delete()
+                    } else {
+                        android.util.Log.e("VaultRepository", "Could not roll back vault metadata; preserving encrypted file", t)
+                    }
+                }
                 throw t
             }
             onProgress(1f)
-            MoveResult(deleteOriginal(source))
+            when (val deletion = deleteOriginal(source)) {
+                OriginalDeleteResult.Deleted -> MoveResult(null)
+                is OriginalDeleteResult.NeedsConsent -> MoveResult(deletion.sender)
+                OriginalDeleteResult.Failed -> MoveResult(null, originalDeleteFailed = true)
+            }
         }
 
     private fun verify(file: File, key: ByteArray, expectedSha256: ByteArray) {
         val digest = MessageDigest.getInstance("SHA-256")
         ChunkedAead.Reader(ChunkedAead.FileSource(file), key).use { r ->
             val buf = ByteArray(CHUNK)
-            var pos = 0L
-            while (pos < r.plainSize) {
-                val n = r.read(pos, buf, 0, buf.size)
-                if (n <= 0) throw IOException("Verification failed")
-                digest.update(buf, 0, n); pos += n
+            try {
+                var pos = 0L
+                while (pos < r.plainSize) {
+                    val n = r.read(pos, buf, 0, buf.size)
+                    if (n <= 0) throw IOException("Verification failed")
+                    digest.update(buf, 0, n); pos += n
+                }
+            } finally {
+                buf.fill(0)
             }
         }
         if (!MessageDigest.isEqual(digest.digest(), expectedSha256)) throw IOException("Verification failed: checksum mismatch")
     }
 
-    /** Deletes the original from MediaStore. Returns an IntentSender when the user must confirm. */
-    private fun deleteOriginal(uri: Uri): IntentSender? {
-        if (uri.scheme != "content") return null
+    /** Deletes the original from MediaStore; distinguishes success, user consent, and failure. */
+    private fun deleteOriginal(uri: Uri): OriginalDeleteResult {
+        if (uri.scheme != "content") return OriginalDeleteResult.Failed
         return try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                MediaStore.createDeleteRequest(context.contentResolver, listOf(uri)).intentSender
+                OriginalDeleteResult.NeedsConsent(
+                    MediaStore.createDeleteRequest(context.contentResolver, listOf(uri)).intentSender
+                )
             } else {
-                context.contentResolver.delete(uri, null, null)
-                null
+                val deleted = context.contentResolver.delete(uri, null, null)
+                if (deleted > 0) {
+                    OriginalDeleteResult.Deleted
+                } else {
+                    val cursor = context.contentResolver.query(
+                        uri, arrayOf(MediaStore.Video.Media._ID), null, null, null
+                    ) ?: return OriginalDeleteResult.Failed
+                    val stillExists = cursor.use { it.moveToFirst() }
+                    if (stillExists) OriginalDeleteResult.Failed else OriginalDeleteResult.Deleted
+                }
             }
-        } catch (e: RecoverableSecurityException) {
-            e.userAction.actionIntent.intentSender
         } catch (e: SecurityException) {
-            null
+            recoverableDeleteIntent(e)?.let { OriginalDeleteResult.NeedsConsent(it) } ?: OriginalDeleteResult.Failed
+        } catch (e: Exception) {
+            OriginalDeleteResult.Failed
         }
+    }
+
+    /** Reflection avoids linking RecoverableSecurityException on the app's API 23 minimum. */
+    private fun recoverableDeleteIntent(error: SecurityException): IntentSender? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q ||
+            error.javaClass.name != "android.app.RecoverableSecurityException"
+        ) return null
+        return runCatching {
+            val userAction = error.javaClass.getMethod("getUserAction").invoke(error)
+            val pendingIntent = userAction.javaClass.getMethod("getActionIntent").invoke(userAction)
+            pendingIntent.javaClass.getMethod("getIntentSender").invoke(pendingIntent) as? IntentSender
+        }.getOrNull()
     }
 
     private fun querySize(uri: Uri): Long = try {
@@ -303,17 +402,32 @@ class VaultRepository(
             try {
                 mmr.setDataSource(context, source)
                 val frame = mmr.getFrameAtTime(1_000_000L, MediaMetadataRetriever.OPTION_CLOSEST_SYNC) ?: return null
-                val w = 320
-                val h = (frame.height * (w.toFloat() / frame.width)).toInt().coerceAtLeast(1)
-                val scaled = Bitmap.createScaledBitmap(frame, w, h, true)
-                val bytes = ByteArrayOutputStream()
-                @Suppress("DEPRECATION")
-                val fmt = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) Bitmap.CompressFormat.WEBP_LOSSY
-                else Bitmap.CompressFormat.WEBP
-                scaled.compress(fmt, 70, bytes)
-                val out = ByteArrayOutputStream()
-                ChunkedAead.Encryptor(out, key, 16 * 1024).use { it.write(bytes.toByteArray()) }
-                out.toByteArray()
+                var scaled: Bitmap? = null
+                try {
+                    val w = 320
+                    val h = (frame.height * (w.toFloat() / frame.width)).toInt().coerceAtLeast(1)
+                    val scaledBitmap = Bitmap.createScaledBitmap(frame, w, h, true)
+                    scaled = scaledBitmap
+                    val bytes = object : ByteArrayOutputStream() {
+                        fun wipe() { buf.fill(0); reset() }
+                    }
+                    @Suppress("DEPRECATION")
+                    val fmt = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) Bitmap.CompressFormat.WEBP_LOSSY
+                    else Bitmap.CompressFormat.WEBP
+                    scaledBitmap.compress(fmt, 70, bytes)
+                    val plainThumbnail = bytes.toByteArray()
+                    try {
+                        val out = ByteArrayOutputStream()
+                        ChunkedAead.Encryptor(out, key, 16 * 1024).use { it.write(plainThumbnail) }
+                        out.toByteArray()
+                    } finally {
+                        plainThumbnail.fill(0)
+                        bytes.wipe()
+                    }
+                } finally {
+                    if (scaled !== frame) scaled?.recycle()
+                    frame.recycle()
+                }
             } finally {
                 mmr.release()
             }
@@ -331,6 +445,7 @@ class VaultRepository(
         val key = keys.requireKey()
         try {
             ChunkedAead.Reader(ChunkedAead.BytesSource(enc), key).use { r ->
+                if (r.plainSize !in 1..MAX_THUMBNAIL_BYTES.toLong()) return@withContext null
                 val out = ByteArray(r.plainSize.toInt())
                 var pos = 0
                 while (pos < out.size) {
@@ -353,7 +468,7 @@ class VaultRepository(
             return@withContext
         }
         if (!keys.isUnlocked) throw IOException("Vault is locked")
-        val enc = File(vaultDir, file)
+        val enc = VaultFiles.file(context, file)
         val key = keys.requireKey()
         val displayName = restoreName(entity)
         var uri: Uri? = null
@@ -370,16 +485,20 @@ class VaultRepository(
                     uri = context.contentResolver.insert(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, values)
                         ?: throw IOException("Could not create file in Movies/LNXV")
                     context.contentResolver.openOutputStream(uri!!)!!.use { out -> copyOut(reader, out, onProgress) }
-                    context.contentResolver.update(uri!!, ContentValues().apply {
+                    val published = context.contentResolver.update(uri!!, ContentValues().apply {
                         put(MediaStore.Video.Media.IS_PENDING, 0)
                     }, null, null)
+                    if (published != 1) throw IOException("Could not publish restored video in MediaStore")
                 } else {
                     @Suppress("DEPRECATION")
                     val dir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES), "LNXV")
                     dir.mkdirs()
                     val target = uniqueFile(dir, displayName)
+                    val partial = File(dir, ".${target.name}.${UUID.randomUUID()}.part")
+                    legacyTarget = partial
+                    partial.outputStream().use { out -> copyOut(reader, out, onProgress) }
+                    if (!partial.renameTo(target)) throw IOException("Could not finalize restored video")
                     legacyTarget = target
-                    target.outputStream().use { out -> copyOut(reader, out, onProgress) }
                     android.media.MediaScannerConnection.scanFile(context, arrayOf(target.absolutePath), null, null)
                 }
             }
@@ -393,7 +512,6 @@ class VaultRepository(
             key.fill(0)
         }
         // Restore succeeded: drop the encrypted copy and the vault row (rescan re-adds the video).
-        videoDao.deleteThumb(videoId)
         videoDao.deleteVideo(videoId)
         enc.delete()
         onProgress(1f)
@@ -401,18 +519,27 @@ class VaultRepository(
 
     private suspend fun copyOut(reader: ChunkedAead.Reader, out: java.io.OutputStream, onProgress: (Float) -> Unit) {
         val buf = ByteArray(CHUNK)
-        var pos = 0L
-        while (pos < reader.plainSize) {
-            currentCoroutineContext().ensureActive()
-            val n = reader.read(pos, buf, 0, buf.size)
-            if (n <= 0) throw IOException("Restore failed while decrypting")
-            out.write(buf, 0, n); pos += n
-            if (reader.plainSize > 0) onProgress((pos.toFloat() / reader.plainSize).coerceAtMost(0.99f))
+        try {
+            var pos = 0L
+            while (pos < reader.plainSize) {
+                currentCoroutineContext().ensureActive()
+                val n = reader.read(pos, buf, 0, buf.size)
+                if (n <= 0) throw IOException("Restore failed while decrypting")
+                out.write(buf, 0, n); pos += n
+                if (reader.plainSize > 0) onProgress((pos.toFloat() / reader.plainSize).coerceAtMost(0.99f))
+            }
+        } finally {
+            buf.fill(0)
         }
     }
 
     private fun restoreName(e: VideoEntity): String {
-        val base = e.title.ifBlank { "video" }.replace(Regex("[\\\\/:*?\"<>|]"), "_")
+        val base = e.title.ifBlank { "video" }
+            .replace(Regex("[\\\\/:*?\"<>|]"), "_")
+            .filterNot { it.code < 0x20 || it.code == 0x7f }
+            .trim()
+            .take(180)
+            .ifBlank { "video" }
         if (base.substringAfterLast('.', "").length in 2..4) return base
         val ext = when (e.mimeType.lowercase()) {
             "video/x-matroska" -> "mkv"; "video/webm" -> "webm"; "video/3gpp" -> "3gp"
@@ -444,6 +571,50 @@ class VaultRepository(
                 f.delete()
             }
         }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            cleanupPendingMediaStoreRestores(now - safetyThresholdMs)
+        } else {
+            @Suppress("DEPRECATION")
+            val restoreDir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES), "LNXV")
+            restoreDir.listFiles()?.forEach { partial ->
+                if (partial.isFile && partial.name.startsWith(".") && partial.name.endsWith(".part") &&
+                    now - partial.lastModified() >= safetyThresholdMs
+                ) {
+                    partial.delete()
+                }
+            }
+        }
+    }
+
+    @android.annotation.TargetApi(Build.VERSION_CODES.Q)
+    private fun cleanupPendingMediaStoreRestores(cutoffMs: Long) {
+        val projection = arrayOf(
+            MediaStore.Video.Media._ID,
+            MediaStore.MediaColumns.DATE_ADDED,
+            MediaStore.MediaColumns.OWNER_PACKAGE_NAME
+        )
+        val selection = "${MediaStore.MediaColumns.IS_PENDING}=1 AND ${MediaStore.MediaColumns.RELATIVE_PATH}=?"
+        val args = arrayOf(Environment.DIRECTORY_MOVIES + "/LNXV/")
+        runCatching {
+            context.contentResolver.query(
+                MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
+                projection,
+                selection,
+                args,
+                null
+            )?.use { cursor ->
+                val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media._ID)
+                val dateColumn = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DATE_ADDED)
+                val ownerColumn = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.OWNER_PACKAGE_NAME)
+                val cutoffSeconds = cutoffMs / 1000L
+                while (cursor.moveToNext()) {
+                    if (cursor.getString(ownerColumn) != context.packageName) continue
+                    if (cursor.getLong(dateColumn) >= cutoffSeconds) continue
+                    val uri = ContentUris.withAppendedId(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, cursor.getLong(idColumn))
+                    context.contentResolver.delete(uri, null, null)
+                }
+            }
+        }.onFailure { android.util.Log.w("VaultRepository", "Could not clean interrupted MediaStore restores", it) }
     }
 
     suspend fun legacyItems(): List<VideoItem> = withContext(Dispatchers.IO) {
@@ -473,6 +644,7 @@ class VaultRepository(
     private fun b64(b: ByteArray) = Base64.encodeToString(b, Base64.NO_WRAP)
 
     private companion object {
+        const val MAX_THUMBNAIL_BYTES = 4 * 1024 * 1024
         const val CHUNK = 512 * 1024
         const val SAFETY_MARGIN = 32L * 1024 * 1024
     }

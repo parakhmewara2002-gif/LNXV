@@ -4,7 +4,13 @@ package com.lnxv.player.core.smb
 data class SmbPath(val host: String, val port: Int, val share: String, val path: String) {
     val isShareRoot: Boolean get() = path.isEmpty()
 
-    fun child(name: String): SmbPath = copy(path = if (path.isEmpty()) name else "$path/$name")
+    fun child(name: String): SmbPath {
+        require(isValidSegment(name)) { "Invalid SMB path segment" }
+        return copy(path = if (path.isEmpty()) name else "$path/$name")
+    }
+
+    fun safeChild(name: String): SmbPath? =
+        if (isValidSegment(name)) copy(path = if (path.isEmpty()) name else "$path/$name") else null
 
     fun parent(): SmbPath? {
         if (path.isEmpty()) return null
@@ -21,10 +27,16 @@ data class SmbPath(val host: String, val port: Int, val share: String, val path:
     companion object {
         const val DEFAULT_PORT = 445
 
+        fun isValidSegment(value: String): Boolean =
+            value.isNotEmpty() && value != "." && value != ".." &&
+                !value.contains('/') && !value.contains('\\') &&
+                value.none { it.code < 0x20 || it.code == 0x7f } &&
+                value.toByteArray(Charsets.UTF_8).size <= 255
+
         /** Null when the text is not a usable smb:// address with at least a host and a share, or contains `..`. */
         fun parse(raw: String): SmbPath? {
             val t = raw.trim()
-            if (!t.startsWith("smb://", ignoreCase = true)) return null
+            if (t.length > 8192 || !t.startsWith("smb://", ignoreCase = true)) return null
             val rest = t.substring(6)
             val segs = rest.split('/').filter { it.isNotEmpty() }
             if (segs.size < 2) return null // need host and share
@@ -32,9 +44,10 @@ data class SmbPath(val host: String, val port: Int, val share: String, val path:
             if (hostPort.contains('@')) return null // credentials go in the form, never in the URL
             val host = hostPort.substringBefore(':')
             val port = if (hostPort.contains(':')) hostPort.substringAfter(':').toIntOrNull() ?: return null else DEFAULT_PORT
-            if (host.isEmpty() || port !in 1..65535) return null
+            if (host.isEmpty() || host.any { !(it.isLetterOrDigit() || it == '.' || it == '-' || it == '_') } || port !in 1..65535) return null
             val decoded = segs.drop(1).map { decode(it) ?: return null }
-            if (decoded.any { it == ".." || it == "." || it.contains('\\') || it.isEmpty() }) return null
+            // Reject decoded separators too: %2f must not smuggle a second path segment.
+            if (decoded.any { !isValidSegment(it) }) return null
             return SmbPath(host, port, decoded[0], decoded.drop(1).joinToString("/"))
         }
 
@@ -76,7 +89,9 @@ sealed class SmbResult {
 
 /** Session-only SMB credentials for one host. Never written to disk. */
 object SmbSession {
-    data class Creds(val host: String, val port: Int, val user: String, val password: String, val domain: String)
+    data class Creds(val host: String, val port: Int, val user: String, val password: String, val domain: String) {
+        override fun toString(): String = "Creds(host=$host, port=$port, user=$user, password=<redacted>, domain=$domain)"
+    }
 
     @Volatile var creds: Creds? = null
 

@@ -24,6 +24,9 @@ import com.lnxv.player.core.model.QueueLogic
 import com.lnxv.player.core.model.RepeatMode
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 
 @Immutable
@@ -68,6 +71,9 @@ class PlayerViewModel(
     private var pendingDecoder = DecoderMode.AUTO
     private var pendingTracks: com.lnxv.player.core.model.RememberedTracks? = null
     private var closed = false
+    private var videoLoadJob: Job? = null
+    private var videoLoadGeneration = 0L
+    private var requestedVideoId: Long? = null
 
     val userPrefs: StateFlow<UserPreferences> = dataStore.userPreferencesFlow.stateIn(
         scope = viewModelScope,
@@ -96,6 +102,10 @@ class PlayerViewModel(
         ),
         com.lnxv.player.core.subtitle.online.OnlineSubtitleStore(application)
     )
+
+    init {
+        viewModelScope.launch { onlineSettings.migrateLegacyApiKey() }
+    }
 
     fun showOnlineSubtitleDialog(show: Boolean) {
         if (!show) onlineSubtitles.cancel()
@@ -229,14 +239,16 @@ class PlayerViewModel(
         _queueUi.value = if (q == null) QueueUi() else QueueUi(q.size, q.hasNext, q.hasPrevious, q.shuffle, q.repeat)
     }
 
-    private suspend fun buildQueue(video: VideoItem) {
+    private suspend fun buildQueue(video: VideoItem, generation: Long) {
         val override = session.queueOverride
-        session.queueOverride = null
         val ids = when {
             override != null -> override
             video.isVault || video.id == LNXVApplication.TRANSIENT_VIDEO_ID -> emptyList()
             else -> videoRepository.getFolderVideoIds(video.folderPath)
         }
+        currentCoroutineContext().ensureActive()
+        if (closed || generation != videoLoadGeneration) return
+        if (override != null && session.queueOverride === override) session.queueOverride = null
         val keep = queue
         queue = if (ids.size > 1) QueueLogic(
             ids, video.id,
@@ -275,54 +287,81 @@ class PlayerViewModel(
     private fun switchTo(videoId: Long) {
         if (closed) return
         saveProgress()
-        viewModelScope.launch {
-            val video = videoRepository.getVideoById(videoId) ?: return@launch
-            begin(video, rebuildQueue = false)
+        val generation = ++videoLoadGeneration
+        requestedVideoId = videoId
+        videoLoadJob?.cancel()
+        videoLoadJob = viewModelScope.launch {
+            try {
+                val video = videoRepository.getVideoById(videoId) ?: return@launch
+                currentCoroutineContext().ensureActive()
+                if (!closed && generation == videoLoadGeneration) {
+                    begin(video, rebuildQueue = false, generation = generation)
+                }
+            } finally {
+                if (generation == videoLoadGeneration) requestedVideoId = null
+            }
         }
     }
 
     fun loadVideo(videoId: Long) {
-        if (_uiState.value.currentVideo?.id == videoId) return
-        viewModelScope.launch {
-            val video = (if (videoId == LNXVApplication.TRANSIENT_VIDEO_ID) session.transientVideo
-                else videoRepository.getVideoById(videoId)) ?: return@launch
-            begin(video, rebuildQueue = true)
+        if (closed) return
+        if (requestedVideoId == videoId && videoLoadJob?.isActive == true) return
+        if (_uiState.value.currentVideo?.id == videoId && videoLoadJob?.isActive != true) return
+        val generation = ++videoLoadGeneration
+        requestedVideoId = videoId
+        videoLoadJob?.cancel()
+        videoLoadJob = viewModelScope.launch {
+            try {
+                val video = (if (videoId == LNXVApplication.TRANSIENT_VIDEO_ID) session.transientVideo
+                    else videoRepository.getVideoById(videoId)) ?: return@launch
+                currentCoroutineContext().ensureActive()
+                if (!closed && generation == videoLoadGeneration) {
+                    begin(video, rebuildQueue = true, generation = generation)
+                }
+            } finally {
+                if (generation == videoLoadGeneration) requestedVideoId = null
+            }
         }
     }
 
-    private suspend fun begin(video: VideoItem, rebuildQueue: Boolean) {
-        run {
-            if (video.isVault && !vaultRepository.isUnlocked) {
-                _uiState.value = _uiState.value.copy(accessDenied = true)
-                return
-            }
-            session.playingVaultItem = video.isVault
-            playerManager.owner = this@PlayerViewModel
-            val prefs = dataStore.userPreferencesFlow.first()
-            val remembered = rememberableId(video)?.let { videoPrefs.get(it) }
-            pendingDecoder = remembered?.decoderOverride ?: DecoderMode.fromName(prefs.decoderMode)
-            pendingTracks = remembered?.tracks
-            playerManager.setExactSeek(prefs.exactSeek)
-            val last = video.lastPositionMs
-            val canResume = last > 5_000L && (video.durationMs <= 0L || last < video.durationMs - 5_000L)
-            val perVideo = if (prefs.isEnabled(com.lnxv.player.core.flags.FeatureFlag.PER_VIDEO_SPEED) && !video.isVault)
-                com.lnxv.player.core.model.PerVideoSpeed.get(prefs.perVideoSpeeds, video.id) else null
-            val speed = perVideo ?: if (prefs.rememberSpeed) prefs.lastSpeed else prefs.defaultSpeed
-            _uiState.value = _uiState.value.copy(currentVideo = video, resumePromptPositionMs = null)
-
-            when {
-                !canResume || prefs.resumePlaybackMode == "NEVER" -> startPlayback(video, 0L, speed)
-                prefs.resumePlaybackMode == "ASK" -> {
-                    pendingSpeed = speed
-                    playerManager.pause()
-                    _uiState.value = _uiState.value.copy(resumePromptPositionMs = last)
-                }
-                else -> startPlayback(video, last, speed)
-            }
-            // The folder queue only feeds next/previous, so build it AFTER playback has been handed to ExoPlayer
-            // instead of making the first frame wait for another database read.
-            if (rebuildQueue) buildQueue(video)
+    private suspend fun begin(video: VideoItem, rebuildQueue: Boolean, generation: Long) {
+        currentCoroutineContext().ensureActive()
+        if (closed || generation != videoLoadGeneration) return
+        if (video.isVault && !vaultRepository.isUnlocked) {
+            _uiState.value = _uiState.value.copy(accessDenied = true)
+            return
         }
+        val prefs = dataStore.userPreferencesFlow.first()
+        currentCoroutineContext().ensureActive()
+        if (closed || generation != videoLoadGeneration) return
+        val remembered = rememberableId(video)?.let { videoPrefs.get(it) }
+        currentCoroutineContext().ensureActive()
+        if (closed || generation != videoLoadGeneration) return
+
+        onlineSubtitles.reset()
+        session.playingVaultItem = video.isVault
+        playerManager.owner = this@PlayerViewModel
+        pendingDecoder = remembered?.decoderOverride ?: DecoderMode.fromName(prefs.decoderMode)
+        pendingTracks = remembered?.tracks
+        playerManager.setExactSeek(prefs.exactSeek)
+        val last = video.lastPositionMs
+        val canResume = last > 5_000L && (video.durationMs <= 0L || last < video.durationMs - 5_000L)
+        val perVideo = if (prefs.isEnabled(com.lnxv.player.core.flags.FeatureFlag.PER_VIDEO_SPEED) && !video.isVault)
+            com.lnxv.player.core.model.PerVideoSpeed.get(prefs.perVideoSpeeds, video.id) else null
+        val speed = perVideo ?: if (prefs.rememberSpeed) prefs.lastSpeed else prefs.defaultSpeed
+        _uiState.value = _uiState.value.copy(currentVideo = video, resumePromptPositionMs = null)
+
+        when {
+            !canResume || prefs.resumePlaybackMode == "NEVER" -> startPlayback(video, 0L, speed)
+            prefs.resumePlaybackMode == "ASK" -> {
+                pendingSpeed = speed
+                playerManager.pause()
+                _uiState.value = _uiState.value.copy(resumePromptPositionMs = last)
+            }
+            else -> startPlayback(video, last, speed)
+        }
+        // Queue loading is intentionally after ExoPlayer receives the media item.
+        if (rebuildQueue && generation == videoLoadGeneration) buildQueue(video, generation)
     }
 
     private fun startPlayback(video: VideoItem, positionMs: Long, speed: Float) {
@@ -451,6 +490,10 @@ class PlayerViewModel(
     }
 
     fun playNetworkStream(url: String, title: String) {
+        if (closed) return
+        videoLoadGeneration++
+        requestedVideoId = null
+        videoLoadJob?.cancel()
         val uri = Uri.parse(url)
         val dummyVideo = VideoItem(
             id = System.currentTimeMillis(),
@@ -467,6 +510,13 @@ class PlayerViewModel(
             folderName = "Network"
         )
         _uiState.value = _uiState.value.copy(currentVideo = dummyVideo)
+        onlineSubtitles.reset()
+        session.playingVaultItem = false
+        session.queueOverride = null
+        queue = null
+        publishQueue()
+        playerManager.owner = this
+        playerManager.isVideoScreenActive = true
         playerManager.setExactSeek(userPrefs.value.exactSeek)
         playerManager.presetDecoderMode(DecoderMode.fromName(userPrefs.value.decoderMode))
         playerManager.prepareAndPlay(uri, title = title)
@@ -600,14 +650,29 @@ class PlayerViewModel(
     /** Saves progress, then stops playback if this screen still owns the player. */
     fun closePlayer() {
         if (closed) return
-        saveProgress()
         closed = true
-        session.playingVaultItem = false
+        videoLoadGeneration++
+        requestedVideoId = null
+        videoLoadJob?.cancel()
+        onlineSubtitles.reset()
         if (playerManager.owner === this) {
+            val video = _uiState.value.currentVideo
+            val position = positionMs.value
+            if (video != null) {
+                getApplication<LNXVApplication>().appScope.launch {
+                    videoRepository.updatePlaybackPosition(video.id, position)
+                }
+            }
+            session.playingVaultItem = false
+            playerManager.onDecoderFallback = null
+            playerManager.onAudioTrackChosen = null
+            playerManager.onSubtitleChosen = null
             playerManager.owner = null
             playerManager.isVideoScreenActive = false
             playerManager.repeatMode = androidx.media3.common.Player.REPEAT_MODE_OFF
             playerManager.stopPlayback()
+            com.lnxv.player.core.webdav.WebDavAuth.clear()
+            com.lnxv.player.core.smb.SmbSession.clear()
         }
     }
 
@@ -622,13 +687,8 @@ class PlayerViewModel(
     }
 
     override fun onCleared() {
-        super.onCleared()
-        audioManager?.unregisterAudioDeviceCallback(deviceCallback)
-        if (playerManager.owner === this) {
-            playerManager.onDecoderFallback = null
-            playerManager.onAudioTrackChosen = null
-            playerManager.onSubtitleChosen = null
-        }
         closePlayer()
+        audioManager?.unregisterAudioDeviceCallback(deviceCallback)
+        super.onCleared()
     }
 }

@@ -1,6 +1,5 @@
 package com.lnxv.player.core.webdav
 
-import androidx.media3.datasource.DataSpec
 import java.net.URI
 
 /**
@@ -10,8 +9,16 @@ import java.net.URI
 object WebDavAuth {
     @Volatile private var origin: String? = null
     @Volatile private var header: String? = null
+    @Volatile private var rootPath: String? = null
 
-    fun basicHeader(user: String, password: String): String = "Basic " + base64("$user:$password".toByteArray(Charsets.UTF_8))
+    fun basicHeader(user: String, password: String): String {
+        val bytes = "$user:$password".toByteArray(Charsets.UTF_8)
+        return try {
+            "Basic " + base64(bytes)
+        } finally {
+            bytes.fill(0.toByte())
+        }
+    }
 
     // java.util.Base64 needs API 26 and android.util.Base64 is not available in JVM unit tests; this is 10 lines.
     private const val ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
@@ -35,30 +42,38 @@ object WebDavAuth {
     /** `https://host:port` (lower-case host, default port made explicit); null for non-https or malformed URLs. */
     fun originOf(url: String): String? = try {
         val u = URI(url)
-        if (u.scheme?.lowercase() != "https" || u.host.isNullOrEmpty()) null
+        if (u.scheme?.lowercase() != "https" || u.host.isNullOrEmpty() || u.userInfo != null ||
+            (u.port != -1 && u.port !in 1..65535)
+        ) null
         else "https://${u.host.lowercase()}:${if (u.port == -1) 443 else u.port}"
     } catch (e: Exception) { null }
 
     fun start(serverUrl: String, user: String, password: String): Boolean {
         val o = originOf(serverUrl) ?: return false
+        val uri = try { URI(serverUrl) } catch (e: Exception) { return false }
+        val path = normalizePath(uri.path ?: "")
         origin = o
+        rootPath = path
         header = basicHeader(user, password)
         return true
     }
 
-    fun clear() { origin = null; header = null }
+    fun clear() { origin = null; rootPath = null; header = null }
 
     val active: Boolean get() = origin != null
 
     /** Header to send for [url], or null when it is not the registered server. */
     fun headerFor(url: String): String? {
         val o = origin ?: return null
-        return if (originOf(url) == o) header else null
+        val uri = try { URI(url) } catch (e: Exception) { return null }
+        val path = uri.path ?: return null
+        if (path.split('/').any { it == "." || it == ".." } || path.contains('\\')) return null
+        val root = rootPath ?: return null
+        val normalized = normalizePath(path)
+        val withinRoot = root.isEmpty() || normalized == root || normalized.startsWith("$root/")
+        return if (originOf(url) == o && withinRoot) header else null
     }
 
-    /** Resolver for `ResolvingDataSource`: adds the header to matching requests, leaves everything else untouched. */
-    fun resolve(spec: DataSpec): DataSpec {
-        val h = headerFor(spec.uri.toString()) ?: return spec
-        return spec.withRequestHeaders(mapOf("Authorization" to h))
-    }
+    private fun normalizePath(path: String): String =
+        path.trim().trimEnd('/').ifEmpty { "" }
 }
