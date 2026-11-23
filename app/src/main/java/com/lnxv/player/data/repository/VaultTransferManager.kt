@@ -44,6 +44,7 @@ class VaultTransferManager(
     private var generation = 0L
     private var current: Job? = null
     private var pending = 0
+    private var accepting = true
 
     private val _state = MutableStateFlow(VaultJobState())
     val state: StateFlow<VaultJobState> = _state.asStateFlow()
@@ -84,6 +85,7 @@ class VaultTransferManager(
 
     private fun submit(op: Op) {
         val accepted = synchronized(stateLock) {
+            if (!accepting) return@synchronized false
             pending++
             if (queue.trySend(QueuedOp(generation, op)).isSuccess) true
             else {
@@ -101,7 +103,7 @@ class VaultTransferManager(
 
     /** Waits for active vault I/O and key copies to be released before the caller wipes/locks. */
     suspend fun cancelAllAndJoin() {
-        cancelQueuedAndCurrent()?.cancelAndJoin()
+        cancelQueuedAndCurrent(stopAccepting = true)?.cancelAndJoin()
         synchronized(stateLock) {
             current = null
             pending = 0
@@ -109,7 +111,12 @@ class VaultTransferManager(
         }
     }
 
-    private fun cancelQueuedAndCurrent(): Job? = synchronized(stateLock) {
+    fun resumeAccepting() {
+        synchronized(stateLock) { accepting = true }
+    }
+
+    private fun cancelQueuedAndCurrent(stopAccepting: Boolean = false): Job? = synchronized(stateLock) {
+        if (stopAccepting) accepting = false
         generation++
         while (queue.tryReceive().isSuccess) {
             pending = (pending - 1).coerceAtLeast(0)
