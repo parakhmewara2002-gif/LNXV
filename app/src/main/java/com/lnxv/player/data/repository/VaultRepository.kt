@@ -225,15 +225,19 @@ class VaultRepository(
                     part.outputStream().buffered(CHUNK).use { fileOut ->
                         ChunkedAead.Encryptor(fileOut, key, 256 * 1024).use { enc ->
                             val buf = ByteArray(CHUNK)
-                            var done = 0L
-                            while (true) {
-                                currentCoroutineContext().ensureActive()
-                                val n = inp.read(buf)
-                                if (n < 0) break
-                                digest.update(buf, 0, n)
-                                enc.write(buf, 0, n)
-                                done += n
-                                if (plainSize > 0) onProgress((done.toFloat() / plainSize).coerceAtMost(0.9f))
+                            try {
+                                var done = 0L
+                                while (true) {
+                                    currentCoroutineContext().ensureActive()
+                                    val n = inp.read(buf)
+                                    if (n < 0) break
+                                    digest.update(buf, 0, n)
+                                    enc.write(buf, 0, n)
+                                    done += n
+                                    if (plainSize > 0) onProgress((done.toFloat() / plainSize).coerceAtMost(0.9f))
+                                }
+                            } finally {
+                                buf.fill(0)
                             }
                         }
                     }
@@ -266,11 +270,15 @@ class VaultRepository(
         val digest = MessageDigest.getInstance("SHA-256")
         ChunkedAead.Reader(ChunkedAead.FileSource(file), key).use { r ->
             val buf = ByteArray(CHUNK)
-            var pos = 0L
-            while (pos < r.plainSize) {
-                val n = r.read(pos, buf, 0, buf.size)
-                if (n <= 0) throw IOException("Verification failed")
-                digest.update(buf, 0, n); pos += n
+            try {
+                var pos = 0L
+                while (pos < r.plainSize) {
+                    val n = r.read(pos, buf, 0, buf.size)
+                    if (n <= 0) throw IOException("Verification failed")
+                    digest.update(buf, 0, n); pos += n
+                }
+            } finally {
+                buf.fill(0)
             }
         }
         if (!MessageDigest.isEqual(digest.digest(), expectedSha256)) throw IOException("Verification failed: checksum mismatch")
@@ -421,13 +429,17 @@ class VaultRepository(
 
     private suspend fun copyOut(reader: ChunkedAead.Reader, out: java.io.OutputStream, onProgress: (Float) -> Unit) {
         val buf = ByteArray(CHUNK)
-        var pos = 0L
-        while (pos < reader.plainSize) {
-            currentCoroutineContext().ensureActive()
-            val n = reader.read(pos, buf, 0, buf.size)
-            if (n <= 0) throw IOException("Restore failed while decrypting")
-            out.write(buf, 0, n); pos += n
-            if (reader.plainSize > 0) onProgress((pos.toFloat() / reader.plainSize).coerceAtMost(0.99f))
+        try {
+            var pos = 0L
+            while (pos < reader.plainSize) {
+                currentCoroutineContext().ensureActive()
+                val n = reader.read(pos, buf, 0, buf.size)
+                if (n <= 0) throw IOException("Restore failed while decrypting")
+                out.write(buf, 0, n); pos += n
+                if (reader.plainSize > 0) onProgress((pos.toFloat() / reader.plainSize).coerceAtMost(0.99f))
+            }
+        } finally {
+            buf.fill(0)
         }
     }
 
