@@ -119,6 +119,7 @@ fun HomeScreen(
     onSettingsClick: () -> Unit,
     onReceiveClick: () -> Unit = {}
 ) {
+    val reduceEffects = com.lnxv.player.core.design.LocalReduceEffects.current
     val uiState by viewModel.uiState.collectAsState()
     val selection by viewModel.selection.collectAsState()
     // Adaptive grid: ~170dp per card, 2 columns on phones, more on landscape/tablets.
@@ -660,7 +661,7 @@ topBar = {
                     } else if (uiState.isGridView) {
                         items(uiState.videos.chunked(gridColumns), key = { row -> row.first().id }) { row ->
                             Row(
-                                modifier = Modifier.fillMaxWidth().animateItem(),
+                                modifier = Modifier.fillMaxWidth().then(if (reduceEffects) Modifier else Modifier.animateItem()),
                                 horizontalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
                                 row.forEach { video ->
@@ -682,7 +683,7 @@ topBar = {
                     } else {
                         items(uiState.videos, key = { it.id }) { video ->
                             VideoItemRow(
-                                modifier = Modifier.animateItem(),
+                                modifier = if (reduceEffects) Modifier else Modifier.animateItem(),
                                 video = video,
                                 onClick = { if (selection.isNotEmpty()) viewModel.toggleSelect(video.id) else onVideoClick(video) },
                                 selected = video.id in selection,
