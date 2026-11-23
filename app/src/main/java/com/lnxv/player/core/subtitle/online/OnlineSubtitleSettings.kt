@@ -23,7 +23,10 @@ data class OnlineSubtitleConfig(
     val languages: List<String> = listOf("en"),
     /** Remaining downloads reported by the last download response, null when unknown. */
     val remainingQuota: Int? = null
-)
+) {
+    override fun toString(): String =
+        "OnlineSubtitleConfig(apiKey=<redacted>, username=$username, loggedIn=$loggedIn, baseUrl=$baseUrl, languages=$languages, remainingQuota=$remainingQuota)"
+}
 
 /**
  * User-entered OpenSubtitles settings. API keys and session tokens are encrypted with [TokenCipher]; passwords are never stored.
