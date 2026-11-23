@@ -534,7 +534,12 @@ class VaultRepository(
     }
 
     private fun restoreName(e: VideoEntity): String {
-        val base = e.title.ifBlank { "video" }.replace(Regex("[\\\\/:*?\"<>|]"), "_")
+        val base = e.title.ifBlank { "video" }
+            .replace(Regex("[\\\\/:*?\"<>|]"), "_")
+            .filterNot { it.code < 0x20 || it.code == 0x7f }
+            .trim()
+            .take(180)
+            .ifBlank { "video" }
         if (base.substringAfterLast('.', "").length in 2..4) return base
         val ext = when (e.mimeType.lowercase()) {
             "video/x-matroska" -> "mkv"; "video/webm" -> "webm"; "video/3gpp" -> "3gp"
