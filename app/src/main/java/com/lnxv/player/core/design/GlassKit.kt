@@ -349,14 +349,15 @@ fun IosTabBar(
     ) {
         labels.forEachIndexed { index, label ->
             val selected = index == selectedIndex
+            val reduceMotion = LocalReduceMotion.current || LocalReduceEffects.current
             val bg by animateColorAsState(
                 targetValue = if (selected) appColors.accent.copy(alpha = 0.22f) else Color.Transparent,
-                animationSpec = tween(200),
+                animationSpec = if (reduceMotion) androidx.compose.animation.core.snap() else tween(MotionTokens.FAST_MS),
                 label = "tab_bg"
             )
             val fg by animateColorAsState(
                 targetValue = if (selected) appColors.accent else appColors.textSecondary,
-                animationSpec = tween(200),
+                animationSpec = if (reduceMotion) androidx.compose.animation.core.snap() else tween(MotionTokens.FAST_MS),
                 label = "tab_fg"
             )
             Box(

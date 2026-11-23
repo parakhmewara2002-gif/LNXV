@@ -35,6 +35,12 @@ object MotionTokens {
         stiffness = 380f
     )
 
+    /** Spring offset spec for sliding panels and sheets. */
+    val SpringOffset = spring<androidx.compose.ui.unit.IntOffset>(
+        dampingRatio = 0.86f,
+        stiffness = 380f
+    )
+
     /** Snappy response for buttons, toggles, chips, HUD indicators (damping 0.88, stiffness 620). */
     val SpringSnappy = spring<Float>(
         dampingRatio = 0.88f,

@@ -356,6 +356,7 @@ fun HomeScreen(
         modifier = Modifier.fillMaxSize().ambientBackground(),
         containerColor = Color.Transparent,
 bottomBar = {
+            val reduceMotion = com.lnxv.player.core.design.LocalReduceMotion.current || com.lnxv.player.core.design.LocalReduceEffects.current
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -365,10 +366,21 @@ bottomBar = {
                 androidx.compose.animation.AnimatedContent(
                     targetState = selection.isNotEmpty(),
                     transitionSpec = {
-                        androidx.compose.animation.ContentTransform(
-                            targetContentEnter = androidx.compose.animation.slideInVertically(tween(280)) { it / 2 } + androidx.compose.animation.fadeIn(tween(220)),
-                            initialContentExit = androidx.compose.animation.slideOutVertically(tween(200)) { it / 2 } + androidx.compose.animation.fadeOut(tween(160))
-                        )
+                        if (reduceMotion) {
+                            androidx.compose.animation.ContentTransform(
+                                targetContentEnter = androidx.compose.animation.EnterTransition.None,
+                                initialContentExit = androidx.compose.animation.ExitTransition.None
+                            )
+                        } else {
+                            androidx.compose.animation.ContentTransform(
+                                targetContentEnter = androidx.compose.animation.slideInVertically(
+                                    com.lnxv.player.core.design.MotionTokens.SpringOffset
+                                ) { it / 2 } + androidx.compose.animation.fadeIn(tween(180)),
+                                initialContentExit = androidx.compose.animation.slideOutVertically(
+                                    tween(180, easing = com.lnxv.player.core.design.MotionTokens.IosStandardAccelerate)
+                                ) { it / 2 } + androidx.compose.animation.fadeOut(tween(140))
+                            )
+                        }
                     },
                     label = "bottom_bar"
                 ) { isSelecting ->

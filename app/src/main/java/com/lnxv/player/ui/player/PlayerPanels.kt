@@ -184,9 +184,11 @@ fun BoxScope.PlayerSidePanel(
             AnimatedVisibility(
                 visible = visible,
                 enter = slideInHorizontally(
-                    animationSpec = spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessMediumLow, visibilityThreshold = IntOffset.VisibilityThreshold)
+                    animationSpec = com.lnxv.player.core.design.MotionTokens.SpringOffset
                 ) { it } + fadeIn(tween(180)),
-                exit = slideOutHorizontally(animationSpec = tween(200)) { it } + fadeOut(tween(160)),
+                exit = slideOutHorizontally(
+                    animationSpec = tween(200, easing = com.lnxv.player.core.design.MotionTokens.IosStandardAccelerate)
+                ) { it } + fadeOut(tween(160)),
                 modifier = Modifier.align(Alignment.CenterEnd)
             ) {
                 PanelSurface(
@@ -206,9 +208,11 @@ fun BoxScope.PlayerSidePanel(
             AnimatedVisibility(
                 visible = visible,
                 enter = slideInVertically(
-                    animationSpec = spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessMediumLow, visibilityThreshold = IntOffset.VisibilityThreshold)
+                    animationSpec = com.lnxv.player.core.design.MotionTokens.SpringOffset
                 ) { it } + fadeIn(tween(180)),
-                exit = slideOutVertically(animationSpec = tween(200)) { it } + fadeOut(tween(160)),
+                exit = slideOutVertically(
+                    animationSpec = tween(200, easing = com.lnxv.player.core.design.MotionTokens.IosStandardAccelerate)
+                ) { it } + fadeOut(tween(160)),
                 modifier = Modifier.align(Alignment.BottomCenter)
             ) {
                 PanelSurface(
