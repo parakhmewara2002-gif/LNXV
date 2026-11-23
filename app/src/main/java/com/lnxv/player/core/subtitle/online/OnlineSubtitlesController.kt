@@ -149,16 +149,19 @@ class OnlineSubtitlesController(
         return withContext(Dispatchers.IO) {
             try {
                 context.contentResolver.openFileDescriptor(video.uri, "r")?.use { pfd ->
-                    val channel = FileInputStream(pfd.fileDescriptor).channel
-                    OpenSubtitlesHash.compute(pfd.statSize) { offset, length ->
-                        val buf = ByteBuffer.allocate(length)
-                        var pos = offset
-                        while (buf.hasRemaining()) {
-                            val n = channel.read(buf, pos)
-                            if (n <= 0) break
-                            pos += n
+                    FileInputStream(pfd.fileDescriptor).use { stream ->
+                        val channel = stream.channel
+                        OpenSubtitlesHash.compute(pfd.statSize) { offset, length ->
+                            val buf = ByteBuffer.allocate(length)
+                            var pos = offset
+                            while (buf.hasRemaining()) {
+                                val n = channel.read(buf, pos)
+                                if (n < 0) throw java.io.EOFException("Video changed while hashing")
+                                if (n == 0) continue
+                                pos += n
+                            }
+                            buf.array().copyOf(buf.position()).also { buf.array().fill(0) }
                         }
-                        buf.array().copyOf(buf.position())
                     }
                 }
             } catch (e: Exception) {
