@@ -113,6 +113,7 @@ class MsReceiver(private val context: Context) {
                     val now = SystemClock.elapsedRealtime()
                     if (now - lastPing > 2000L) { lastPing = now; sendRaw(JSONObject().put("t", "ping").put("c", now)) }
                     val line: String? = try { readAsciiLine(input) } catch (e: SocketTimeoutException) { "" }
+                    if (closed || generation != connectionGeneration) return@execute
                     if (line == null) break
                     if (line.isEmpty()) continue
                     val j = try { JSONObject(line) } catch (e: Exception) { continue }
