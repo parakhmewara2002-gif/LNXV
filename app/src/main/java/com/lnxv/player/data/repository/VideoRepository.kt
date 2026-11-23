@@ -36,8 +36,9 @@ class VideoRepository(
     }
 
     suspend fun refreshLibrary() = withContext(Dispatchers.IO) {
-        val scanned = scanner.scanLocalVideos()
-        if (scanned.isEmpty()) return@withContext // e.g. permission denied: never wipe the library
+        val scan = scanner.scanLocalVideos()
+        if (!scan.succeeded) return@withContext // Query failure/permission denial is not an empty library.
+        val scanned = scan.videos
         val existing = videoDao.getAllVideosOnce().associateBy { it.id }
         // Keep user data (resume position, history stamp, favourite, vault) for known videos
         val changed = scanned.mapNotNull { s ->
@@ -67,6 +68,11 @@ class VideoRepository(
             ContextCompat.checkSelfPermission(context, Manifest.permission.READ_MEDIA_VIDEO) == PackageManager.PERMISSION_GRANTED
         } else {
             ContextCompat.checkSelfPermission(context, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
+        }
+        if (scanned.isEmpty()) {
+            // A successful full-access query with zero videos is a real empty library, not a scanner failure.
+            if (hasFullAccess) candidates.map { it.id }.chunked(500).forEach { videoDao.deleteVideosByIds(it) }
+            return@withContext
         }
         if (com.lnxv.player.core.model.LibrarySyncPolicy.shouldPrune(scannedIds.size, candidates.size, hasFullAccess)) {
             candidates.filter { it.id !in scannedIds }
