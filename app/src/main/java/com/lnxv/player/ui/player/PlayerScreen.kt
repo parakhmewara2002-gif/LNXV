@@ -427,8 +427,10 @@ fun PlayerScreen(
             BufferingIndicator(isBuffering = playbackState.isBuffering && !controlsShown)
             AnimatedVisibility(
                 visible = controlsShown,
-                enter = fadeIn(tween(200)) + slideInVertically(tween(220)) { it / 14 },
-                exit = fadeOut(tween(150)) + slideOutVertically(tween(180)) { it / 18 }
+                enter = if (reduceEffects) androidx.compose.animation.EnterTransition.None
+                    else fadeIn(tween(200)) + slideInVertically(tween(220)) { it / 14 },
+                exit = if (reduceEffects) androidx.compose.animation.ExitTransition.None
+                    else fadeOut(tween(150)) + slideOutVertically(tween(180)) { it / 18 }
             ) {
                 if (playbackState.isScreenLocked) {
                     // Only display unlock button when locked
