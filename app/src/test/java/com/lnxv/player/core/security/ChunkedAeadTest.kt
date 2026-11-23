@@ -44,6 +44,7 @@ class ChunkedAeadTest {
             .put(prefix)
             .array()
         val out = ByteArrayOutputStream()
+        out.write(header)
         val chunks = if (plain.isEmpty()) 1 else (plain.size + cs - 1) / cs
         repeat(chunks) { index ->
             val offset = index * cs
