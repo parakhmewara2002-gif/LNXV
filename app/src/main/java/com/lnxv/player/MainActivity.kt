@@ -407,3 +407,16 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
         super.onDestroy()
     }
 }
+
+
+/** Unwrap Compose/ContextThemeWrapper layers so security flags always reach the owning Activity. */
+fun findLnxvMainActivity(context: android.content.Context): MainActivity? {
+    var current = context
+    while (current is android.content.ContextWrapper) {
+        if (current is MainActivity) return current
+        val base = current.baseContext
+        if (base === current) break
+        current = base
+    }
+    return current as? MainActivity
+}
