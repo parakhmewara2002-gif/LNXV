@@ -14,7 +14,9 @@ import java.net.URL
  * HTTPS-only WebDAV media reader. Redirects are deliberately disabled so the Basic Authorization header
  * can never be forwarded to another host by HttpURLConnection or Media3's default redirect handler.
  */
-class WebDavDataSource : BaseDataSource(true) {
+class WebDavDataSource(
+    private val connectionFactory: (URL) -> HttpURLConnection = { it.openConnection() as HttpURLConnection }
+) : BaseDataSource(true) {
     private var connection: HttpURLConnection? = null
     private var input: InputStream? = null
     private var uri: Uri? = null
@@ -49,7 +51,7 @@ class WebDavDataSource : BaseDataSource(true) {
                 return 0L
             }
 
-            val conn = URL(dataSpec.uri.toString()).openConnection() as HttpURLConnection
+            val conn = connectionFactory(URL(dataSpec.uri.toString()))
             connection = conn
             conn.instanceFollowRedirects = false
             conn.connectTimeout = CONNECT_TIMEOUT_MS
