@@ -32,7 +32,7 @@ data class SmbPath(val host: String, val port: Int, val share: String, val path:
             if (hostPort.contains('@')) return null // credentials go in the form, never in the URL
             val host = hostPort.substringBefore(':')
             val port = if (hostPort.contains(':')) hostPort.substringAfter(':').toIntOrNull() ?: return null else DEFAULT_PORT
-            if (host.isEmpty() || port !in 1..65535) return null
+            if (host.isEmpty() || host.any { !(it.isLetterOrDigit() || it == '.' || it == '-' || it == '_') } || port !in 1..65535) return null
             val decoded = segs.drop(1).map { decode(it) ?: return null }
             // Reject decoded separators too: %2f must not smuggle a second path segment.
             if (decoded.any { it == ".." || it == "." || it.contains('/') || it.contains('\\') || it.isEmpty() }) return null
