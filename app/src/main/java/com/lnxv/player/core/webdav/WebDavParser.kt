@@ -41,6 +41,8 @@ object WebDavParser {
                 (resolved.userInfo != null && resolved.userInfo != base.userInfo)
             ) continue // same origin only; never follow another host, scheme or port
             val path = resolved.path ?: continue
+            // URI.path is decoded: reject dot segments and backslashes after decoding, not only in raw href.
+            if (path.split('/').any { it == "." || it == ".." } || path.contains('\\')) continue
             val normalizedPath = normPath(path)
             if (normalizedPath == basePath) continue // the folder itself
             if (basePath.isNotEmpty() && !normalizedPath.startsWith("$basePath/")) continue // stay under configured root
