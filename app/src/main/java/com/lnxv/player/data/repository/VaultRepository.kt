@@ -1,6 +1,7 @@
 package com.lnxv.player.data.repository
 
 import android.app.RecoverableSecurityException
+import android.content.ContentUris
 import android.content.ContentValues
 import android.content.Context
 import android.content.IntentSender
@@ -523,6 +524,50 @@ class VaultRepository(
                 f.delete()
             }
         }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            cleanupPendingMediaStoreRestores(now - safetyThresholdMs)
+        } else {
+            @Suppress("DEPRECATION")
+            val restoreDir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES), "LNXV")
+            restoreDir.listFiles()?.forEach { partial ->
+                if (partial.isFile && partial.name.startsWith(".") && partial.name.endsWith(".part") &&
+                    now - partial.lastModified() >= safetyThresholdMs
+                ) {
+                    partial.delete()
+                }
+            }
+        }
+    }
+
+    @android.annotation.TargetApi(Build.VERSION_CODES.Q)
+    private fun cleanupPendingMediaStoreRestores(cutoffMs: Long) {
+        val projection = arrayOf(
+            MediaStore.Video.Media._ID,
+            MediaStore.MediaColumns.DATE_ADDED,
+            MediaStore.MediaColumns.OWNER_PACKAGE_NAME
+        )
+        val selection = "${MediaStore.MediaColumns.IS_PENDING}=1 AND ${MediaStore.MediaColumns.RELATIVE_PATH}=?"
+        val args = arrayOf(Environment.DIRECTORY_MOVIES + "/LNXV/")
+        runCatching {
+            context.contentResolver.query(
+                MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
+                projection,
+                selection,
+                args,
+                null
+            )?.use { cursor ->
+                val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media._ID)
+                val dateColumn = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DATE_ADDED)
+                val ownerColumn = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.OWNER_PACKAGE_NAME)
+                val cutoffSeconds = cutoffMs / 1000L
+                while (cursor.moveToNext()) {
+                    if (cursor.getString(ownerColumn) != context.packageName) continue
+                    if (cursor.getLong(dateColumn) >= cutoffSeconds) continue
+                    val uri = ContentUris.withAppendedId(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, cursor.getLong(idColumn))
+                    context.contentResolver.delete(uri, null, null)
+                }
+            }
+        }.onFailure { android.util.Log.w("VaultRepository", "Could not clean interrupted MediaStore restores", it) }
     }
 
     suspend fun legacyItems(): List<VideoItem> = withContext(Dispatchers.IO) {
