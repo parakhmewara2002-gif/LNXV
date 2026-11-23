@@ -427,11 +427,12 @@ fun EmptyStateView(
     actionLabel: String? = null,
     onAction: (() -> Unit)? = null
 ) {
+    val reduceEffects = com.lnxv.player.core.design.LocalReduceEffects.current
     var shown by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { shown = true }
     val appear by animateFloatAsState(
-        targetValue = if (shown) 1f else 0f,
-        animationSpec = tween(400),
+        targetValue = if (shown || reduceEffects) 1f else 0f,
+        animationSpec = tween(if (reduceEffects) 0 else 400),
         label = "empty_appear"
     )
     Column(
