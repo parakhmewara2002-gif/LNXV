@@ -36,7 +36,7 @@ object WebDavParser {
             val href = r.getElementsByTagNameNS("*", "href").item(0)?.textContent?.trim() ?: continue
             val resolved = try { base.resolve(URI(href.replace(" ", "%20"))) } catch (e: Exception) { continue }
             if (resolved.scheme != base.scheme ||
-                !resolved.host.equals(base.host, ignoreCase = true) ||
+                resolved.host?.equals(base.host, ignoreCase = true) != true ||
                 resolved.port != base.port ||
                 (resolved.userInfo != null && resolved.userInfo != base.userInfo)
             ) continue // same origin only; never follow another host, scheme or port
