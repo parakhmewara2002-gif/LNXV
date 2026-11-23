@@ -323,8 +323,12 @@ fun VaultScreen(
                                     ) {
                                         val thumb by produceState<ImageBitmap?>(null, video.id, video.vaultFile) {
                                             value = withContext(Dispatchers.IO) {
-                                                viewModel.loadThumbnail(video.id)?.let { b ->
-                                                    BitmapFactory.decodeByteArray(b, 0, b.size)?.asImageBitmap()
+                                                viewModel.loadThumbnail(video.id)?.let { bytes ->
+                                                    try {
+                                                        BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
+                                                    } finally {
+                                                        bytes.fill(0)
+                                                    }
                                                 }
                                             }
                                         }
