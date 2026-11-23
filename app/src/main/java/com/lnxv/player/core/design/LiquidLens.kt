@@ -152,10 +152,10 @@ private class LensShader {
 
 /** Put on the scrolling content that sits behind the glass bars. No-op below API 33 or after a shader failure. */
 fun Modifier.liquidLensSource(state: LiquidLensState): Modifier = composed {
-    if (Build.VERSION.SDK_INT < GlassProfileResolver.LENS_MIN_API || state.failed) return@composed Modifier
+    if (Build.VERSION.SDK_INT < GlassProfileResolver.LENS_MIN_API || state.failed) return@composed this
     val holder = remember { if (Build.VERSION.SDK_INT >= 33) runCatching { LensShader() }.getOrNull() else null }
     SideEffect { if (holder == null) state.markFailed() }
-    if (holder == null) return@composed Modifier
+    if (holder == null) return@composed this
     val density = LocalDensity.current.density
     Modifier
         .onGloballyPositioned { state.sourceOrigin = it.positionInRoot() }
@@ -181,7 +181,7 @@ fun Modifier.liquidLensSource(state: LiquidLensState): Modifier = composed {
 fun Modifier.liquidLensTarget(state: LiquidLensState, slot: Int, cornerRadius: Dp, bleedTop: Dp = 0.dp, enabled: Boolean = true): Modifier = composed {
     val density = LocalDensity.current
     DisposableEffect(state, slot, enabled) { onDispose { state.set(slot, null) } }
-    if (!enabled) return@composed Modifier
+    if (!enabled) return@composed this
     val radiusPx = with(density) { cornerRadius.toPx() }
     val bleedPx = with(density) { bleedTop.toPx() }
     Modifier.onGloballyPositioned { c ->
