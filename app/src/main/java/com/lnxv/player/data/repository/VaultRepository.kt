@@ -380,8 +380,11 @@ class VaultRepository(
                     val dir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES), "LNXV")
                     dir.mkdirs()
                     val target = uniqueFile(dir, displayName)
+                    val partial = File(dir, ".${target.name}.${UUID.randomUUID()}.part")
+                    legacyTarget = partial
+                    partial.outputStream().use { out -> copyOut(reader, out, onProgress) }
+                    if (!partial.renameTo(target)) throw IOException("Could not finalize restored video")
                     legacyTarget = target
-                    target.outputStream().use { out -> copyOut(reader, out, onProgress) }
                     android.media.MediaScannerConnection.scanFile(context, arrayOf(target.absolutePath), null, null)
                 }
             }
