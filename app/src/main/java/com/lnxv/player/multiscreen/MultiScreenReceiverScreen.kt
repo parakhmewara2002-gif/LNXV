@@ -178,9 +178,9 @@ fun MultiScreenReceiverScreen(onBack: () -> Unit) {
                     )
                     OutlinedTextField(
                         value = pin,
-                        onValueChange = { pin = it.filter { c -> c.isDigit() }.take(4) },
+                        onValueChange = { pin = it.filter { c -> c.isDigit() }.take(6) },
                         singleLine = true,
-                        label = { Text("PIN") },
+                        label = { Text("6-digit PIN") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedTextColor = appColors.textPrimary,
@@ -205,7 +205,7 @@ fun MultiScreenReceiverScreen(onBack: () -> Unit) {
                                     rx.connect(ip, port, pin, cfg.screenWidthDp.toFloat(), cfg.screenHeightDp.toFloat())
                                 }
                             },
-                            enabled = ui.status != RxStatus.CONNECTING && pin.length == 4, primary = true
+                            enabled = ui.status != RxStatus.CONNECTING && pin.length == 6, primary = true
                         )
                         GlassDialogButton("Back", onBack)
                     }
