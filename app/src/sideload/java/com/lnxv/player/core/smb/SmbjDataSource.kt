@@ -39,7 +39,7 @@ class SmbjDataSource : BaseDataSource(true) {
             val session = try {
                 conn.authenticate(AuthenticationContext(creds.user, password, creds.domain))
             } finally {
-                password.fill('\\u0000')
+                password.fill('\u0000')
             }
             val s = session.connectShare(path.share) as? DiskShare ?: throw IOException("Not a file share")
             share = s
