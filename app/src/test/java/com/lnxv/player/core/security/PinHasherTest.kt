@@ -46,6 +46,11 @@ class PinHasherTest {
         assertFalse(PinHasher.verify("1234", PinHasher.newSalt(), ByteArray(0), iters))
     }
 
+    @Test fun rejectsMalformedSaltAndHashSizes() {
+        assertFalse(PinHasher.verify("123456", ByteArray(8), ByteArray(PinHasher.HASH_BYTES), iters))
+        assertFalse(PinHasher.verify("123456", ByteArray(PinHasher.SALT_BYTES), ByteArray(8), iters))
+    }
+
     @Test fun legacyHashStillVerifiesForMigration() {
         val stored = PinHasher.legacyHash("4321")
         assertEquals(64, stored.length)
