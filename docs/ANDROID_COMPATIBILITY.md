@@ -4,11 +4,11 @@
 
 - `minSdk = 23` (Android 6.0 Marshmallow).
 - No ABI filter is applied to the `sideload` flavor. The APK/AAB can include the ABIs supplied by the app and its dependencies.
-- Existing `compileSdk = 34` and `targetSdk = 34` are intentionally unchanged in this pass to avoid an unverified build-toolchain migration.
+- The current app module declares `compileSdk = 36` and `targetSdk = 34`. These are separate from the `minSdk` install floor.
 
 ## ABI coverage
 
-Removing the explicit `arm64-v8a` filter allows Gradle to package available native libraries for supported ABIs. It does not manufacture native binaries for ABIs that a dependency does not publish. Verify the produced APK with `apkanalyzer` or `aapt dump badging` and test on physical 32-bit ARM and 64-bit ARM devices before advertising universal ABI support.
+The current `app/build.gradle.kts` explicitly packages `arm64-v8a` and `armeabi-v7a` in release builds. Debug builds additionally allow `x86_64` for emulators. This is not universal ABI support: verify that every required native decoder library exists for both release ABIs in the produced APK, and test on physical 32-bit ARM and 64-bit ARM devices before advertising compatibility.
 
 ## OS coverage
 
@@ -16,7 +16,7 @@ Android 6.0/API 23 is the declared floor. Android 13/API 33 (TECNO Camon 19) is 
 
 ## Important: target SDK is not the minimum OS version
 
-`minSdk` controls the oldest installable Android release. `compileSdk` controls which platform APIs can be compiled against. `targetSdk` opts the app into platform behavior changes. This pass lowers the minimum and removes the sideload ABI restriction; it does not claim the project already targets the newest Android API. A separate upgrade should move AGP, Gradle, Kotlin/KSP and compile/target SDK together, then run the full build and device test matrix.
+`minSdk` controls the oldest installable Android release. `compileSdk` controls which platform APIs can be compiled against. `targetSdk` opts the app into platform behavior changes. The current build explicitly limits release ABIs to `arm64-v8a` and `armeabi-v7a`; it does not claim universal ABI coverage. The target SDK remains 34 and needs a separate platform-behavior upgrade and device test pass. A separate upgrade should move AGP, Gradle, Kotlin/KSP and compile/target SDK together, then run the full build and device test matrix.
 
 ## Verification checklist
 
