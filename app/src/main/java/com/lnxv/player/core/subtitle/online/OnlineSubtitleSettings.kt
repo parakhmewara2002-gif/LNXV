@@ -54,12 +54,17 @@ class OnlineSubtitleSettings(private val context: Context) {
     }
 
     suspend fun migrateLegacyApiKey() {
-        val legacy = context.onlineSubsStore.data.first()[K.API_KEY_LEGACY]?.trim().orEmpty()
-        if (legacy.isBlank()) return
-        val encrypted = TokenCipher.encrypt(legacy)
-        context.onlineSubsStore.edit { prefs ->
-            if (prefs[K.API_KEY_ENC].isNullOrBlank()) prefs[K.API_KEY_ENC] = encrypted
-            prefs.remove(K.API_KEY_LEGACY)
+        try {
+            val legacy = context.onlineSubsStore.data.first()[K.API_KEY_LEGACY]?.trim().orEmpty()
+            if (legacy.isBlank()) return
+            val encrypted = TokenCipher.encrypt(legacy)
+            context.onlineSubsStore.edit { prefs ->
+                if (prefs[K.API_KEY_ENC].isNullOrBlank()) prefs[K.API_KEY_ENC] = encrypted
+                prefs.remove(K.API_KEY_LEGACY)
+            }
+        } catch (e: Exception) {
+            // Preserve the legacy value and keep playback usable if Android Keystore is temporarily unavailable.
+            android.util.Log.w("OnlineSubtitleSettings", "Could not migrate legacy API key to Keystore", e)
         }
     }
 
