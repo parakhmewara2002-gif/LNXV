@@ -316,7 +316,14 @@ class VaultRepository(
                     videoId, name, thumb?.let { VaultThumbEntity(videoId, it) }
                 )
             } catch (t: Throwable) {
-                withContext(NonCancellable) { finalFile.delete() }
+                withContext(NonCancellable) {
+                    val rolledBack = runCatching { videoDao.clearVaultStateWithThumb(videoId) }.isSuccess
+                    if (rolledBack) {
+                        finalFile.delete()
+                    } else {
+                        android.util.Log.e("VaultRepository", "Could not roll back vault metadata; preserving encrypted file", t)
+                    }
+                }
                 throw t
             }
             onProgress(1f)
