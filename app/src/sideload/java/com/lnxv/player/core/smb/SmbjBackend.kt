@@ -16,11 +16,16 @@ class SmbjBackend : SmbBackend {
         return try {
             SMBClient().use { client ->
                 client.connect(creds.host, creds.port).use { conn ->
-                    val session = conn.authenticate(AuthenticationContext(creds.user, creds.password.toCharArray(), creds.domain))
+                    val password = creds.password.toCharArray()
+                    val session = try {
+                        conn.authenticate(AuthenticationContext(creds.user, password, creds.domain))
+                    } finally {
+                        password.fill('\\u0000')
+                    }
                     (session.connectShare(path.share) as? DiskShare)?.use { share ->
                         val entries = share.list(path.path.replace('/', '\\')).mapNotNull { f ->
                             val name = f.fileName
-                            if (name == "." || name == "..") return@mapNotNull null
+                            if (!SmbPath.isValidSegment(name)) return@mapNotNull null
                             val isDir = EnumWithValue.EnumUtils.isSet(f.fileAttributes, FileAttributes.FILE_ATTRIBUTE_DIRECTORY)
                             if (!isDir && !com.lnxv.player.core.webdav.WebDavParser.isVideoName(name)) return@mapNotNull null
                             SmbEntry(name, isDir, f.endOfFile)
