@@ -92,7 +92,7 @@ class LNXVApplication : Application(), ImageLoaderFactory {
     fun lockVault() {
         appScope.launch(Dispatchers.Main) {
             if (!vaultKeyManager.isUnlocked) return@launch
-            vaultTransfers.cancelAll()
+            vaultTransfers.cancelAllAndJoin()
             if (playingVaultItem && isPlayerInitialized) playerManager.stopPlayback()
             vaultRepository.lock()
             playingVaultItem = false
