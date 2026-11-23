@@ -112,8 +112,22 @@ interface VideoDao {
     @Query("DELETE FROM vault_thumbs")
     suspend fun clearThumbs()
 
+    @Query("SELECT id FROM videos WHERE isVault = 1")
+    suspend fun getVaultVideoIds(): List<Long>
+
     @Query("DELETE FROM videos WHERE isVault = 1")
-    suspend fun deleteAllVaultRows()
+    suspend fun deleteVaultVideoRows()
+
+    @Transaction
+    suspend fun deleteAllVaultRows() {
+        val ids = getVaultVideoIds()
+        if (ids.isEmpty()) return
+        deleteHistoryForVideos(ids)
+        deletePlaylistItemsForVideos(ids)
+        deletePlaybackPrefsForVideos(ids)
+        deleteThumbsForVideos(ids)
+        deleteVaultVideoRows()
+    }
 
     @Query("DELETE FROM videos WHERE id = :videoId")
     suspend fun deleteVideoRow(videoId: Long)
