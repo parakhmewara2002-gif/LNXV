@@ -444,7 +444,7 @@ fun GlassDialog(
         val reduceFx = LocalReduceEffects.current
         val enter by animateFloatAsState(
             targetValue = if (shown.value || reduceFx) 1f else 0f,
-            animationSpec = spring(dampingRatio = 0.75f, stiffness = 420f),
+            animationSpec = if (reduceFx) tween(0) else spring(dampingRatio = 0.75f, stiffness = 420f),
             label = "dialog_enter"
         )
         Column(
@@ -513,6 +513,7 @@ fun GlassSegmented(
     onSelect: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val reduceEffects = LocalReduceEffects.current
     val tap = rememberTapHaptic()
     val reduceEffects = LocalReduceEffects.current
     Row(
