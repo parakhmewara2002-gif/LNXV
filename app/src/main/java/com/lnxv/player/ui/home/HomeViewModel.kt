@@ -347,13 +347,21 @@ class HomeViewModel(
 
     /** Recent network stream URLs (credentials already stripped when saved). */
     val recentStreams: kotlinx.coroutines.flow.StateFlow<List<String>> = dataStore.userPreferencesFlow
-        .map { com.lnxv.player.core.util.StreamUrl.decodeList(it.recentStreams) }
+        .map { prefs ->
+            com.lnxv.player.core.util.StreamUrl.decodeList(prefs.recentStreams)
+                .filterNot(com.lnxv.player.core.util.StreamUrl::hasSensitiveQuery)
+                .map(com.lnxv.player.core.util.StreamUrl::stripCredentials)
+        }
         .stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun rememberStream(url: String) {
         viewModelScope.launch {
+            // Query tokens/passwords are required for playback but must never be persisted in recents.
+            if (com.lnxv.player.core.util.StreamUrl.hasSensitiveQuery(url)) return@launch
             val clean = com.lnxv.player.core.util.StreamUrl.stripCredentials(url)
             val current = com.lnxv.player.core.util.StreamUrl.decodeList(dataStore.userPreferencesFlow.first().recentStreams)
+                .filterNot(com.lnxv.player.core.util.StreamUrl::hasSensitiveQuery)
+                .map(com.lnxv.player.core.util.StreamUrl::stripCredentials)
             dataStore.saveRecentStreams(
                 com.lnxv.player.core.util.StreamUrl.encodeList(com.lnxv.player.core.util.StreamUrl.addRecent(current, clean))
             )
