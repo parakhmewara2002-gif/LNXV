@@ -22,9 +22,10 @@ import androidx.compose.ui.graphics.graphicsLayer
 fun Modifier.bouncyClickable(pressedScale: Float = 0.985f, onLongClick: (() -> Unit)? = null, onClick: () -> Unit): Modifier {
     val interactionSource = remember { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
+    val reduceEffects = LocalReduceEffects.current
     val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
     val scale by animateFloatAsState(
-        targetValue = if (pressed) pressedScale else 1f,
+        targetValue = if (!reduceEffects && pressed) pressedScale else 1f,
         animationSpec = spring(
             dampingRatio = 0.92f,
             stiffness = 520f
