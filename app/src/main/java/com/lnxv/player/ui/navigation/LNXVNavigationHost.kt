@@ -150,14 +150,10 @@ fun LNXVNavigationHost(navController: NavHostController) {
             }
             // FLAG_SECURE while a vault item is open in the player
             val isVaultItem = playerUi.currentVideo?.isVault == true
-            val activity = androidx.compose.ui.platform.LocalContext.current as? android.app.Activity
-            androidx.compose.runtime.DisposableEffect(isVaultItem) {
-                if (isVaultItem) activity?.window?.addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
-                onDispose {
-                    if (isVaultItem && !app.screenshotsBlockedGlobally) {
-                        activity?.window?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
-                    }
-                }
+            val activity = androidx.compose.ui.platform.LocalContext.current as? com.lnxv.player.MainActivity
+            androidx.compose.runtime.DisposableEffect(isVaultItem, activity) {
+                activity?.setSecureWindowReason("vault-player", isVaultItem)
+                onDispose { activity?.setSecureWindowReason("vault-player", false) }
             }
             com.lnxv.player.core.design.LNXVPlayerTheme {
                 PlayerScreen(
