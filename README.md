@@ -13,7 +13,7 @@ LNXV is an advanced, production-ready Android video player built with **Jetpack 
 * **Local Persistence**: Room Database 2.6.1 with reactive Kotlin `Flow` queries.
 * **Preferences**: Jetpack DataStore Preferences.
 * **Image & Thumbnail Pipeline**: Coil 2.7.0 with `VideoFrameDecoder` for asynchronous video frame thumbnail generation.
-* **Language & SDK**: Kotlin 2.0, Target SDK 34 (Android 14+), Min SDK 26 (Android 8.0+).
+* **Language & SDK**: Kotlin 2.2.10, Target SDK 34 (Android 14+), Min SDK 23 (Android 6.0+).
 
 ---
 
@@ -45,7 +45,7 @@ LNXV is an advanced, production-ready Android video player built with **Jetpack 
 ### Private Vault & Security Model
 * **Encryption:** videos moved to the vault are copied into `filesDir/lnxv_vault/<uuid>.lnxv` as chunked AES-256-GCM (64 KB chunks, per-chunk nonce and AAD, truncation/reordering detected). The original is deleted from MediaStore after a full decrypt-and-hash verification. Playback decrypts in memory through a custom Media3 `DataSource`; plaintext is never written to disk or cache.
 * **Keys:** a random 32-byte master key is wrapped by an Android Keystore AES-GCM key (StrongBox when available). The key is only in memory while the vault is unlocked and is zeroed on lock.
-* **PIN:** 4-8 digits (6 recommended), PBKDF2WithHmacSHA256 (210 000 iterations) with a random per-install salt, constant-time comparison, persisted lockout after 5 wrong attempts (30 s, 1 m, 5 m, 15 m, 1 h).
+* **PIN:** 4-8 digits (6 recommended), PBKDF2WithHmacSHA256 (25,000 iterations) with a random per-install salt, constant-time comparison, persisted lockout after 5 wrong attempts (30 s, 1 m, 5 m, 15 m, 1 h).
 * **Session:** auto-lock on background (immediately / 30 s / 1 m / 5 m) and screen-off; FLAG_SECURE on vault screens and vault playback; optional "Block screenshots everywhere".
 * **Forgot PIN** permanently deletes all vault videos (the PIN gates access, the key is not recoverable).
 * **Threat model / limits:** protects against casual access, file-manager browsing, backups and offline copying of app storage. It does **not** protect against a rooted device or malware running as root while the vault is unlocked (the key is in process memory), a compromised OS, or someone who knows the PIN. The lockout uses wall-clock time, so changing the system clock can shorten a delay. Legacy (pre-encryption) vault items are only hidden until you tap "Encrypt now".
@@ -116,7 +116,7 @@ No analytics, no tracking, no ads. Only network use: the update check (sideload)
 - Minimum supported Android version is Android 6.0 (API 23).
 - Release builds package `arm64-v8a` and `armeabi-v7a` (x86_64 native decoders are only packaged in debug builds, for emulators).
 - Android 13 (API 33), including TECNO Camon 19, remains within the declared OS range. This does not by itself diagnose or fix a launch crash on a particular device.
-- The project currently retains its existing `compileSdk = 34` and `targetSdk = 34` toolchain settings. Apps can run on newer Android releases, but adopting the newest platform behavior requires a separate compile/target SDK and Android Gradle Plugin upgrade plus testing.
+- The project currently uses `compileSdk = 36` and `targetSdk = 34`. Apps can run on newer Android releases, but adopting the newest platform behavior requires a separate compile/target SDK and Android Gradle Plugin upgrade plus testing.
 - Android 5.x and older are not supported by this configuration.
 
 See `docs/ANDROID_COMPATIBILITY.md` for the compatibility notes and verification checklist.
