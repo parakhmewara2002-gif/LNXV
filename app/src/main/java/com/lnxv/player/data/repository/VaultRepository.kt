@@ -68,10 +68,6 @@ class VaultRepository(
 ) {
     private val vaultDir: File get() = VaultFiles.dir(context)
 
-    private companion object {
-        const val MAX_THUMBNAIL_BYTES = 4 * 1024 * 1024
-    }
-
     val isUnlocked: Boolean get() = keys.isUnlocked
 
     val vaultVideosFlow: Flow<List<VideoItem>> = videoDao.getVaultVideos().map { entities ->
@@ -643,6 +639,7 @@ class VaultRepository(
     private fun b64(b: ByteArray) = Base64.encodeToString(b, Base64.NO_WRAP)
 
     private companion object {
+        const val MAX_THUMBNAIL_BYTES = 4 * 1024 * 1024
         const val CHUNK = 512 * 1024
         const val SAFETY_MARGIN = 32L * 1024 * 1024
     }
