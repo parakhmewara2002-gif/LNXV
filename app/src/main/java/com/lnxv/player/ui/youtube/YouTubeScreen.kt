@@ -97,7 +97,7 @@ fun YouTubeScreen(
     fun playVideo(item: YouTubeClient.SearchItem) {
         resolvingId = item.videoId
         scope.launch {
-            YouTubeClient.resolve(item.videoId).onSuccess { stream ->
+            YouTubeClient.resolve(item.videoId, context).onSuccess { stream ->
                 resolvingId = null
                 session.transientVideo = VideoItem(
                     id = LNXVApplication.TRANSIENT_VIDEO_ID,

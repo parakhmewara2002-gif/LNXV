@@ -62,7 +62,7 @@ object YouTubeClient {
         }
     }
 
-    suspend fun resolve(rawUrlOrId: String): Result<VideoStream> = withContext(Dispatchers.IO) {
+    suspend fun resolve(rawUrlOrId: String, context: android.content.Context? = null): Result<VideoStream> = withContext(Dispatchers.IO) {
         val videoId = if (rawUrlOrId.length == 11 && !rawUrlOrId.contains("/")) rawUrlOrId else extractVideoId(rawUrlOrId)
         if (videoId == null) {
             return@withContext Result.failure(IllegalArgumentException("Invalid YouTube URL or ID: $rawUrlOrId"))
@@ -98,109 +98,72 @@ object YouTubeClient {
 
             OutputStreamWriter(conn.outputStream, "UTF-8").use { it.write(reqPayload.toString()) }
 
-            if (conn.responseCode != 200) {
-                return@withContext Result.failure(Exception("YouTube service returned HTTP ${conn.responseCode}"))
-            }
+            val responseStr = if (conn.responseCode == 200) {
+                BufferedReader(InputStreamReader(conn.inputStream, "UTF-8")).use { it.readText() }
+            } else ""
 
-            val responseStr = BufferedReader(InputStreamReader(conn.inputStream, "UTF-8")).use { it.readText() }
-            val json = JSONObject(responseStr)
-
+            val json = if (responseStr.isNotEmpty()) JSONObject(responseStr) else JSONObject()
             val playability = json.optJSONObject("playabilityStatus")
             val status = playability?.optString("status")
-            if (status != "OK") {
-                val reason = playability?.optString("reason") ?: "Video unavailable"
-                return@withContext Result.failure(Exception("YouTube: $reason"))
-            }
 
-            val videoDetails = json.optJSONObject("videoDetails")
-            val title = videoDetails?.optString("title") ?: "YouTube Video"
-            val author = videoDetails?.optString("author") ?: "YouTube"
-            val durationSec = videoDetails?.optLong("lengthSeconds", 0L) ?: 0L
-            val thumbnails = videoDetails?.optJSONObject("thumbnail")?.optJSONArray("thumbnails")
-            val thumbUrl = thumbnails?.optJSONObject(thumbnails.length() - 1)?.optString("url")
+            // If Innertube returns OK with streamingData, use direct streams
+            val streamingData = json.optJSONObject("streamingData")
+            if (status == "OK" && streamingData != null) {
+                val videoDetails = json.optJSONObject("videoDetails")
+                val title = videoDetails?.optString("title") ?: "YouTube Video"
+                val author = videoDetails?.optString("author") ?: "YouTube"
+                val durationSec = videoDetails?.optLong("lengthSeconds", 0L) ?: 0L
+                val thumbnails = videoDetails?.optJSONObject("thumbnail")?.optJSONArray("thumbnails")
+                val thumbUrl = thumbnails?.optJSONObject(thumbnails.length() - 1)?.optString("url")
 
-            val streamingData = json.optJSONObject("streamingData") ?: return@withContext Result.failure(
-                Exception("No playable streams found")
-            )
-
-            // 1. Progressive streams (combined video + audio, e.g. 720p / 360p)
-            val formats = streamingData.optJSONArray("formats")
-            var bestProgressiveUrl: String? = null
-            var progWidth = 1280
-            var progHeight = 720
-            if (formats != null) {
-                for (i in 0 until formats.length()) {
-                    val fmt = formats.optJSONObject(i) ?: continue
-                    val directUrl = fmt.optString("url")
-                    if (directUrl.isNotEmpty()) {
-                        bestProgressiveUrl = directUrl
-                        progWidth = fmt.optInt("width", 1280)
-                        progHeight = fmt.optInt("height", 720)
-                        break
-                    }
-                }
-            }
-
-            if (bestProgressiveUrl != null) {
-                return@withContext Result.success(
-                    VideoStream(
-                        videoUrl = bestProgressiveUrl,
-                        audioUrl = null,
-                        title = title,
-                        author = author,
-                        durationMs = durationSec * 1000L,
-                        width = progWidth,
-                        height = progHeight,
-                        thumbnailUrl = thumbUrl
-                    )
-                )
-            }
-
-            // 2. Adaptive streams
-            val adaptive = streamingData.optJSONArray("adaptiveFormats")
-            var bestVideoUrl: String? = null
-            var bestAudioUrl: String? = null
-            var bestHeight = 0
-            var bestWidth = 0
-
-            if (adaptive != null) {
-                for (i in 0 until adaptive.length()) {
-                    val fmt = adaptive.optJSONObject(i) ?: continue
-                    val directUrl = fmt.optString("url")
-                    if (directUrl.isEmpty()) continue
-                    val mime = fmt.optString("mimeType")
-
-                    if (mime.startsWith("video/")) {
-                        val h = fmt.optInt("height", 0)
-                        if (h > bestHeight) {
-                            bestHeight = h
-                            bestWidth = fmt.optInt("width", 0)
-                            bestVideoUrl = directUrl
+                // 1. Progressive streams
+                val formats = streamingData.optJSONArray("formats")
+                if (formats != null) {
+                    for (i in 0 until formats.length()) {
+                        val fmt = formats.optJSONObject(i) ?: continue
+                        val directUrl = fmt.optString("url")
+                        if (directUrl.isNotEmpty()) {
+                            return@withContext Result.success(
+                                VideoStream(
+                                    videoUrl = directUrl,
+                                    audioUrl = null,
+                                    title = title,
+                                    author = author,
+                                    durationMs = durationSec * 1000L,
+                                    width = fmt.optInt("width", 1280),
+                                    height = fmt.optInt("height", 720),
+                                    thumbnailUrl = thumbUrl
+                                )
+                            )
                         }
-                    } else if (mime.startsWith("audio/") && bestAudioUrl == null) {
-                        bestAudioUrl = directUrl
                     }
                 }
             }
 
-            if (bestVideoUrl != null) {
-                return@withContext Result.success(
-                    VideoStream(
-                        videoUrl = bestVideoUrl,
-                        audioUrl = bestAudioUrl,
-                        title = title,
-                        author = author,
-                        durationMs = durationSec * 1000L,
-                        width = if (bestWidth > 0) bestWidth else 1920,
-                        height = if (bestHeight > 0) bestHeight else 1080,
-                        thumbnailUrl = thumbUrl
+            // Fallback: If Innertube was blocked by bot check or has no direct url,
+            // use Headless Webview extractor to resolve genuine botguard-verified stream without login!
+            if (context != null) {
+                val headlessUrl = HeadlessYouTubeExtractor.resolveStream(context, videoId)
+                if (headlessUrl != null) {
+                    return@withContext Result.success(
+                        VideoStream(
+                            videoUrl = headlessUrl,
+                            audioUrl = null,
+                            title = "YouTube Video",
+                            author = "YouTube",
+                            durationMs = 0L,
+                            width = 1280,
+                            height = 720,
+                            thumbnailUrl = "https://i.ytimg.com/vi/$videoId/hqdefault.jpg"
+                        )
                     )
-                )
+                }
             }
 
-            Result.failure(Exception("Could not extract stream URL"))
+            val reason = playability?.optString("reason") ?: "Could not extract stream"
+            return@withContext Result.failure(Exception(reason))
         } catch (e: Exception) {
-            Result.failure(e)
+            return@withContext Result.failure(e)
         }
     }
 
