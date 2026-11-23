@@ -11,6 +11,7 @@ import com.hierynomus.smbj.SMBClient
 import com.hierynomus.smbj.auth.AuthenticationContext
 import com.hierynomus.smbj.connection.Connection
 import com.hierynomus.smbj.share.DiskShare
+import java.io.EOFException
 import java.io.IOException
 import java.util.EnumSet
 
@@ -68,7 +69,10 @@ class SmbjDataSource : BaseDataSource(true) {
         if (remaining == 0L) return C.RESULT_END_OF_INPUT
         val want = minOf(remaining, length.toLong()).toInt()
         val n = try { file!!.read(buffer, position, offset, want) } catch (e: Exception) { throw IOException("SMB read failed", e) }
-        if (n < 0) return C.RESULT_END_OF_INPUT
+        if (n < 0) {
+            if (remaining > 0L) throw EOFException("SMB file ended before the requested length")
+            return C.RESULT_END_OF_INPUT
+        }
         if (n == 0) throw IOException("SMB read made no progress")
         position += n; remaining -= n
         bytesTransferred(n)
