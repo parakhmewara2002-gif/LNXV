@@ -25,8 +25,14 @@ class WebDavDataSource : BaseDataSource(true) {
         uri = dataSpec.uri
         transferInitializing(dataSpec)
         try {
-            if (!dataSpec.uri.scheme.equals("https", ignoreCase = true) || dataSpec.uri.userInfo != null) {
+            val parsedUri = try { java.net.URI(dataSpec.uri.toString()) } catch (e: Exception) {
+                throw IOException("Invalid WebDAV URL", e)
+            }
+            if (!parsedUri.scheme.equals("https", ignoreCase = true) || parsedUri.userInfo != null) {
                 throw IOException("WebDAV playback requires a credential-free HTTPS URL")
+            }
+            if (dataSpec.httpMethod != DataSpec.HTTP_METHOD_GET && dataSpec.httpMethod != DataSpec.HTTP_METHOD_HEAD) {
+                throw IOException("Unsupported WebDAV request method")
             }
             val position = dataSpec.position
             val length = dataSpec.length
