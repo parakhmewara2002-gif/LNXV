@@ -80,7 +80,13 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
     /** MediaStore delete confirmation for the original video after it was encrypted into the vault. */
     private val deleteConsentLauncher = registerForActivityResult(
         ActivityResultContracts.StartIntentSenderForResult()
-    ) {
+    ) { result ->
+        val message = if (result.resultCode == Activity.RESULT_OK) {
+            "Original video removed from shared storage."
+        } else {
+            "Original video remains outside Vault; it was not deleted."
+        }
+        Toast.makeText(this, message, Toast.LENGTH_LONG).show()
         val app = application as LNXVApplication
         app.appScope.launch(Dispatchers.IO) { app.videoRepository.refreshLibrary() }
     }
