@@ -100,6 +100,19 @@ class ChunkedAeadTest {
         }
     }
 
+    @Test fun readerOwnsKeyCopyAndSurvivesCallerZeroization() {
+        val plain = randomBytes(4097)
+        val ct = encrypt(plain)
+        val suppliedKey = key.copyOf()
+        val r = ChunkedAead.Reader(ChunkedAead.BytesSource(ct), suppliedKey)
+        suppliedKey.fill(0)
+        r.use {
+            val restored = ByteArray(plain.size)
+            assertEquals(plain.size, it.read(0, restored, 0, restored.size))
+            assertArrayEquals(plain, restored)
+        }
+    }
+
     @Test fun randomAccessSeek() {
         val plain = randomBytes(20_000)
         val ct = encrypt(plain)
