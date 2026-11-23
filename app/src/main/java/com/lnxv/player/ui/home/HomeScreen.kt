@@ -733,7 +733,7 @@ topBar = {
                         } else {
                             items(uiState.folderVideos, key = { it.id }) { video ->
                                 VideoItemRow(
-                                    modifier = Modifier.animateItem(),
+                                    modifier = if (reduceEffects) Modifier else Modifier.animateItem(),
                                     video = video,
                                     onClick = { if (selection.isNotEmpty()) viewModel.toggleSelect(video.id) else onVideoClick(video) },
                                 selected = video.id in selection,
@@ -750,7 +750,7 @@ topBar = {
                     } else {
                         items(uiState.folders, key = { it.path }) { folder ->
                             FolderItemRow(
-                                modifier = Modifier.animateItem(),
+                                modifier = if (reduceEffects) Modifier else Modifier.animateItem(),
                                 folder = folder,
                                 onClick = { onFolderClick(folder) },
                                 onToggleHidden = { viewModel.setFolderHidden(folder.path, !folder.isHidden) }
@@ -764,7 +764,7 @@ topBar = {
                     } else {
                         items(uiState.recentlyPlayed, key = { it.id }) { video ->
                             VideoItemRow(
-                                modifier = Modifier.animateItem(),
+                                modifier = if (reduceEffects) Modifier else Modifier.animateItem(),
                                 video = video,
                                 onClick = { if (selection.isNotEmpty()) viewModel.toggleSelect(video.id) else onVideoClick(video) },
                                 selected = video.id in selection,
@@ -873,7 +873,7 @@ topBar = {
                     } else {
                         items(uiState.favorites, key = { it.id }) { video ->
                             VideoItemRow(
-                                modifier = Modifier.animateItem(),
+                                modifier = if (reduceEffects) Modifier else Modifier.animateItem(),
                                 video = video,
                                 onClick = { if (selection.isNotEmpty()) viewModel.toggleSelect(video.id) else onVideoClick(video) },
                                 selected = video.id in selection,
