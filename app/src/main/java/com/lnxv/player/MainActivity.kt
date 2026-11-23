@@ -90,6 +90,9 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
         super.onCreate(savedInstanceState)
         splash.setKeepOnScreenCondition { prefsState.value == null }
         splash.setOnExitAnimationListener { splashScreenView ->
+            if (systemAnimationsDisabled()) {
+                splashScreenView.remove()
+            } else {
             val iconView = splashScreenView.iconView
             val targetView = iconView ?: splashScreenView.view
             val scaleX = android.animation.ObjectAnimator.ofFloat(targetView, android.view.View.SCALE_X, 1f, 1.25f, 0.8f, 0f)
@@ -106,6 +109,7 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
                 })
             }
             animatorSet.start()
+            }
         }
         // Build ExoPlayer + codec renderers while the main thread is idle on Home, so the first video does not pay for it.
         android.os.Looper.myQueue().addIdleHandler {
