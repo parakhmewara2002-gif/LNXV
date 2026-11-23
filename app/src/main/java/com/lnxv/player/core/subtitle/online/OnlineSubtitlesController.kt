@@ -49,7 +49,7 @@ class OnlineSubtitlesController(
     private var job: Job? = null
 
     fun defaultQueryFor(video: VideoItem?): String =
-        video?.let { SubtitleQueryBuilder.parse(it.title.ifBlank { File(it.path).name }).query }.orEmpty()
+        if (video == null || video.isVault) "" else SubtitleQueryBuilder.parse(video.title.ifBlank { File(video.path).name }).query
 
     fun cancel() { job?.cancel(); _state.value = _state.value.copy(loading = false, downloadingId = null) }
 
@@ -58,6 +58,11 @@ class OnlineSubtitlesController(
     /** Local library files get a hash search first; the text query is used when there is no hash, no match, or [useHash] is false. */
     fun search(video: VideoItem?, text: String, languages: List<String>, useHash: Boolean) {
         job?.cancel()
+        // Never send a private vault filename or hash to a third-party subtitle service.
+        if (video?.isVault == true) {
+            _state.value = OnlineSubtitlesUi(searched = true)
+            return
+        }
         _state.value = OnlineSubtitlesUi(loading = true)
         job = scope.launch {
             try {
@@ -84,6 +89,10 @@ class OnlineSubtitlesController(
     /** Downloads one result and hands the saved file to [onReady]. Library videos remember it for next time. */
     fun download(video: VideoItem?, sub: OsSubtitle, onReady: (File) -> Unit) {
         job?.cancel()
+        if (video?.isVault == true) {
+            _state.value = _state.value.copy(downloadingId = null)
+            return
+        }
         _state.value = _state.value.copy(downloadingId = sub.fileId, error = null)
         job = scope.launch {
             try {
