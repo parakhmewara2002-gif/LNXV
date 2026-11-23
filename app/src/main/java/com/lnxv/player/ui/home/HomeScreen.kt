@@ -576,7 +576,7 @@ topBar = {
                     LazyRow(
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        items(uiState.recentlyPlayed.take(5)) { video ->
+                        items(uiState.recentlyPlayed.take(5), key = { it.id }) { video ->
                             ContinueWatchingCard(
                                 video = video,
                                 onClick = { onVideoClick(video) }
@@ -640,7 +640,7 @@ topBar = {
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            items(com.lnxv.player.core.model.SmartCollection.values().toList()) { c ->
+                            items(com.lnxv.player.core.model.SmartCollection.values().toList(), key = { it.name }) { c ->
                                 com.lnxv.player.core.design.GlassFilterChip(
                                     selected = uiState.collection == c,
                                     label = androidx.compose.ui.res.stringResource(c.labelRes),
