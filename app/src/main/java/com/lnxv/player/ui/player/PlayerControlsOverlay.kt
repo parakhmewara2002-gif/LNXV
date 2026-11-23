@@ -296,7 +296,7 @@ private fun ScrubSection(
 
     // Thumbnail preview while scrubbing (local content:// / file:// videos only; never vault/network).
     val context = LocalContext.current
-    val previewEligible = video != null && !video.isVault && (video.uri.scheme == "content" || video.uri.scheme == "file")
+    val previewEligible = !reduceEffects && video != null && !video.isVault && (video.uri.scheme == "content" || video.uri.scheme == "file")
     val thumbnailer = remember(video?.uri, previewEligible) {
         if (previewEligible && video != null) ScrubThumbnailer(context.applicationContext, video.uri) else null
     }
