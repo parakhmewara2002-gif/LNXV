@@ -43,7 +43,7 @@ object WebDavAuth {
     fun originOf(url: String): String? = try {
         val u = URI(url)
         if (u.scheme?.lowercase() != "https" || u.host.isNullOrEmpty() || u.userInfo != null ||
-            u.port !in -1..65535
+            (u.port != -1 && u.port !in 1..65535)
         ) null
         else "https://${u.host.lowercase()}:${if (u.port == -1) 443 else u.port}"
     } catch (e: Exception) { null }
