@@ -8,6 +8,6 @@ object LibrarySyncPolicy {
      * A scan that returns less than half of a non-trivial library is treated as a transient failure
      * (unmounted SD card, revoked/partial permission) and must not wipe favourites, history and resume points.
      */
-    fun shouldPrune(scannedCount: Int, existingCount: Int): Boolean =
-        existingCount <= SMALL_LIBRARY || scannedCount * 2 >= existingCount
+    fun shouldPrune(scannedCount: Int, existingCount: Int, hasFullAccess: Boolean = true): Boolean =
+        hasFullAccess && (existingCount <= SMALL_LIBRARY || scannedCount * 2 >= existingCount)
 }
