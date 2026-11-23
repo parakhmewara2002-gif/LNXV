@@ -46,6 +46,8 @@ import com.lnxv.player.core.subtitle.AssShifter
 import com.lnxv.player.core.subtitle.SubtitleEncoding
 import com.lnxv.player.core.subtitle.SubtitleFormat
 import java.io.File
+import java.io.ByteArrayOutputStream
+import java.io.InputStream
 import kotlinx.coroutines.withContext
 import kotlin.math.roundToLong
 import kotlinx.coroutines.CoroutineScope
@@ -371,14 +373,27 @@ class Media3PlayerManager(private val context: Context) : PlayerController, Play
         applyExternalSubtitle()
     }
 
+    private fun readSubtitleBounded(input: InputStream): ByteArray? {
+        val output = ByteArrayOutputStream(8 * 1024)
+        val buffer = ByteArray(8 * 1024)
+        var total = 0
+        while (true) {
+            val count = input.read(buffer)
+            if (count < 0) return output.toByteArray()
+            if (count == 0) continue
+            if (total > MAX_SUBTITLE_BYTES - count) return null
+            output.write(buffer, 0, count)
+            total += count
+        }
+    }
+
     private suspend fun applyExternalSubtitle(): Boolean {
         val source = externalSubtitleSource ?: return false
         val delay = _subtitleDelayMs.value
         val prepared: Pair<Uri, SubtitleFormat> = withContext(Dispatchers.IO) {
             try {
-                val bytes = context.contentResolver.openInputStream(source)?.use { it.readBytes() }
+                val bytes = context.contentResolver.openInputStream(source)?.use { readSubtitleBounded(it) }
                     ?: return@withContext null
-                if (bytes.size > MAX_SUBTITLE_BYTES) return@withContext null
                 val text = SubtitleEncoding.decode(bytes, SubtitleEncoding.charsetFor(_subtitleEncoding.value))
                 val format = SubtitleFormat.detect(text) ?: return@withContext null
                 val shifted = when (format) {
@@ -774,7 +789,7 @@ class Media3PlayerManager(private val context: Context) : PlayerController, Play
             if (group.type == C.TRACK_TYPE_AUDIO) {
                 for (i in 0 until group.length) {
                     val format = group.getTrackFormat(i)
-                    if (format.id == track.id) {
+                    if ((format.id ?: "audio_$i") == track.id) {
                         trackSelector.setParameters(
                             trackSelector.buildUponParameters()
                                 .setOverrideForType(TrackSelectionOverride(group.mediaTrackGroup, listOf(i)))
@@ -805,7 +820,7 @@ class Media3PlayerManager(private val context: Context) : PlayerController, Play
                 if (group.type == C.TRACK_TYPE_TEXT) {
                     for (i in 0 until group.length) {
                         val format = group.getTrackFormat(i)
-                        if (format.id == track.id) {
+                        if ((format.id ?: "sub_$i") == track.id) {
                             trackSelector.setParameters(
                                 trackSelector.buildUponParameters()
                                     .setOverrideForType(TrackSelectionOverride(group.mediaTrackGroup, listOf(i)))
