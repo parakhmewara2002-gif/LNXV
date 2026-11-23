@@ -34,8 +34,7 @@ private class PictureShaderProgram(private val settings: PictureSettings) : Base
     private val glProgram: GlProgram
     private val colorMatrix: FloatArray
     private val colorOffset: FloatArray
-    private var texelW = 0f
-    private var texelH = 0f
+    private val texelSize = FloatArray(2)
 
     init {
         try {
@@ -50,8 +49,8 @@ private class PictureShaderProgram(private val settings: PictureSettings) : Base
     }
 
     override fun configure(inputWidth: Int, inputHeight: Int): Size {
-        texelW = 1f / inputWidth.coerceAtLeast(1)
-        texelH = 1f / inputHeight.coerceAtLeast(1)
+        texelSize[0] = 1f / inputWidth.coerceAtLeast(1)
+        texelSize[1] = 1f / inputHeight.coerceAtLeast(1)
         return Size(inputWidth, inputHeight)
     }
 
@@ -59,7 +58,7 @@ private class PictureShaderProgram(private val settings: PictureSettings) : Base
         try {
             glProgram.use()
             glProgram.setSamplerTexIdUniform("uTexSampler", inputTexId, 0)
-            glProgram.setFloatsUniform("uTexelSize", floatArrayOf(texelW, texelH))
+            glProgram.setFloatsUniform("uTexelSize", texelSize)
             glProgram.setFloatUniform("uSharpAmount", settings.sharpness)
             glProgram.setFloatUniform("uSharpThreshold", settings.sharpNoiseThreshold)
             glProgram.setFloatsUniform("uColorMatrix", colorMatrix)
