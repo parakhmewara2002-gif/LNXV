@@ -333,7 +333,8 @@ fun IosTabBar(
     /** True when something else (the AGSL lens) already frosts what is behind the bar, so the fill can be translucent. */
     backdropHandled: Boolean = false
 ) {
-    val blurred = backdropHandled || (hazeState != null && !LocalReduceEffects.current)
+    val reduceEffects = LocalReduceEffects.current
+    val blurred = backdropHandled || (hazeState != null && !reduceEffects)
     val tap = rememberTapHaptic()
     Row(
         modifier = modifier
@@ -351,12 +352,12 @@ fun IosTabBar(
             val selected = index == selectedIndex
             val bg by animateColorAsState(
                 targetValue = if (selected) appColors.accent.copy(alpha = 0.22f) else Color.Transparent,
-                animationSpec = tween(200),
+                animationSpec = tween(if (reduceEffects) 0 else 200),
                 label = "tab_bg"
             )
             val fg by animateColorAsState(
                 targetValue = if (selected) appColors.accent else appColors.textSecondary,
-                animationSpec = tween(200),
+                animationSpec = tween(if (reduceEffects) 0 else 200),
                 label = "tab_fg"
             )
             Box(
@@ -525,7 +526,7 @@ fun GlassSegmented(
             val selected = index == selectedIndex
             val bg by animateColorAsState(
                 targetValue = if (selected) appColors.accent.copy(alpha = 0.28f) else Color.Transparent,
-                animationSpec = tween(200),
+                animationSpec = tween(if (LocalReduceEffects.current) 0 else 200),
                 label = "segment_bg"
             )
             Box(
