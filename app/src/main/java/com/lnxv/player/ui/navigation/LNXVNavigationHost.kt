@@ -65,7 +65,8 @@ fun LNXVNavigationHost(navController: NavHostController) {
         // iOS-style push/pop: new screen slides in from the right while the old one shifts ~30% left and dims;
         // back reverses. Routes to/from the player fade and scale instead.
         enterTransition = {
-            if (isPlayerEntry(targetState)) {
+            if (reduce) fadeIn(tween(0))
+            else if (isPlayerEntry(targetState)) {
                 fadeIn(tween(280)) + scaleIn(tween(320, easing = androidx.compose.animation.core.CubicBezierEasing(0.32f, 0.72f, 0.0f, 1.0f)), initialScale = 0.92f)
             } else {
                 slideInHorizontally(tween(380, easing = androidx.compose.animation.core.CubicBezierEasing(0.32f, 0.72f, 0.0f, 1.0f))) { it } +
@@ -73,7 +74,8 @@ fun LNXVNavigationHost(navController: NavHostController) {
             }
         },
         exitTransition = {
-            if (isPlayerEntry(targetState)) {
+            if (reduce) fadeOut(tween(0))
+            else if (isPlayerEntry(targetState)) {
                 fadeOut(tween(200))
             } else {
                 slideOutHorizontally(tween(380, easing = androidx.compose.animation.core.CubicBezierEasing(0.32f, 0.72f, 0.0f, 1.0f))) { -(it * 0.32f).toInt() } +
@@ -81,7 +83,8 @@ fun LNXVNavigationHost(navController: NavHostController) {
             }
         },
         popEnterTransition = {
-            if (isPlayerEntry(initialState)) {
+            if (reduce) fadeIn(tween(0))
+            else if (isPlayerEntry(initialState)) {
                 fadeIn(tween(240))
             } else {
                 slideInHorizontally(tween(380, easing = androidx.compose.animation.core.CubicBezierEasing(0.32f, 0.72f, 0.0f, 1.0f))) { -(it * 0.32f).toInt() } +
@@ -89,7 +92,8 @@ fun LNXVNavigationHost(navController: NavHostController) {
             }
         },
         popExitTransition = {
-            if (isPlayerEntry(initialState)) {
+            if (reduce) fadeOut(tween(0))
+            else if (isPlayerEntry(initialState)) {
                 fadeOut(tween(200)) + scaleOut(tween(280, easing = androidx.compose.animation.core.CubicBezierEasing(0.32f, 0.72f, 0.0f, 1.0f)), targetScale = 0.92f)
             } else {
                 slideOutHorizontally(tween(380, easing = androidx.compose.animation.core.CubicBezierEasing(0.32f, 0.72f, 0.0f, 1.0f))) { it }
