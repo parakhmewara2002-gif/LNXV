@@ -514,6 +514,7 @@ fun GlassSegmented(
     modifier: Modifier = Modifier
 ) {
     val tap = rememberTapHaptic()
+    val reduceEffects = LocalReduceEffects.current
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -630,9 +631,10 @@ fun GlassProgress(progress: () -> Float, modifier: Modifier = Modifier, height: 
 /** Glass capsule filter chip (replaces Material FilterChip): animated tint, spring press, selected semantics. */
 @Composable
 fun GlassFilterChip(selected: Boolean, label: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val reduceEffects = LocalReduceEffects.current
     val bg by animateColorAsState(
         targetValue = if (selected) appColors.accent.copy(alpha = 0.28f) else appColors.glassFill,
-        animationSpec = tween(200),
+        animationSpec = tween(if (reduceEffects) 0 else 200),
         label = "chip_bg"
     )
     Box(
