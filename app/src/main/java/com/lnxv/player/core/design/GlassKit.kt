@@ -515,7 +515,6 @@ fun GlassSegmented(
 ) {
     val reduceEffects = LocalReduceEffects.current
     val tap = rememberTapHaptic()
-    val reduceEffects = LocalReduceEffects.current
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -528,7 +527,7 @@ fun GlassSegmented(
             val selected = index == selectedIndex
             val bg by animateColorAsState(
                 targetValue = if (selected) appColors.accent.copy(alpha = 0.28f) else Color.Transparent,
-                animationSpec = tween(if (LocalReduceEffects.current) 0 else 200),
+                animationSpec = tween(if (reduceEffects) 0 else 200),
                 label = "segment_bg"
             )
             Box(
