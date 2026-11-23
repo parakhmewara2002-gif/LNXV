@@ -9,6 +9,9 @@ import com.lnxv.player.core.model.FolderItem
 import com.lnxv.player.core.model.VideoItem
 import com.lnxv.player.data.mediastore.MediaStoreScanner
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -72,6 +75,7 @@ class HomeViewModel(
     private val _searchQuery = MutableStateFlow("")
     private val _sortOption = MutableStateFlow(SortOption.DATE_DESC)
     private val _isRefreshing = MutableStateFlow(false)
+    private val refreshMutex = Mutex()
     private val _openFolder = MutableStateFlow<String?>(null)
     private val _collection = MutableStateFlow(com.lnxv.player.core.model.SmartCollection.ALL)
 
@@ -228,9 +232,18 @@ class HomeViewModel(
 
     fun refreshLibrary() {
         viewModelScope.launch {
-            _isRefreshing.value = true
-            repository.refreshLibrary()
-            _isRefreshing.value = false
+            refreshMutex.withLock {
+                _isRefreshing.value = true
+                try {
+                    repository.refreshLibrary()
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    android.util.Log.e("HomeViewModel", "Library refresh failed", e)
+                } finally {
+                    _isRefreshing.value = false
+                }
+            }
         }
     }
 
