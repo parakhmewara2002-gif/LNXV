@@ -373,17 +373,22 @@ class MsHost(private val context: Context, private val player: ExoPlayer) {
     }
 
     private inner class Client(val socket: Socket, val out: OutputStream) {
-        private val writer = Executors.newSingleThreadExecutor()
+        private val writer: ExecutorService = ThreadPoolExecutor(
+            1, 1, 0L, TimeUnit.MILLISECONDS, ArrayBlockingQueue(32), ThreadPoolExecutor.AbortPolicy()
+        )
         fun send(j: JSONObject) {
             try {
                 writer.execute {
                     try { out.write((j.toString() + "\n").toByteArray()); out.flush() } catch (e: IOException) { close() }
                 }
-            } catch (_: Exception) {}
+            } catch (_: Exception) {
+                // A slow or stalled peer must not create an unbounded outbound queue.
+                close()
+            }
         }
         fun close() {
             try { socket.close() } catch (_: Exception) {}
-            try { writer.shutdown() } catch (_: Exception) {}
+            try { writer.shutdownNow() } catch (_: Exception) {}
         }
     }
 
