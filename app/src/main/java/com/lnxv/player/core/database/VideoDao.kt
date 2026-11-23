@@ -24,7 +24,29 @@ interface VideoDao {
     suspend fun getAllVideosOnce(): List<VideoEntity>
 
     @Query("DELETE FROM videos WHERE id IN (:ids)")
-    suspend fun deleteVideosByIds(ids: List<Long>)
+    suspend fun deleteVideoRowsByIds(ids: List<Long>)
+
+    @Query("DELETE FROM playback_history WHERE videoId IN (:ids)")
+    suspend fun deleteHistoryForVideos(ids: List<Long>)
+
+    @Query("DELETE FROM playlist_items WHERE videoId IN (:ids)")
+    suspend fun deletePlaylistItemsForVideos(ids: List<Long>)
+
+    @Query("DELETE FROM video_playback_prefs WHERE videoId IN (:ids)")
+    suspend fun deletePlaybackPrefsForVideos(ids: List<Long>)
+
+    @Query("DELETE FROM vault_thumbs WHERE videoId IN (:ids)")
+    suspend fun deleteThumbsForVideos(ids: List<Long>)
+
+    @Transaction
+    suspend fun deleteVideosByIds(ids: List<Long>) {
+        if (ids.isEmpty()) return
+        deleteHistoryForVideos(ids)
+        deletePlaylistItemsForVideos(ids)
+        deletePlaybackPrefsForVideos(ids)
+        deleteThumbsForVideos(ids)
+        deleteVideoRowsByIds(ids)
+    }
 
     @Query("SELECT * FROM videos WHERE isVault = 0 AND lastPlayedTimestamp > 0 AND lastPositionMs > 5000 ORDER BY lastPlayedTimestamp DESC LIMIT 1")
     suspend fun getLastUnfinished(): VideoEntity?
@@ -94,7 +116,16 @@ interface VideoDao {
     suspend fun deleteAllVaultRows()
 
     @Query("DELETE FROM videos WHERE id = :videoId")
-    suspend fun deleteVideo(videoId: Long)
+    suspend fun deleteVideoRow(videoId: Long)
+
+    @Transaction
+    suspend fun deleteVideo(videoId: Long) {
+        deleteHistory(videoId)
+        deletePlaylistItemsForVideos(listOf(videoId))
+        deletePlaybackPrefsForVideos(listOf(videoId))
+        deleteThumb(videoId)
+        deleteVideoRow(videoId)
+    }
 
     @Query("SELECT * FROM playback_history ORDER BY lastWatchedTimestamp DESC")
     fun getPlaybackHistory(): Flow<List<PlaybackHistoryEntity>>
