@@ -304,17 +304,29 @@ class VaultRepository(
             try {
                 mmr.setDataSource(context, source)
                 val frame = mmr.getFrameAtTime(1_000_000L, MediaMetadataRetriever.OPTION_CLOSEST_SYNC) ?: return null
-                val w = 320
-                val h = (frame.height * (w.toFloat() / frame.width)).toInt().coerceAtLeast(1)
-                val scaled = Bitmap.createScaledBitmap(frame, w, h, true)
-                val bytes = ByteArrayOutputStream()
-                @Suppress("DEPRECATION")
-                val fmt = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) Bitmap.CompressFormat.WEBP_LOSSY
-                else Bitmap.CompressFormat.WEBP
-                scaled.compress(fmt, 70, bytes)
-                val out = ByteArrayOutputStream()
-                ChunkedAead.Encryptor(out, key, 16 * 1024).use { it.write(bytes.toByteArray()) }
-                out.toByteArray()
+                var scaled: Bitmap? = null
+                try {
+                    val w = 320
+                    val h = (frame.height * (w.toFloat() / frame.width)).toInt().coerceAtLeast(1)
+                    scaled = Bitmap.createScaledBitmap(frame, w, h, true)
+                    val bytes = ByteArrayOutputStream()
+                    @Suppress("DEPRECATION")
+                    val fmt = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) Bitmap.CompressFormat.WEBP_LOSSY
+                    else Bitmap.CompressFormat.WEBP
+                    scaled.compress(fmt, 70, bytes)
+                    val plainThumbnail = bytes.toByteArray()
+                    try {
+                        val out = ByteArrayOutputStream()
+                        ChunkedAead.Encryptor(out, key, 16 * 1024).use { it.write(plainThumbnail) }
+                        out.toByteArray()
+                    } finally {
+                        plainThumbnail.fill(0)
+                        bytes.reset()
+                    }
+                } finally {
+                    if (scaled !== frame) scaled?.recycle()
+                    frame.recycle()
+                }
             } finally {
                 mmr.release()
             }
