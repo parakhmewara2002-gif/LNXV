@@ -136,13 +136,14 @@ fun GestureHud(state: GestureOverlayState) {
     val active = state.activeGesture != GestureType.NONE
     // Non-state holder: remembers the last active gesture so the pill does not change content during its exit fade.
     val last = remember { arrayOfNulls<GestureOverlayState>(1) }
-    if (active) last[0] = state
-    val shown = last[0] ?: state
+    val shown = if (active) state else last[0] ?: state
+    androidx.compose.runtime.SideEffect {
+        if (active) last[0] = state
+    }
     AnimatedVisibility(
         visible = active,
-        enter = fadeIn(tween(120)) + (
-            if (reduce) androidx.compose.animation.EnterTransition.None
-            else androidx.compose.animation.scaleIn(
+        enter = if (reduce) fadeIn(tween(0)) else fadeIn(tween(120)) + (
+            androidx.compose.animation.scaleIn(
                 initialScale = 0.9f,
                 animationSpec = androidx.compose.animation.core.spring(
                     dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy,
@@ -150,7 +151,7 @@ fun GestureHud(state: GestureOverlayState) {
                 )
             )
         ),
-        exit = fadeOut(tween(160)),
+        exit = fadeOut(tween(if (reduce) 0 else 160)),
         modifier = Modifier.fillMaxSize()
     ) {
         Box(
