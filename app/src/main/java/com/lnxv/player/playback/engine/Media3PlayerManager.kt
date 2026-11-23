@@ -166,7 +166,12 @@ class Media3PlayerManager(private val context: Context) : PlayerController, Play
                     },
                     EncryptedDataSource.Factory(
                         keyProvider = { (context.applicationContext as LNXVApplication).vaultKeyManager.requireKey() },
-                        fileResolver = { uri -> java.io.File(VaultFiles.dir(context), uri.lastPathSegment ?: "") }
+                        fileResolver = { uri ->
+                            if (uri.authority != "v" || uri.pathSegments.size != 1) {
+                                throw java.io.IOException("Invalid vault media URI")
+                            }
+                            VaultFiles.file(context, uri.lastPathSegment ?: "")
+                        }
                     )
                 ),
                 SeekFixExtractorsFactory(context)
