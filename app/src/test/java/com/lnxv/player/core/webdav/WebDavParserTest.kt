@@ -38,6 +38,7 @@ class WebDavParserTest {
         assertTrue(WebDavParser.parse(response("https://evil.local/dav/clip.mp4"), "https://nas.local/dav/").isEmpty())
         assertTrue(WebDavParser.parse(response("http://nas.local/dav/clip.mp4"), "https://nas.local/dav/").isEmpty())
         assertTrue(WebDavParser.parse(response("https://nas.local:9443/dav/clip.mp4"), "https://nas.local/dav/").isEmpty())
+        assertTrue(WebDavParser.parse(response("mailto:evil@example.com"), "https://nas.local/dav/").isEmpty())
     }
 
     @Test fun allowsFolderEntriesWithinRoot() {
