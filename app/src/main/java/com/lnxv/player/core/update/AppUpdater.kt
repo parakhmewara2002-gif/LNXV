@@ -193,6 +193,10 @@ object AppUpdater {
             conn.disconnect()
         }
 
+        if (out.length() == 0L) {
+            out.delete()
+            throw IOException("Update APK is empty")
+        }
         if (verify) {
             if (!UpdateVerifier.fileMatches(out, expected!!)) {
                 out.delete()
