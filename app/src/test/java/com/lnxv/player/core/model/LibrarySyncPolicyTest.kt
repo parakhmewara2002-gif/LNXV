@@ -15,6 +15,11 @@ class LibrarySyncPolicyTest {
         assertFalse(LibrarySyncPolicy.shouldPrune(scannedCount = 249, existingCount = 500))
     }
 
+    @Test fun partialMediaAccessNeverPrunesEvenSmallLibraries() {
+        assertFalse(LibrarySyncPolicy.shouldPrune(scannedCount = 2, existingCount = 3, hasFullAccess = false))
+        assertFalse(LibrarySyncPolicy.shouldPrune(scannedCount = 250, existingCount = 500, hasFullAccess = false))
+    }
+
     @Test fun normalScanPrunes() {
         assertTrue(LibrarySyncPolicy.shouldPrune(scannedCount = 250, existingCount = 500))
         assertTrue(LibrarySyncPolicy.shouldPrune(scannedCount = 495, existingCount = 500))
