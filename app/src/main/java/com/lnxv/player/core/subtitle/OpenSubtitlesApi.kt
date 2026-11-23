@@ -62,9 +62,16 @@ object OpenSubtitlesApi {
     private fun enc(s: String) = URLEncoder.encode(s, "UTF-8")
 
     fun host(baseUrl: String?): String {
-        val h = baseUrl?.trim()?.removePrefix("https://")?.removePrefix("http://")?.trimEnd('/').orEmpty()
-        // Only ever talk to OpenSubtitles hosts, even if a login response says otherwise.
-        return if (h.endsWith("opensubtitles.com")) h else DEFAULT_HOST
+        val raw = baseUrl?.trim().orEmpty()
+        if (raw.isEmpty()) return DEFAULT_HOST
+        val uri = runCatching { java.net.URI(if (raw.contains("://")) raw else "https://$raw") }.getOrNull()
+            ?: return DEFAULT_HOST
+        if (uri.scheme != "https" || uri.userInfo != null || uri.port != -1 ||
+            uri.rawPath !in listOf(null, "", "/") || uri.rawQuery != null || uri.rawFragment != null
+        ) return DEFAULT_HOST
+        val candidate = uri.host?.lowercase() ?: return DEFAULT_HOST
+        // A dot boundary is required: evilopensubtitles.com is not an OpenSubtitles subdomain.
+        return candidate.takeIf { it == "opensubtitles.com" || it.endsWith(".opensubtitles.com") } ?: DEFAULT_HOST
     }
 
     /** Parameters are lower case and alphabetically ordered, which is what the API documents to avoid redirects. */
