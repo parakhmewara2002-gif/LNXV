@@ -1,6 +1,10 @@
 package com.lnxv.player.data.repository
 
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.core.content.ContextCompat
 import android.net.Uri
 import com.lnxv.player.core.database.PlaybackHistoryEntity
 import com.lnxv.player.core.database.VideoDao
@@ -57,7 +61,14 @@ class VideoRepository(
         // Safeguard against transient MediaStore scanner drops / partial unmounts:
         // Only prune missing videos if scanner returned a substantial portion (>50% of existing library)
         val candidates = existing.values.filter { !it.isVault }
-        if (com.lnxv.player.core.model.LibrarySyncPolicy.shouldPrune(scannedIds.size, candidates.size)) {
+        // Android 14+ can return only user-selected videos. A partial grant is never a complete
+        // library snapshot, even when the library is small, so it must not prune hidden rows.
+        val hasFullAccess = if (Build.VERSION.SDK_INT >= 33) {
+            ContextCompat.checkSelfPermission(context, Manifest.permission.READ_MEDIA_VIDEO) == PackageManager.PERMISSION_GRANTED
+        } else {
+            ContextCompat.checkSelfPermission(context, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
+        }
+        if (com.lnxv.player.core.model.LibrarySyncPolicy.shouldPrune(scannedIds.size, candidates.size, hasFullAccess)) {
             candidates.filter { it.id !in scannedIds }
                 .map { it.id }
                 .chunked(500)
