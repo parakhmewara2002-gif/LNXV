@@ -34,7 +34,8 @@ data class SmbPath(val host: String, val port: Int, val share: String, val path:
             val port = if (hostPort.contains(':')) hostPort.substringAfter(':').toIntOrNull() ?: return null else DEFAULT_PORT
             if (host.isEmpty() || port !in 1..65535) return null
             val decoded = segs.drop(1).map { decode(it) ?: return null }
-            if (decoded.any { it == ".." || it == "." || it.contains('\\') || it.isEmpty() }) return null
+            // Reject decoded separators too: %2f must not smuggle a second path segment.
+            if (decoded.any { it == ".." || it == "." || it.contains('/') || it.contains('\\') || it.isEmpty() }) return null
             return SmbPath(host, port, decoded[0], decoded.drop(1).joinToString("/"))
         }
 
