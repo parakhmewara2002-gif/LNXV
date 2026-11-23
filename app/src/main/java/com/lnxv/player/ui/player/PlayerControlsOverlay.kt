@@ -486,11 +486,12 @@ private fun VolumePill(modifier: Modifier = Modifier) {
     val maxVol = remember { audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1) }
     var fraction by remember { mutableFloatStateOf(audio.getStreamVolume(AudioManager.STREAM_MUSIC) / maxVol.toFloat()) }
     var touching by remember { mutableStateOf(false) }
+    val touchingState = rememberUpdatedState(touching)
 
     androidx.compose.runtime.DisposableEffect(context) {
         val receiver = object : android.content.BroadcastReceiver() {
             override fun onReceive(c: Context?, intent: android.content.Intent?) {
-                if (!touching) {
+                if (!touchingState.value) {
                     fraction = audio.getStreamVolume(AudioManager.STREAM_MUSIC) / maxVol.toFloat()
                 }
             }
@@ -506,12 +507,6 @@ private fun VolumePill(modifier: Modifier = Modifier) {
         }
     }
 
-    LaunchedEffect(Unit) {
-        while (true) {
-            if (!touching) fraction = audio.getStreamVolume(AudioManager.STREAM_MUSIC) / maxVol.toFloat()
-            delay(100)
-        }
-    }
     GlassPill(modifier) {
         Spacer(modifier = Modifier.width(14.dp))
         ThinTrack(
