@@ -199,9 +199,12 @@ object AppUpdater {
         return UpdateVerifier.sameSigners(signerDigests(installed), signerDigests(candidate))
     }
 
-    fun canInstall(ctx: Context): Boolean = ctx.packageManager.canRequestPackageInstalls()
+    /** Per-app unknown-source permission exists from API 26; older Android uses the system-wide setting. */
+    fun canInstall(ctx: Context): Boolean =
+        Build.VERSION.SDK_INT < Build.VERSION_CODES.O || ctx.packageManager.canRequestPackageInstalls()
 
     fun openInstallPermissionSettings(ctx: Context) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val i = Intent(
             android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
             android.net.Uri.parse("package:${ctx.packageName}")
