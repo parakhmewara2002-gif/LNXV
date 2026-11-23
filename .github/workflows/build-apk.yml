@@ -219,7 +219,7 @@ jobs:
           '
             rm -f "$tmp"
             echo "16 KB ELF aligned: $entry"
-          done < <(unzip -Z1 "$APK" | grep -E '^lib/[^/]+/[^/]+\.so
+          done < <(unzip -Z1 "$APK" | grep -E '^lib/.+/.+\.so$')
       - name: Rename APK and write SHA-256 checksum
         run: |
           cp app/build/outputs/apk/sideload/release/app-sideload-release.apk LNXV.apk
