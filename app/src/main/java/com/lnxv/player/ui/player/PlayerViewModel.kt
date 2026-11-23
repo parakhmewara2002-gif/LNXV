@@ -625,6 +625,9 @@ class PlayerViewModel(
                 }
             }
             session.playingVaultItem = false
+            playerManager.onDecoderFallback = null
+            playerManager.onAudioTrackChosen = null
+            playerManager.onSubtitleChosen = null
             playerManager.owner = null
             playerManager.isVideoScreenActive = false
             playerManager.repeatMode = androidx.media3.common.Player.REPEAT_MODE_OFF
@@ -647,11 +650,6 @@ class PlayerViewModel(
     override fun onCleared() {
         closePlayer()
         audioManager?.unregisterAudioDeviceCallback(deviceCallback)
-        if (playerManager.owner === this) {
-            playerManager.onDecoderFallback = null
-            playerManager.onAudioTrackChosen = null
-            playerManager.onSubtitleChosen = null
-        }
         super.onCleared()
     }
 }
