@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.22.1)
 project(lnxv_decoders C CXX)
 
 # Page size 16 KB for Android 15+ devices (NDK r26 does not default to it).
-set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-z,max-page-size=16384")
+set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-z,max-page-size=16384 -Wl,-z,common-page-size=16384")
 
 set(THIRD_PARTY_OUT "${CMAKE_CURRENT_SOURCE_DIR}/third_party/out")
 
