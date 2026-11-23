@@ -12,6 +12,7 @@ import com.lnxv.player.core.database.VideoEntity
 import com.lnxv.player.core.model.FolderItem
 import com.lnxv.player.core.model.VideoItem
 import com.lnxv.player.data.mediastore.MediaStoreScanner
+import com.lnxv.player.core.subtitle.online.OnlineSubtitleStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -22,6 +23,7 @@ class VideoRepository(
     private val videoDao: VideoDao
 ) {
     private val scanner = MediaStoreScanner(context)
+    private val subtitleStore = OnlineSubtitleStore(context)
 
     val allVideosFlow: Flow<List<VideoItem>> = videoDao.getAllVideos().map { entities ->
         entities.map { it.toModel() }
@@ -71,14 +73,16 @@ class VideoRepository(
         }
         if (scanned.isEmpty()) {
             // A successful full-access query with zero videos is a real empty library, not a scanner failure.
-            if (hasFullAccess) candidates.map { it.id }.chunked(500).forEach { videoDao.deleteVideosByIds(it) }
+            if (hasFullAccess) {
+                candidates.map { it.id }.chunked(500).forEach { videoDao.deleteVideosByIds(it) }
+                subtitleStore.clearAll()
+            }
             return@withContext
         }
         if (com.lnxv.player.core.model.LibrarySyncPolicy.shouldPrune(scannedIds.size, candidates.size, hasFullAccess)) {
-            candidates.filter { it.id !in scannedIds }
-                .map { it.id }
-                .chunked(500)
-                .forEach { videoDao.deleteVideosByIds(it) }
+            val staleIds = candidates.filter { it.id !in scannedIds }.map { it.id }
+            staleIds.chunked(500).forEach { videoDao.deleteVideosByIds(it) }
+            staleIds.forEach(subtitleStore::forget)
         }
     }
 
@@ -115,6 +119,7 @@ class VideoRepository(
 
     suspend fun deleteVideo(videoId: Long) = withContext(Dispatchers.IO) {
         videoDao.deleteVideo(videoId)
+        subtitleStore.forget(videoId)
     }
 
     private fun VideoEntity.toModel(): VideoItem {
