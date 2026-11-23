@@ -208,10 +208,11 @@ fun GestureHud(state: GestureOverlayState) {
 /** Buffering state: glass disc that fades in/out instead of popping. */
 @Composable
 fun BufferingIndicator(isBuffering: Boolean) {
+    val reduceEffects = com.lnxv.player.core.design.LocalReduceEffects.current
     AnimatedVisibility(
         visible = isBuffering,
-        enter = fadeIn(tween(180)),
-        exit = fadeOut(tween(180)),
+        enter = fadeIn(tween(if (reduceEffects) 0 else 180)),
+        exit = fadeOut(tween(if (reduceEffects) 0 else 180)),
         modifier = Modifier.fillMaxSize()
     ) {
         Box(
