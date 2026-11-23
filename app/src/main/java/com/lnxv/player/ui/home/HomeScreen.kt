@@ -365,10 +365,17 @@ bottomBar = {
                 androidx.compose.animation.AnimatedContent(
                     targetState = selection.isNotEmpty(),
                     transitionSpec = {
-                        androidx.compose.animation.ContentTransform(
-                            targetContentEnter = androidx.compose.animation.slideInVertically(tween(280)) { it / 2 } + androidx.compose.animation.fadeIn(tween(220)),
-                            initialContentExit = androidx.compose.animation.slideOutVertically(tween(200)) { it / 2 } + androidx.compose.animation.fadeOut(tween(160))
-                        )
+                        if (reduceEffects) {
+                            androidx.compose.animation.ContentTransform(
+                                targetContentEnter = androidx.compose.animation.EnterTransition.None,
+                                initialContentExit = androidx.compose.animation.ExitTransition.None
+                            )
+                        } else {
+                            androidx.compose.animation.ContentTransform(
+                                targetContentEnter = androidx.compose.animation.slideInVertically(tween(280)) { it / 2 } + androidx.compose.animation.fadeIn(tween(220)),
+                                initialContentExit = androidx.compose.animation.slideOutVertically(tween(200)) { it / 2 } + androidx.compose.animation.fadeOut(tween(160))
+                            )
+                        }
                     },
                     label = "bottom_bar"
                 ) { isSelecting ->
