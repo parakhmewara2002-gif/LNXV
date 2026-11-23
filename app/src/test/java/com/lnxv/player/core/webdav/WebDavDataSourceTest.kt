@@ -10,6 +10,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 import java.io.ByteArrayInputStream
 import java.io.IOException
 import java.io.InputStream
@@ -17,6 +18,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 @RunWith(RobolectricTestRunner::class)
+@Config(sdk = [35])
 class WebDavDataSourceTest {
     private class FakeConnection(
         url: URL,
