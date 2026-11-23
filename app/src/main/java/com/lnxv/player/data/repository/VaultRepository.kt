@@ -131,17 +131,25 @@ class VaultRepository(
 
     private val bioFile: File get() = VaultFiles.keyFile(context).let { File(it.parentFile, it.name + ".bio") }
 
-    fun isBiometricEnrolled(): Boolean = bioFile.length() > 12
+    fun isBiometricEnrolled(): Boolean = bioFile.isFile && bioFile.length() == 60L
 
     /** DECRYPT cipher to hand to BiometricPrompt, or null when not enrolled / invalidated (enrollment is then cleared). */
     fun biometricDecryptCipher(): javax.crypto.Cipher? {
-        if (!isBiometricEnrolled()) return null
+        if (!isBiometricEnrolled()) {
+            if (bioFile.exists()) clearBiometric()
+            return null
+        }
+        val data = bioFile.readBytes()
+        val iv = data.copyOfRange(0, 12)
         return try {
-            BiometricVaultKey.decryptCipher(bioFile.readBytes().copyOfRange(0, 12))
+            BiometricVaultKey.decryptCipher(iv).also { if (it == null) clearBiometric() }
         } catch (e: android.security.keystore.KeyPermanentlyInvalidatedException) {
             clearBiometric(); null
         } catch (e: Exception) {
             null
+        } finally {
+            iv.fill(0)
+            data.fill(0)
         }
     }
 
@@ -149,14 +157,22 @@ class VaultRepository(
     suspend fun enrollBiometric(cipher: javax.crypto.Cipher): Boolean = withContext(Dispatchers.Default) {
         if (!keys.isUnlocked) return@withContext false
         val key = keys.requireKey()
+        var ciphertext: ByteArray? = null
+        var stored: ByteArray? = null
+        var iv: ByteArray? = null
         try {
-            val ct = cipher.doFinal(key)
-            bioFile.writeBytes(cipher.iv + ct)
+            ciphertext = cipher.doFinal(key)
+            iv = cipher.iv
+            stored = iv + ciphertext
+            bioFile.writeBytes(stored)
             true
         } catch (e: Exception) {
             clearBiometric(); false
         } finally {
             key.fill(0)
+            ciphertext?.fill(0)
+            stored?.fill(0)
+            iv?.fill(0)
         }
     }
 
@@ -172,9 +188,22 @@ class VaultRepository(
         if (prefs.vaultPinDerived.isEmpty() || !isBiometricEnrolled()) return@withContext false
         if (LockoutPolicy.remainingMs(prefs.lockoutState, lockClock()) > 0) return@withContext false
         val data = bioFile.readBytes()
-        val raw = try { cipher.doFinal(data, 12, data.size - 12) } catch (e: Exception) { return@withContext false }
-        try { keys.unlockWithRaw(raw) } finally { raw.fill(0) }
-        true
+        val raw = try {
+            cipher.doFinal(data, 12, data.size - 12).also {
+                if (it.size != 32) throw IOException("Invalid biometric vault key length")
+            }
+        } catch (e: Exception) {
+            clearBiometric()
+            return@withContext false
+        } finally {
+            data.fill(0)
+        }
+        try {
+            keys.unlockWithRaw(raw)
+            true
+        } finally {
+            raw.fill(0)
+        }
     }
 
     /**
