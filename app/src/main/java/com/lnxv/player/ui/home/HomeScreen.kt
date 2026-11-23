@@ -119,7 +119,6 @@ fun HomeScreen(
     onSettingsClick: () -> Unit,
     onReceiveClick: () -> Unit = {}
 ) {
-    val reduceEffects = com.lnxv.player.core.design.LocalReduceEffects.current
     val uiState by viewModel.uiState.collectAsState()
     val selection by viewModel.selection.collectAsState()
     // Adaptive grid: ~170dp per card, 2 columns on phones, more on landscape/tablets.
