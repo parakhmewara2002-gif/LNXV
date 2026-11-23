@@ -310,7 +310,9 @@ class VaultRepository(
                     val h = (frame.height * (w.toFloat() / frame.width)).toInt().coerceAtLeast(1)
                     val scaledBitmap = Bitmap.createScaledBitmap(frame, w, h, true)
                     scaled = scaledBitmap
-                    val bytes = ByteArrayOutputStream()
+                    val bytes = object : ByteArrayOutputStream() {
+                        fun wipe() { buf.fill(0); reset() }
+                    }
                     @Suppress("DEPRECATION")
                     val fmt = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) Bitmap.CompressFormat.WEBP_LOSSY
                     else Bitmap.CompressFormat.WEBP
@@ -322,7 +324,7 @@ class VaultRepository(
                         out.toByteArray()
                     } finally {
                         plainThumbnail.fill(0)
-                        bytes.reset()
+                        bytes.wipe()
                     }
                 } finally {
                     if (scaled !== frame) scaled?.recycle()
