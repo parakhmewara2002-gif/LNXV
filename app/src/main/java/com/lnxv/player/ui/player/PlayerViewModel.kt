@@ -328,6 +328,14 @@ class PlayerViewModel(
     }
 
     private fun startPlayback(video: VideoItem, positionMs: Long, speed: Float) {
+        val isYouTubeWeb = video.mimeType == "video/youtube" || com.lnxv.player.core.youtube.YouTubeClient.isYouTubeUrl(video.path) || com.lnxv.player.core.youtube.YouTubeClient.isYouTubeUrl(video.uri.toString())
+        if (isYouTubeWeb) {
+            // Handled directly via HTML5 WebView player in PlayerScreen; do not hand web page URL to ExoPlayer!
+            playerManager.pause()
+            refreshOutputRoute()
+            return
+        }
+
         // Vault videos never expose their real title to notification / lock-screen / Bluetooth metadata.
         playerManager.presetDecoderMode(pendingDecoder)
         playerManager.prepareAndPlay(

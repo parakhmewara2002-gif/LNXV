@@ -302,9 +302,9 @@ fun PlayerScreen(
         // Player Surface View
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             val curVideo = uiState.currentVideo
-            val isYouTubeWeb = curVideo?.mimeType == "video/youtube" || (curVideo?.path != null && com.lnxv.player.core.youtube.YouTubeClient.isYouTubeUrl(curVideo.path))
+            val isYouTubeWeb = curVideo?.mimeType == "video/youtube" || (curVideo?.path != null && com.lnxv.player.core.youtube.YouTubeClient.isYouTubeUrl(curVideo.path)) || (curVideo?.uri != null && com.lnxv.player.core.youtube.YouTubeClient.isYouTubeUrl(curVideo.uri.toString()))
             if (isYouTubeWeb && curVideo != null) {
-                val yId = com.lnxv.player.core.youtube.YouTubeClient.extractVideoId(curVideo.path) ?: ""
+                val yId = com.lnxv.player.core.youtube.YouTubeClient.extractVideoId(curVideo.path.ifEmpty { curVideo.uri.toString() }) ?: ""
                 AndroidView(
                     modifier = Modifier.fillMaxSize(),
                     factory = { ctx ->
@@ -325,12 +325,13 @@ fun PlayerScreen(
                                 <head>
                                 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
                                 <style>
+                                  * { box-sizing: border-box; }
                                   body, html { margin: 0; padding: 0; width: 100%; height: 100%; background-color: #000; overflow: hidden; }
-                                  iframe { border: none; width: 100%; height: 100%; }
+                                  iframe { border: none; width: 100%; height: 100%; position: absolute; top: 0; left: 0; }
                                 </style>
                                 </head>
                                 <body>
-                                <iframe src="https://www.youtube-nocookie.com/embed/$yId?autoplay=1&playsinline=1&controls=1&modestbranding=1&rel=0" allow="autoplay; fullscreen; encrypted-media"></iframe>
+                                <iframe src="https://www.youtube.com/embed/$yId?autoplay=1&playsinline=1&controls=1&enablejsapi=1&fs=1&rel=0" allow="autoplay; fullscreen; encrypted-media; picture-in-picture" allowfullscreen></iframe>
                                 </body>
                                 </html>
                             """.trimIndent()
