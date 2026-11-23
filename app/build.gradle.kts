@@ -16,7 +16,7 @@ android {
     defaultConfig {
         applicationId = "com.lnxv.player"
         minSdk = 23 // Android 6.0 (Marshmallow) and newer
-        targetSdk = 34
+        targetSdk = 36
         val buildNum = System.getenv("VERSION_CODE")?.toIntOrNull() ?: 0
         versionCode = 1000 + buildNum
         versionName = "1.0.$buildNum"
