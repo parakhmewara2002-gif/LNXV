@@ -509,6 +509,12 @@ class PlayerViewModel(
             folderName = "Network"
         )
         _uiState.value = _uiState.value.copy(currentVideo = dummyVideo)
+        session.playingVaultItem = false
+        session.queueOverride = null
+        queue = null
+        publishQueue()
+        playerManager.owner = this
+        playerManager.isVideoScreenActive = true
         playerManager.setExactSeek(userPrefs.value.exactSeek)
         playerManager.presetDecoderMode(DecoderMode.fromName(userPrefs.value.decoderMode))
         playerManager.prepareAndPlay(uri, title = title)
