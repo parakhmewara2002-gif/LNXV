@@ -39,8 +39,8 @@ class KeystoreKeyWrapper(private val alias: String = "lnxv_vault_wrap_v1") : Key
             if (strongBox && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) b.setIsStrongBoxBacked(true)
             return KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore")
                 .apply { init(b.build()) }.generateKey()
-        } catch (e: Exception) {
-            // StrongBox unavailable (StrongBoxUnavailableException) -> fall back to TEE-backed key.
+        } catch (e: android.security.keystore.StrongBoxUnavailableException) {
+            // Fall back only when StrongBox itself is unavailable; propagate unrelated key-generation failures.
             if (strongBox) return generate(strongBox = false)
             throw e
         }
