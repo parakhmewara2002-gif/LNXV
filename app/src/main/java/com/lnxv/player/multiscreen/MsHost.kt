@@ -284,9 +284,10 @@ class MsHost(private val context: Context, private val player: ExoPlayer) {
                 if (partial) head.append("Content-Range: bytes $start-$end/$total\r\n")
                 head.append("Connection: close\r\n\r\n")
                 out.write(head.toString().toByteArray())
-                val fis = FileInputStream(a.fileDescriptor)
-                fis.channel.position(a.startOffset + start)
-                copyN(fis, out, len)
+                FileInputStream(a.fileDescriptor).use { fis ->
+                    fis.channel.position(a.startOffset + start)
+                    copyN(fis, out, len)
+                }
                 out.flush()
             }
         }

@@ -52,6 +52,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -1032,6 +1033,7 @@ class Media3PlayerManager(private val context: Context) : PlayerController, Play
     }
 
     fun release() {
+        scope.cancel()
         progressTrackingJob?.cancel()
         sleepTimerJob?.cancel()
         exoPlayer.removeListener(this)

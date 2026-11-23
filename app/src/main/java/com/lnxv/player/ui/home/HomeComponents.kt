@@ -431,7 +431,7 @@ fun EmptyStateView(
     LaunchedEffect(Unit) { shown = true }
     val appear by animateFloatAsState(
         targetValue = if (shown) 1f else 0f,
-        animationSpec = tween(400),
+        animationSpec = com.lnxv.player.core.design.MotionTokens.SpringFluid,
         label = "empty_appear"
     )
     Column(

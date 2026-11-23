@@ -10,17 +10,15 @@ import android.widget.RemoteViews
 import com.lnxv.player.LNXVApplication
 import com.lnxv.player.MainActivity
 import com.lnxv.player.R
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 /** Home-screen "Continue watching" widget: last unfinished non-vault video; tap resumes it. Vault titles are never shown. */
 class ContinueWidget : AppWidgetProvider() {
     override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) {
         val pending = goAsync()
-        CoroutineScope(Dispatchers.IO).launch {
+        val app = context.applicationContext as LNXVApplication
+        app.appScope.launch {
             try {
-                val app = context.applicationContext as LNXVApplication
                 val title = runCatching { app.database.videoDao().getLastUnfinished()?.title }.getOrNull()
                 val views = RemoteViews(context.packageName, R.layout.widget_continue)
                 views.setTextViewText(R.id.widget_title, title ?: context.getString(R.string.widget_nothing))

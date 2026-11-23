@@ -415,9 +415,15 @@ fun VaultScreen(
 
                         // PIN dots (shake on a wrong PIN; translation is animated in a graphicsLayer lambda)
                         val shake = remember { Animatable(0f) }
+                        val reduceMotion = com.lnxv.player.core.design.LocalReduceMotion.current
                         LaunchedEffect(uiState.shakeCount) {
                             if (uiState.shakeCount > 0) {
-                                for (t in listOf(-24f, 24f, -16f, 16f, -8f, 0f)) shake.animateTo(t, tween(45))
+                                if (reduceMotion) {
+                                    // Visual flash instead of translation if motion reduced
+                                    shake.snapTo(0f)
+                                } else {
+                                    for (t in listOf(-24f, 24f, -16f, 16f, -8f, 0f)) shake.animateTo(t, tween(45))
+                                }
                             }
                         }
                         val dotCount = if (uiState.authState == VaultAuthState.ENTER_PIN) uiState.pinLength
