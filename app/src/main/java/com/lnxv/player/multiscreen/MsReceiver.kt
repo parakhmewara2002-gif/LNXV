@@ -168,7 +168,11 @@ class MsReceiver(private val context: Context) {
 
     private fun fail(msg: String) {
         _ui.update { it.copy(status = RxStatus.ERROR, message = msg, hasMedia = false) }
+        try { pendingSocket?.close() } catch (_: Exception) {}
+        pendingSocket = null
         try { socket?.close() } catch (_: Exception) {}
+        socket = null
+        out = null
         main.post { try { player.stop() } catch (_: Exception) {} }
     }
 
