@@ -10,8 +10,8 @@ import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
 /**
- * Encrypts the OpenSubtitles session token with an Android Keystore AES-256-GCM key (alias is separate from the Vault's keys).
- * Only the token is stored; the account password is never persisted.
+ * Encrypts OpenSubtitles API keys and session tokens with an Android Keystore AES-256-GCM key (separate from Vault keys).
+ * Account passwords are never persisted.
  */
 object TokenCipher {
     private const val ALIAS = "lnxv_opensubtitles_token"
@@ -51,8 +51,9 @@ object TokenCipher {
         try {
             val cipher = Cipher.getInstance(TRANSFORMATION)
             cipher.init(Cipher.DECRYPT_MODE, key(), GCMParameterSpec(128, raw, 0, 12))
-            plain = cipher.doFinal(raw, 12, raw.size - 12)
-            String(plain, Charsets.UTF_8)
+            val decrypted = cipher.doFinal(raw, 12, raw.size - 12)
+            plain = decrypted
+            String(decrypted, Charsets.UTF_8)
         } finally {
             raw.fill(0)
             plain?.fill(0)
