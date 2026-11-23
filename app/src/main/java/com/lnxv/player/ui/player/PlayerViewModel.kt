@@ -615,14 +615,22 @@ class PlayerViewModel(
     /** Saves progress, then stops playback if this screen still owns the player. */
     fun closePlayer() {
         if (closed) return
-        saveProgress()
         closed = true
-        session.playingVaultItem = false
         if (playerManager.owner === this) {
+            val video = _uiState.value.currentVideo
+            val position = positionMs.value
+            if (video != null) {
+                getApplication<LNXVApplication>().appScope.launch {
+                    videoRepository.updatePlaybackPosition(video.id, position)
+                }
+            }
+            session.playingVaultItem = false
             playerManager.owner = null
             playerManager.isVideoScreenActive = false
             playerManager.repeatMode = androidx.media3.common.Player.REPEAT_MODE_OFF
             playerManager.stopPlayback()
+            com.lnxv.player.core.webdav.WebDavAuth.clear()
+            com.lnxv.player.core.smb.SmbSession.clear()
         }
     }
 
@@ -637,13 +645,13 @@ class PlayerViewModel(
     }
 
     override fun onCleared() {
-        super.onCleared()
+        closePlayer()
         audioManager?.unregisterAudioDeviceCallback(deviceCallback)
         if (playerManager.owner === this) {
             playerManager.onDecoderFallback = null
             playerManager.onAudioTrackChosen = null
             playerManager.onSubtitleChosen = null
         }
-        closePlayer()
+        super.onCleared()
     }
 }
