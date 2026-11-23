@@ -11,8 +11,10 @@ import androidx.core.content.FileProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.IOException
+import java.io.InputStream
 import java.net.HttpURLConnection
 import java.net.URL
 
@@ -34,6 +36,9 @@ sealed class UpdateState {
 }
 
 object AppUpdater {
+    private const val MAX_RELEASE_JSON_BYTES = 1024 * 1024
+    private const val MAX_CHECKSUM_BYTES = 4096
+    private const val MAX_APK_BYTES = 250L * 1024 * 1024
     private const val LATEST_URL =
         "https://api.github.com/repos/parakhmewara2002-gif/LNXV/releases/latest"
 
@@ -54,7 +59,8 @@ object AppUpdater {
             if (conn.responseCode != 200) {
                 throw IOException("Update server error (${conn.responseCode})")
             }
-            val json = JSONObject(conn.inputStream.bufferedReader().use { it.readText() })
+            val jsonBytes = conn.inputStream.use { readBounded(it, MAX_RELEASE_JSON_BYTES) }
+            val json = JSONObject(String(jsonBytes, Charsets.UTF_8))
             val tag = json.getString("tag_name")
             val build = tag.substringAfterLast('.').toIntOrNull()
                 ?: throw IOException("Bad release tag: $tag")
@@ -82,6 +88,20 @@ object AppUpdater {
         }
     }
 
+    private fun readBounded(input: InputStream, maxBytes: Int): ByteArray {
+        val output = ByteArrayOutputStream(minOf(maxBytes, 8 * 1024))
+        val buffer = ByteArray(8 * 1024)
+        var total = 0
+        while (true) {
+            val count = input.read(buffer)
+            if (count < 0) return output.toByteArray()
+            if (count == 0) continue
+            total += count
+            if (total > maxBytes) throw IOException("Update response exceeded the size limit")
+            output.write(buffer, 0, count)
+        }
+    }
+
     /** Opens [start], following at most 5 redirects, each of which must stay on a trusted HTTPS host. */
     private fun openTrusted(start: String, readTimeout: Int): HttpURLConnection {
         var url = start
@@ -91,13 +111,18 @@ object AppUpdater {
             conn.instanceFollowRedirects = false
             conn.connectTimeout = 15000
             conn.readTimeout = readTimeout
-            val code = conn.responseCode
-            if (code in 300..399) {
-                val loc = conn.getHeaderField("Location") ?: throw IOException("Bad redirect")
+            try {
+                val code = conn.responseCode
+                if (code in 300..399) {
+                    val loc = conn.getHeaderField("Location") ?: throw IOException("Bad redirect")
+                    conn.disconnect()
+                    url = URL(URL(url), loc).toString()
+                } else {
+                    return conn
+                }
+            } catch (t: Throwable) {
                 conn.disconnect()
-                url = URL(URL(url), loc).toString()
-            } else {
-                return conn
+                throw t
             }
         }
         throw IOException("Too many redirects")
@@ -119,7 +144,8 @@ object AppUpdater {
         if (wifiOnly && !isOnUnmeteredNetwork(ctx)) throw IOException("Wi-Fi only: connect to an unmetered network")
         val dir = File(ctx.cacheDir, "updates").apply { mkdirs() }
         dir.listFiles()?.forEach { it.delete() }
-        val out = File(dir, "LNXV-${info.versionName}.apk")
+        val safeVersion = info.versionName.filter { it.isLetterOrDigit() || it in "._-" }.take(64).ifBlank { "unknown" }
+        val out = File(dir, "LNXV-$safeVersion.apk")
 
         // Fetch the expected checksum first so a missing/invalid one aborts before the big download.
         val expected: String? = if (verify) {
@@ -127,7 +153,8 @@ object AppUpdater {
             val c = openTrusted(sumUrl, 15000)
             try {
                 if (c.responseCode != 200) throw IOException("Checksum download failed (${c.responseCode})")
-                UpdateVerifier.parseChecksum(c.inputStream.bufferedReader().use { it.readText().take(4096) })
+                val checksumBytes = c.inputStream.use { readBounded(it, MAX_CHECKSUM_BYTES) }
+                UpdateVerifier.parseChecksum(String(checksumBytes, Charsets.UTF_8))
                     ?: throw IOException("Invalid checksum file")
             } finally { c.disconnect() }
         } else null
@@ -135,7 +162,9 @@ object AppUpdater {
         val conn = openTrusted(info.apkUrl, 30000)
         try {
             if (conn.responseCode != 200) throw IOException("Download failed (${conn.responseCode})")
-            val total = conn.contentLengthLong.takeIf { it > 0 }
+            val declaredSize = conn.contentLengthLong
+            if (declaredSize > MAX_APK_BYTES) throw IOException("Update APK is too large")
+            val total = declaredSize.takeIf { it > 0 }
             conn.inputStream.use { input ->
                 out.outputStream().use { output ->
                     val buf = ByteArray(64 * 1024)
@@ -144,8 +173,9 @@ object AppUpdater {
                     while (true) {
                         val n = input.read(buf)
                         if (n < 0) break
-                        output.write(buf, 0, n)
                         done += n
+                        if (done > MAX_APK_BYTES) throw IOException("Update APK exceeded the size limit")
+                        output.write(buf, 0, n)
                         if (total != null) {
                             val pct = (done * 100 / total).toInt()
                             if (pct != lastPct) {
