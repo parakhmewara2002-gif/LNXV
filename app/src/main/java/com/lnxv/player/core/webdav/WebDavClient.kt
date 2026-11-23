@@ -17,7 +17,7 @@ object WebDavClient {
     fun list(url: String, user: String, password: String): WebDavResult {
         val uri = try { URI(url.trim()) } catch (e: Exception) { return WebDavResult.Error("This is not a valid URL") }
         if (uri.scheme?.lowercase() != "https") return WebDavResult.Error("WebDAV needs an https:// address")
-        if (uri.userInfo != null || uri.rawQuery != null || uri.rawFragment != null || uri.port !in -1..65535) {
+        if (uri.userInfo != null || uri.rawQuery != null || uri.rawFragment != null || (uri.port != -1 && uri.port !in 1..65535)) {
             return WebDavResult.Error("Use separate credentials and a clean HTTPS folder address")
         }
         val host = uri.host ?: return WebDavResult.Error("URL has no host")
