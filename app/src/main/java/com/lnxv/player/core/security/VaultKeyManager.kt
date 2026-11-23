@@ -90,12 +90,13 @@ class VaultKeyManager(private val keyFile: File, private val wrapper: KeyWrapper
     fun ensureKey(): Boolean {
         if (hasKey()) return false
         val raw = ByteArray(32).also { SecureRandom().nextBytes(it) }
+        val tmp = File(keyFile.parentFile, keyFile.name + ".tmp")
         try {
-            val tmp = File(keyFile.parentFile, keyFile.name + ".tmp")
             tmp.writeBytes(wrapper.wrap(raw))
             if (!tmp.renameTo(keyFile)) throw java.io.IOException("Could not store vault key")
         } finally {
             raw.fill(0)
+            if (tmp.exists()) tmp.delete()
         }
         return true
     }
@@ -103,7 +104,15 @@ class VaultKeyManager(private val keyFile: File, private val wrapper: KeyWrapper
     @Synchronized
     fun unlock() {
         if (sessionKey != null) return
-        val raw = wrapper.unwrap(keyFile.readBytes())
+        if (!keyFile.isFile || keyFile.length() != 60L) {
+            throw java.io.IOException("Corrupt wrapped vault key file")
+        }
+        val wrapped = keyFile.readBytes()
+        val raw = try {
+            wrapper.unwrap(wrapped)
+        } finally {
+            wrapped.fill(0)
+        }
         if (raw.size != 32) {
             raw.fill(0)
             throw java.io.IOException("Invalid vault master key length")
