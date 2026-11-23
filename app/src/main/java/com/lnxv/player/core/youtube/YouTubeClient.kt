@@ -1,5 +1,6 @@
 package com.lnxv.player.core.youtube
 
+import android.webkit.CookieManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -11,8 +12,10 @@ import java.net.URL
 import java.util.regex.Pattern
 
 /**
- * Native YouTube extractor and search client using official lightweight Innertube payloads.
- * Supports direct video resolution (progressive 720p/360p or adaptive 1080p), and instant search.
+ * Native YouTube extractor and search client with Hybrid Browser Session Bridge.
+ * Automatically injects legitimate browser cookies and origin tokens to prevent
+ * "Sign in to confirm you're not a robot" bot detection while retaining 100% full
+ * LNXV native player capabilities (hardware codecs, gestures, EQ, volume boost, PiP).
  */
 object YouTubeClient {
 
@@ -49,6 +52,16 @@ object YouTubeClient {
         return if (matcher.find()) matcher.group(1) else null
     }
 
+    /** Retrieves system CookieManager cookies for youtube.com to bypass bot detection. */
+    private fun getBrowserCookies(): String? {
+        return try {
+            val cm = CookieManager.getInstance()
+            cm.getCookie("https://www.youtube.com") ?: cm.getCookie("https://m.youtube.com")
+        } catch (_: Exception) {
+            null
+        }
+    }
+
     suspend fun resolve(rawUrlOrId: String): Result<VideoStream> = withContext(Dispatchers.IO) {
         val videoId = if (rawUrlOrId.length == 11 && !rawUrlOrId.contains("/")) rawUrlOrId else extractVideoId(rawUrlOrId)
         if (videoId == null) {
@@ -63,7 +76,11 @@ object YouTubeClient {
                 readTimeout = 10000
                 doOutput = true
                 setRequestProperty("Content-Type", "application/json; charset=UTF-8")
-                setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+                setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                setRequestProperty("X-YouTube-Client-Name", "56")
+                setRequestProperty("X-YouTube-Client-Version", "1.61.48")
+                setRequestProperty("Origin", "https://www.youtube.com")
+                getBrowserCookies()?.let { setRequestProperty("Cookie", it) }
             }
 
             val reqPayload = JSONObject().apply {
@@ -106,7 +123,7 @@ object YouTubeClient {
                 Exception("No playable streams found")
             )
 
-            // 1. Check progressive formats (audio + video combined)
+            // 1. Progressive streams (combined video + audio, e.g. 720p / 360p)
             val formats = streamingData.optJSONArray("formats")
             var bestProgressiveUrl: String? = null
             var progWidth = 1280
@@ -139,7 +156,7 @@ object YouTubeClient {
                 )
             }
 
-            // 2. Check adaptive formats
+            // 2. Adaptive streams
             val adaptive = streamingData.optJSONArray("adaptiveFormats")
             var bestVideoUrl: String? = null
             var bestAudioUrl: String? = null
@@ -199,7 +216,11 @@ object YouTubeClient {
                 readTimeout = 10000
                 doOutput = true
                 setRequestProperty("Content-Type", "application/json; charset=UTF-8")
-                setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+                setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                setRequestProperty("X-YouTube-Client-Name", "56")
+                setRequestProperty("X-YouTube-Client-Version", "1.61.48")
+                setRequestProperty("Origin", "https://www.youtube.com")
+                getBrowserCookies()?.let { setRequestProperty("Cookie", it) }
             }
 
             val reqPayload = JSONObject().apply {
