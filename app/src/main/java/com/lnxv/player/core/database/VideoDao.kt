@@ -84,6 +84,12 @@ interface VideoDao {
     @Query("UPDATE videos SET isVault = :isVault, vaultFile = :vaultFile WHERE id = :videoId")
     suspend fun setVaultState(videoId: Long, isVault: Boolean, vaultFile: String?)
 
+    @Transaction
+    suspend fun clearVaultStateWithThumb(videoId: Long) {
+        setVaultState(videoId, false, null)
+        deleteThumb(videoId)
+    }
+
     /** Atomically publishes the encrypted file reference and its optional encrypted thumbnail. */
     @Transaction
     suspend fun setVaultStateWithThumb(videoId: Long, vaultFile: String, thumb: VaultThumbEntity?) {
