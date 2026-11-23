@@ -370,9 +370,10 @@ class VaultRepository(
                     uri = context.contentResolver.insert(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, values)
                         ?: throw IOException("Could not create file in Movies/LNXV")
                     context.contentResolver.openOutputStream(uri!!)!!.use { out -> copyOut(reader, out, onProgress) }
-                    context.contentResolver.update(uri!!, ContentValues().apply {
+                    val published = context.contentResolver.update(uri!!, ContentValues().apply {
                         put(MediaStore.Video.Media.IS_PENDING, 0)
                     }, null, null)
+                    if (published != 1) throw IOException("Could not publish restored video in MediaStore")
                 } else {
                     @Suppress("DEPRECATION")
                     val dir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES), "LNXV")
