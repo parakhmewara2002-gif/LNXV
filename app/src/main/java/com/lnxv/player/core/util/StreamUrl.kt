@@ -31,15 +31,17 @@ object StreamUrl {
     )
 
     /** True when a URL carries query-string credentials that must not be persisted in recents. */
-    fun hasSensitiveQuery(url: String): Boolean = try {
-        val query = URI(url).rawQuery ?: return false
-        query.split('&').any { part ->
-            val rawName = part.substringBefore('=')
-            val name = runCatching { java.net.URLDecoder.decode(rawName, "UTF-8") }.getOrDefault(rawName)
-            name.lowercase() in sensitiveQueryKeys
+    fun hasSensitiveQuery(url: String): Boolean {
+        return try {
+            val query = URI(url).rawQuery ?: return false
+            query.split('&').any { part ->
+                val rawName = part.substringBefore('=')
+                val name = runCatching { java.net.URLDecoder.decode(rawName, "UTF-8") }.getOrDefault(rawName)
+                name.lowercase() in sensitiveQueryKeys
+            }
+        } catch (e: Exception) {
+            false
         }
-    } catch (e: Exception) {
-        false
     }
 
     /** Removes user:password@ so credentials are never stored in the recent-URL list. */
