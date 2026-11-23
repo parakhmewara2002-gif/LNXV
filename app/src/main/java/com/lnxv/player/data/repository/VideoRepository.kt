@@ -109,7 +109,6 @@ class VideoRepository(
 
     suspend fun deleteVideo(videoId: Long) = withContext(Dispatchers.IO) {
         videoDao.deleteVideo(videoId)
-        videoDao.deleteHistory(videoId)
     }
 
     private fun VideoEntity.toModel(): VideoItem {
