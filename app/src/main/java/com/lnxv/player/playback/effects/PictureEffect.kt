@@ -34,7 +34,7 @@ private class PictureShaderProgram(private val settings: PictureSettings) : Base
     private val glProgram: GlProgram
     private val colorMatrix: FloatArray
     private val colorOffset: FloatArray
-    private val texelSize = FloatArray(2)
+    @Volatile private var texelSize = floatArrayOf(0f, 0f)
 
     init {
         try {
@@ -49,8 +49,10 @@ private class PictureShaderProgram(private val settings: PictureSettings) : Base
     }
 
     override fun configure(inputWidth: Int, inputHeight: Int): Size {
-        texelSize[0] = 1f / inputWidth.coerceAtLeast(1)
-        texelSize[1] = 1f / inputHeight.coerceAtLeast(1)
+        texelSize = floatArrayOf(
+            1f / inputWidth.coerceAtLeast(1),
+            1f / inputHeight.coerceAtLeast(1)
+        )
         return Size(inputWidth, inputHeight)
     }
 
