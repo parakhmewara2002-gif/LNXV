@@ -109,6 +109,8 @@ class OpenSubtitlesApiTest {
         assertFalse(OpenSubtitlesApi.isAllowedDownloadLink("http://www.opensubtitles.com/download/x"))
         assertFalse(OpenSubtitlesApi.isAllowedDownloadLink("https://opensubtitles.com.evil.io/x"))
         assertFalse(OpenSubtitlesApi.isAllowedDownloadLink("https://evil.io/opensubtitles.com"))
+        assertFalse(OpenSubtitlesApi.isAllowedDownloadLink("https://user@www.opensubtitles.com/download/x"))
+        assertFalse(OpenSubtitlesApi.isAllowedDownloadLink("https://www.opensubtitles.com:8443/download/x"))
         assertFalse(OpenSubtitlesApi.isAllowedDownloadLink("not a url"))
     }
 }
