@@ -20,6 +20,9 @@ object WebDavParser {
         // Refuse DTDs/entities outright (XXE and billion-laughs), whatever the parser would do with them.
         require(!xml.contains("<!DOCTYPE", ignoreCase = true) && !xml.contains("<!ENTITY", ignoreCase = true)) { "DTD not allowed" }
         val base = URI(requestUrl)
+        require(base.scheme == "https" || base.scheme == "http") { "Unsupported WebDAV scheme" }
+        require(!base.host.isNullOrEmpty()) { "WebDAV URL has no host" }
+        val basePath = normPath(base.path ?: "")
         val doc = try {
             val f = DocumentBuilderFactory.newInstance().apply { isNamespaceAware = true; isExpandEntityReferences = false }
             f.newDocumentBuilder().parse(ByteArrayInputStream(xml.toByteArray(Charsets.UTF_8)))
@@ -32,15 +35,23 @@ object WebDavParser {
             val r = responses.item(i) as? Element ?: continue
             val href = r.getElementsByTagNameNS("*", "href").item(0)?.textContent?.trim() ?: continue
             val resolved = try { base.resolve(URI(href.replace(" ", "%20"))) } catch (e: Exception) { continue }
-            if (resolved.host != null && !resolved.host.equals(base.host, ignoreCase = true)) continue // never follow another host
+            if (resolved.scheme != base.scheme ||
+                !resolved.host.equals(base.host, ignoreCase = true) ||
+                resolved.port != base.port ||
+                resolved.userInfo != null
+            ) continue // same origin only; never follow another host, scheme or port
             val path = resolved.path ?: continue
-            if (normPath(path) == normPath(base.path ?: "")) continue // the folder itself
+            val normalizedPath = normPath(path)
+            if (normalizedPath == basePath) continue // the folder itself
+            if (basePath.isNotEmpty() && !normalizedPath.startsWith("$basePath/")) continue // stay under configured root
             val isDir = r.getElementsByTagNameNS("*", "collection").length > 0
             val size = r.getElementsByTagNameNS("*", "getcontentlength").item(0)?.textContent?.trim()?.toLongOrNull() ?: 0L
-            val name = normPath(path).substringAfterLast('/')
+            val name = normalizedPath.substringAfterLast('/')
             if (name.isEmpty()) continue
             if (!isDir && !isVideoName(name)) continue
-            val url = URI(base.scheme, base.authority, if (isDir && !path.endsWith("/")) "$path/" else path, null, null).toASCIIString()
+            // Never copy credentials from requestUrl into returned item URLs.
+            val outputPath = if (isDir && !path.endsWith("/")) "$path/" else path
+            val url = URI(base.scheme, null, base.host, base.port, outputPath, null, null).toASCIIString()
             out += WebDavEntry(name, url, isDir, size)
         }
         return out.sortedWith(compareBy<WebDavEntry>({ !it.isDir }, { it.name.lowercase() }))
