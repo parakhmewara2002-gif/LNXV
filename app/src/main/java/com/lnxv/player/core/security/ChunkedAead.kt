@@ -178,7 +178,9 @@ object ChunkedAead {
     }
 
     /** Random-access decryptor. Not thread-safe; keeps one decrypted chunk cached. */
-    class Reader(private val source: Source, private val key: ByteArray) : AutoCloseable {
+    class Reader(private val source: Source, key: ByteArray) : AutoCloseable {
+        // Own a private copy: callers may wipe their key-provider buffer immediately after opening.
+        private val key: ByteArray = key.copyOf()
         private val header: ByteArray
         val chunkSize: Int
         val plainSize: Long
@@ -249,6 +251,7 @@ object ChunkedAead {
 
         override fun close() {
             cached.fill(0)
+            key.fill(0)
             source.close()
         }
     }
