@@ -1,6 +1,5 @@
 package com.lnxv.player.data.repository
 
-import android.app.RecoverableSecurityException
 import android.content.ContentUris
 import android.content.ContentValues
 import android.content.Context
@@ -50,7 +49,16 @@ class NotEnoughStorageException(val neededBytes: Long, val availableBytes: Long)
     IOException("Not enough storage: need ${neededBytes - availableBytes} more bytes")
 
 /** Result of a move: [deleteConsent] is non-null when the user must approve deleting the original. */
-data class MoveResult(val deleteConsent: IntentSender?)
+data class MoveResult(
+    val deleteConsent: IntentSender?,
+    val originalDeleteFailed: Boolean = false
+)
+
+private sealed interface OriginalDeleteResult {
+    data object Deleted : OriginalDeleteResult
+    data class NeedsConsent(val sender: IntentSender) : OriginalDeleteResult
+    data object Failed : OriginalDeleteResult
+}
 
 class VaultRepository(
     private val context: Context,
@@ -312,7 +320,11 @@ class VaultRepository(
                 throw t
             }
             onProgress(1f)
-            MoveResult(deleteOriginal(source))
+            when (val deletion = deleteOriginal(source)) {
+                OriginalDeleteResult.Deleted -> MoveResult(null)
+                is OriginalDeleteResult.NeedsConsent -> MoveResult(deletion.sender)
+                OriginalDeleteResult.Failed -> MoveResult(null, originalDeleteFailed = true)
+            }
         }
 
     private fun verify(file: File, key: ByteArray, expectedSha256: ByteArray) {
@@ -333,21 +345,42 @@ class VaultRepository(
         if (!MessageDigest.isEqual(digest.digest(), expectedSha256)) throw IOException("Verification failed: checksum mismatch")
     }
 
-    /** Deletes the original from MediaStore. Returns an IntentSender when the user must confirm. */
-    private fun deleteOriginal(uri: Uri): IntentSender? {
-        if (uri.scheme != "content") return null
+    /** Deletes the original from MediaStore; distinguishes success, user consent, and failure. */
+    private fun deleteOriginal(uri: Uri): OriginalDeleteResult {
+        if (uri.scheme != "content") return OriginalDeleteResult.Failed
         return try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                MediaStore.createDeleteRequest(context.contentResolver, listOf(uri)).intentSender
+                OriginalDeleteResult.NeedsConsent(
+                    MediaStore.createDeleteRequest(context.contentResolver, listOf(uri)).intentSender
+                )
             } else {
-                context.contentResolver.delete(uri, null, null)
-                null
+                val deleted = context.contentResolver.delete(uri, null, null)
+                if (deleted > 0) {
+                    OriginalDeleteResult.Deleted
+                } else {
+                    val stillExists = context.contentResolver.query(
+                        uri, arrayOf(MediaStore.Video.Media._ID), null, null, null
+                    )?.use { it.moveToFirst() } == true
+                    if (stillExists) OriginalDeleteResult.Failed else OriginalDeleteResult.Deleted
+                }
             }
-        } catch (e: RecoverableSecurityException) {
-            e.userAction.actionIntent.intentSender
         } catch (e: SecurityException) {
-            null
+            recoverableDeleteIntent(e)?.let(OriginalDeleteResult::NeedsConsent) ?: OriginalDeleteResult.Failed
+        } catch (e: Exception) {
+            OriginalDeleteResult.Failed
         }
+    }
+
+    /** Reflection avoids linking RecoverableSecurityException on the app's API 23 minimum. */
+    private fun recoverableDeleteIntent(error: SecurityException): IntentSender? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q ||
+            error.javaClass.name != "android.app.RecoverableSecurityException"
+        ) return null
+        return runCatching {
+            val userAction = error.javaClass.getMethod("getUserAction").invoke(error)
+            val pendingIntent = userAction.javaClass.getMethod("getActionIntent").invoke(userAction)
+            pendingIntent.javaClass.getMethod("getIntentSender").invoke(pendingIntent) as? IntentSender
+        }.getOrNull()
     }
 
     private fun querySize(uri: Uri): Long = try {
