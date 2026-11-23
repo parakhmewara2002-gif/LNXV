@@ -218,16 +218,18 @@ class VaultViewModel(
     /** Forgot PIN: irreversibly wipes every vault video, then starts PIN setup again. */
     fun confirmWipe() {
         viewModelScope.launch {
-            transfers.cancelAll()
+            transfers.cancelAllAndJoin()
             vaultRepo.wipe()
             _uiState.value = VaultUiState(authState = VaultAuthState.SETUP_PIN)
         }
     }
 
     fun lock() {
-        transfers.cancelAll()
-        vaultRepo.lock()
-        _uiState.value = _uiState.value.copy(authState = VaultAuthState.ENTER_PIN, enteredPin = "")
+        viewModelScope.launch {
+            transfers.cancelAllAndJoin()
+            vaultRepo.lock()
+            _uiState.value = _uiState.value.copy(authState = VaultAuthState.ENTER_PIN, enteredPin = "")
+        }
     }
 
     fun restoreFromVault(video: VideoItem) = transfers.enqueueRestore(video)
