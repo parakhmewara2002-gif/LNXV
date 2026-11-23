@@ -108,9 +108,13 @@ object ChunkedAead {
         override fun close() {
             if (closed) return
             closed = true
-            flushChunk(true)
-            sink.flush()
-            buf.fill(0)
+            try {
+                flushChunk(true)
+                sink.flush()
+            } finally {
+                // Plaintext may still be buffered if encryption or the destination write fails.
+                buf.fill(0)
+            }
         }
     }
 
@@ -174,12 +178,17 @@ object ChunkedAead {
             val plainLen = if (isFinal) (plainSize - index * chunkSize).toInt() else chunkSize
             val ct = ByteArray(plainLen + TAG_SIZE)
             readFully(HEADER_SIZE + index * (chunkSize + TAG_SIZE), ct, 0, ct.size)
+            // Do not leave the previous decrypted chunk resident after a seek.
+            cached.fill(0)
+            cachedIndex = -1L
             try {
                 cached = cipher(key, header, index, isFinal, Cipher.DECRYPT_MODE).doFinal(ct)
+                cachedIndex = index
             } catch (e: GeneralSecurityException) {
                 throw IOException("Vault data failed authentication", e)
+            } finally {
+                ct.fill(0)
             }
-            cachedIndex = index
         }
 
         /** Reads up to [len] plaintext bytes at [position]; returns -1 at end. */
