@@ -7,9 +7,11 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.flowOn
 
 private val Context.onlineSubsStore: DataStore<Preferences> by preferencesDataStore(name = "lnxv_online_subtitles")
 
@@ -46,7 +48,7 @@ class OnlineSubtitleSettings(private val context: Context) {
             languages = p[K.LANGS]?.split(',')?.filter { it.isNotBlank() }?.ifEmpty { null } ?: listOf("en"),
             remainingQuota = p[K.QUOTA]
         )
-    }
+    }.flowOn(Dispatchers.IO)
 
     suspend fun current(): OnlineSubtitleConfig {
         migrateLegacyApiKey()
