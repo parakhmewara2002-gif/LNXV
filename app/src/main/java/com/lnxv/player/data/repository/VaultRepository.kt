@@ -89,9 +89,14 @@ class VaultRepository(
         val salt = PinHasher.newSalt()
         val iterations = PinHasher.DEFAULT_ITERATIONS
         val derived = PinHasher.hash(pin, salt, iterations)
-        dataStore.saveVaultCredential(b64(salt), b64(derived), iterations, pin.length)
-        keys.ensureKey()
-        keys.unlock()
+        try {
+            dataStore.saveVaultCredential(b64(salt), b64(derived), iterations, pin.length)
+            keys.ensureKey()
+            keys.unlock()
+        } finally {
+            salt.fill(0)
+            derived.fill(0)
+        }
     }
 
     suspend fun verifyPin(entered: String): VerifyResult = withContext(Dispatchers.Default) {
@@ -101,11 +106,20 @@ class VaultRepository(
         if (remaining > 0) return@withContext VerifyResult.Locked(remaining)
 
         val ok = when {
-            prefs.vaultPinDerived.isNotEmpty() ->
-                PinHasher.verify(
-                    entered, Base64.decode(prefs.vaultPinSalt, Base64.NO_WRAP),
-                    Base64.decode(prefs.vaultPinDerived, Base64.NO_WRAP), prefs.vaultPinIterations
-                )
+            prefs.vaultPinDerived.isNotEmpty() -> {
+                var salt: ByteArray? = null
+                var expected: ByteArray? = null
+                try {
+                    salt = Base64.decode(prefs.vaultPinSalt, Base64.NO_WRAP)
+                    expected = Base64.decode(prefs.vaultPinDerived, Base64.NO_WRAP)
+                    PinHasher.verify(entered, salt, expected, prefs.vaultPinIterations)
+                } catch (e: IllegalArgumentException) {
+                    false
+                } finally {
+                    salt?.fill(0)
+                    expected?.fill(0)
+                }
+            }
             prefs.vaultPinHash.isNotEmpty() -> PinHasher.verifyLegacy(entered, prefs.vaultPinHash)
             else -> false
         }
