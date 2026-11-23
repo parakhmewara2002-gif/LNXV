@@ -72,6 +72,8 @@ class PlayerViewModel(
     private var pendingTracks: com.lnxv.player.core.model.RememberedTracks? = null
     private var closed = false
     private var videoLoadJob: Job? = null
+    private var videoLoadGeneration = 0L
+    private var requestedVideoId: Long? = null
 
     val userPrefs: StateFlow<UserPreferences> = dataStore.userPreferencesFlow.stateIn(
         scope = viewModelScope,
@@ -237,14 +239,16 @@ class PlayerViewModel(
         _queueUi.value = if (q == null) QueueUi() else QueueUi(q.size, q.hasNext, q.hasPrevious, q.shuffle, q.repeat)
     }
 
-    private suspend fun buildQueue(video: VideoItem) {
+    private suspend fun buildQueue(video: VideoItem, generation: Long) {
         val override = session.queueOverride
-        session.queueOverride = null
         val ids = when {
             override != null -> override
             video.isVault || video.id == LNXVApplication.TRANSIENT_VIDEO_ID -> emptyList()
             else -> videoRepository.getFolderVideoIds(video.folderPath)
         }
+        currentCoroutineContext().ensureActive()
+        if (closed || generation != videoLoadGeneration) return
+        if (override != null && session.queueOverride === override) session.queueOverride = null
         val keep = queue
         queue = if (ids.size > 1) QueueLogic(
             ids, video.id,
@@ -283,61 +287,80 @@ class PlayerViewModel(
     private fun switchTo(videoId: Long) {
         if (closed) return
         saveProgress()
+        val generation = ++videoLoadGeneration
+        requestedVideoId = videoId
         videoLoadJob?.cancel()
         videoLoadJob = viewModelScope.launch {
-            val video = videoRepository.getVideoById(videoId) ?: return@launch
-            currentCoroutineContext().ensureActive()
-            if (!closed) begin(video, rebuildQueue = false)
+            try {
+                val video = videoRepository.getVideoById(videoId) ?: return@launch
+                currentCoroutineContext().ensureActive()
+                if (!closed && generation == videoLoadGeneration) {
+                    begin(video, rebuildQueue = false, generation = generation)
+                }
+            } finally {
+                if (generation == videoLoadGeneration) requestedVideoId = null
+            }
         }
     }
 
     fun loadVideo(videoId: Long) {
-        if (_uiState.value.currentVideo?.id == videoId) return
+        if (closed) return
+        if (requestedVideoId == videoId && videoLoadJob?.isActive == true) return
+        if (_uiState.value.currentVideo?.id == videoId && videoLoadJob?.isActive != true) return
+        val generation = ++videoLoadGeneration
+        requestedVideoId = videoId
         videoLoadJob?.cancel()
         videoLoadJob = viewModelScope.launch {
-            val video = (if (videoId == LNXVApplication.TRANSIENT_VIDEO_ID) session.transientVideo
-                else videoRepository.getVideoById(videoId)) ?: return@launch
-            currentCoroutineContext().ensureActive()
-            if (!closed) begin(video, rebuildQueue = true)
+            try {
+                val video = (if (videoId == LNXVApplication.TRANSIENT_VIDEO_ID) session.transientVideo
+                    else videoRepository.getVideoById(videoId)) ?: return@launch
+                currentCoroutineContext().ensureActive()
+                if (!closed && generation == videoLoadGeneration) {
+                    begin(video, rebuildQueue = true, generation = generation)
+                }
+            } finally {
+                if (generation == videoLoadGeneration) requestedVideoId = null
+            }
         }
     }
 
-    private suspend fun begin(video: VideoItem, rebuildQueue: Boolean) {
+    private suspend fun begin(video: VideoItem, rebuildQueue: Boolean, generation: Long) {
         currentCoroutineContext().ensureActive()
-        run {
-            if (video.isVault && !vaultRepository.isUnlocked) {
-                _uiState.value = _uiState.value.copy(accessDenied = true)
-                return
-            }
-            session.playingVaultItem = video.isVault
-            playerManager.owner = this@PlayerViewModel
-            val prefs = dataStore.userPreferencesFlow.first()
-            currentCoroutineContext().ensureActive()
-            val remembered = rememberableId(video)?.let { videoPrefs.get(it) }
-            currentCoroutineContext().ensureActive()
-            pendingDecoder = remembered?.decoderOverride ?: DecoderMode.fromName(prefs.decoderMode)
-            pendingTracks = remembered?.tracks
-            playerManager.setExactSeek(prefs.exactSeek)
-            val last = video.lastPositionMs
-            val canResume = last > 5_000L && (video.durationMs <= 0L || last < video.durationMs - 5_000L)
-            val perVideo = if (prefs.isEnabled(com.lnxv.player.core.flags.FeatureFlag.PER_VIDEO_SPEED) && !video.isVault)
-                com.lnxv.player.core.model.PerVideoSpeed.get(prefs.perVideoSpeeds, video.id) else null
-            val speed = perVideo ?: if (prefs.rememberSpeed) prefs.lastSpeed else prefs.defaultSpeed
-            _uiState.value = _uiState.value.copy(currentVideo = video, resumePromptPositionMs = null)
-
-            when {
-                !canResume || prefs.resumePlaybackMode == "NEVER" -> startPlayback(video, 0L, speed)
-                prefs.resumePlaybackMode == "ASK" -> {
-                    pendingSpeed = speed
-                    playerManager.pause()
-                    _uiState.value = _uiState.value.copy(resumePromptPositionMs = last)
-                }
-                else -> startPlayback(video, last, speed)
-            }
-            // The folder queue only feeds next/previous, so build it AFTER playback has been handed to ExoPlayer
-            // instead of making the first frame wait for another database read.
-            if (rebuildQueue) buildQueue(video)
+        if (closed || generation != videoLoadGeneration) return
+        if (video.isVault && !vaultRepository.isUnlocked) {
+            _uiState.value = _uiState.value.copy(accessDenied = true)
+            return
         }
+        val prefs = dataStore.userPreferencesFlow.first()
+        currentCoroutineContext().ensureActive()
+        if (closed || generation != videoLoadGeneration) return
+        val remembered = rememberableId(video)?.let { videoPrefs.get(it) }
+        currentCoroutineContext().ensureActive()
+        if (closed || generation != videoLoadGeneration) return
+
+        session.playingVaultItem = video.isVault
+        playerManager.owner = this@PlayerViewModel
+        pendingDecoder = remembered?.decoderOverride ?: DecoderMode.fromName(prefs.decoderMode)
+        pendingTracks = remembered?.tracks
+        playerManager.setExactSeek(prefs.exactSeek)
+        val last = video.lastPositionMs
+        val canResume = last > 5_000L && (video.durationMs <= 0L || last < video.durationMs - 5_000L)
+        val perVideo = if (prefs.isEnabled(com.lnxv.player.core.flags.FeatureFlag.PER_VIDEO_SPEED) && !video.isVault)
+            com.lnxv.player.core.model.PerVideoSpeed.get(prefs.perVideoSpeeds, video.id) else null
+        val speed = perVideo ?: if (prefs.rememberSpeed) prefs.lastSpeed else prefs.defaultSpeed
+        _uiState.value = _uiState.value.copy(currentVideo = video, resumePromptPositionMs = null)
+
+        when {
+            !canResume || prefs.resumePlaybackMode == "NEVER" -> startPlayback(video, 0L, speed)
+            prefs.resumePlaybackMode == "ASK" -> {
+                pendingSpeed = speed
+                playerManager.pause()
+                _uiState.value = _uiState.value.copy(resumePromptPositionMs = last)
+            }
+            else -> startPlayback(video, last, speed)
+        }
+        // Queue loading is intentionally after ExoPlayer receives the media item.
+        if (rebuildQueue && generation == videoLoadGeneration) buildQueue(video, generation)
     }
 
     private fun startPlayback(video: VideoItem, positionMs: Long, speed: Float) {
@@ -466,6 +489,10 @@ class PlayerViewModel(
     }
 
     fun playNetworkStream(url: String, title: String) {
+        if (closed) return
+        videoLoadGeneration++
+        requestedVideoId = null
+        videoLoadJob?.cancel()
         val uri = Uri.parse(url)
         val dummyVideo = VideoItem(
             id = System.currentTimeMillis(),
@@ -616,6 +643,9 @@ class PlayerViewModel(
     fun closePlayer() {
         if (closed) return
         closed = true
+        videoLoadGeneration++
+        requestedVideoId = null
+        videoLoadJob?.cancel()
         if (playerManager.owner === this) {
             val video = _uiState.value.currentVideo
             val position = positionMs.value
