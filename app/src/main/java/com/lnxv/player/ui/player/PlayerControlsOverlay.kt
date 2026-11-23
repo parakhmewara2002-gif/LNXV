@@ -420,7 +420,12 @@ private fun ThinTrack(
     onScrubStart: () -> Unit = {}
 ) {
     var dragging by remember { mutableStateOf(false) }
-    val trackHeight by animateDpAsState(if (dragging) 10.dp else 5.dp, label = "track_height")
+    val reduceEffects = com.lnxv.player.core.design.LocalReduceEffects.current
+    val trackHeight by animateDpAsState(
+        if (dragging) 10.dp else 5.dp,
+        animationSpec = tween(if (reduceEffects) 0 else 160),
+        label = "track_height"
+    )
     val currentOnChange by rememberUpdatedState(onChange)
     val currentOnFinished by rememberUpdatedState(onFinished)
     val currentOnScrubStart by rememberUpdatedState(onScrubStart)
