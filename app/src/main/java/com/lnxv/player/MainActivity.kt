@@ -355,6 +355,8 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
         // If playing video, enter PiP mode automatically
         val app = application as LNXVApplication
         if (!app.isPlayerInitialized) return
+        // Private vault videos must never be surfaced in the system PiP window.
+        if (app.playingVaultItem) return
         // Only auto-enter PiP from the video screen, and only if the user enabled it
         if (!app.playerManager.isVideoScreenActive || !autoPipEnabled) return
         val player = app.playerManager.exoPlayer
