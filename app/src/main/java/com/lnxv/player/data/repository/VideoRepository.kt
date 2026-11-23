@@ -48,13 +48,20 @@ class VideoRepository(
             if (old == null) {
                 s
             } else {
-                val merged = s.copy(
-                    lastPositionMs = old.lastPositionMs,
-                    lastPlayedTimestamp = old.lastPlayedTimestamp,
-                    isFavorite = old.isFavorite,
-                    isVault = old.isVault,
-                    vaultFile = old.vaultFile
-                )
+                val sameMedia = old.path == s.path &&
+                    old.dateAddedSec == s.dateAddedSec &&
+                    (old.sizeBytes == s.sizeBytes || old.sizeBytes <= 0L || s.sizeBytes <= 0L)
+                val merged = if (sameMedia) {
+                    s.copy(
+                        lastPositionMs = old.lastPositionMs,
+                        lastPlayedTimestamp = old.lastPlayedTimestamp,
+                        isFavorite = old.isFavorite,
+                        isVault = old.isVault,
+                        vaultFile = old.vaultFile
+                    )
+                } else {
+                    s
+                }
                 if (merged == old) null else merged
             }
         }
