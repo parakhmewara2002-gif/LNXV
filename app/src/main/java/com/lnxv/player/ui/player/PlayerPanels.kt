@@ -385,14 +385,15 @@ fun PanelOptionRow(
     icon: ImageVector? = null,
     subtitle: String? = null
 ) {
+    val reduceEffects = com.lnxv.player.core.design.LocalReduceEffects.current
     val bg by animateColorAsState(
         targetValue = if (selected) NeonCyan.copy(alpha = 0.16f) else RowIdle,
-        animationSpec = tween(180),
+        animationSpec = tween(if (reduceEffects) 0 else 180),
         label = "option_bg"
     )
     val borderColor by animateColorAsState(
         targetValue = if (selected) NeonCyan.copy(alpha = 0.6f) else RowIdleBorder,
-        animationSpec = tween(180),
+        animationSpec = tween(if (reduceEffects) 0 else 180),
         label = "option_border"
     )
     val shape = RoundedCornerShape(16.dp)
@@ -479,9 +480,10 @@ fun SpeedBottomSheet(
 
 @Composable
 fun SpeedChip(speed: Float, isSelected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val reduceEffects = com.lnxv.player.core.design.LocalReduceEffects.current
     val bg by animateColorAsState(
         targetValue = if (isSelected) NeonCyan else RowIdle,
-        animationSpec = tween(180),
+        animationSpec = tween(if (reduceEffects) 0 else 180),
         label = "speed_chip_bg"
     )
     val shape = RoundedCornerShape(14.dp)
