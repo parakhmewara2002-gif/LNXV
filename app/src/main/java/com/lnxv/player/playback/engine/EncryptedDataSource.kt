@@ -31,7 +31,11 @@ class EncryptedDataSource(
         if (dataSpec.position < 0L ||
             (dataSpec.length != C.LENGTH_UNSET.toLong() && dataSpec.length < 0L)
         ) throw IOException("Invalid vault read range")
-        val key = keyProvider()
+        val key = try {
+            keyProvider()
+        } catch (e: Exception) {
+            throw IOException("Vault is locked or unavailable", e)
+        }
         try {
             val r = ChunkedAead.Reader(ChunkedAead.FileSource(fileResolver(dataSpec.uri)), key)
             reader = r
