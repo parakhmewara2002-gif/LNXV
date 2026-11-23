@@ -85,6 +85,7 @@ class MsHost(private val context: Context, private val player: ExoPlayer) {
     @Volatile private var token: String = ""
     private var nsd: NsdManager? = null
     private var regListener: NsdManager.RegistrationListener? = null
+    private var wifiLock: android.net.wifi.WifiManager.WifiLock? = null
     private val originalVolume = player.volume
 
     private val playerListener = object : Player.Listener {
@@ -123,6 +124,14 @@ class MsHost(private val context: Context, private val player: ExoPlayer) {
                 main.postDelayed(ticker, 500L)
             }
             registerNsd(ss.localPort)
+            runCatching {
+                val wm = context.getSystemService(Context.WIFI_SERVICE) as? android.net.wifi.WifiManager
+                @Suppress("DEPRECATION")
+                val lock = wm?.createWifiLock(android.net.wifi.WifiManager.WIFI_MODE_FULL_HIGH_PERF, "LNXV:MsHost")
+                lock?.setReferenceCounted(false)
+                lock?.acquire()
+                wifiLock = lock
+            }
             true
         } catch (e: Exception) {
             _ui.value = HostUi(note = "Could not start: ${e.message}")
@@ -141,6 +150,8 @@ class MsHost(private val context: Context, private val player: ExoPlayer) {
         try { client?.close() } catch (_: Exception) {}
         try { server?.close() } catch (_: Exception) {}
         try { regListener?.let { nsd?.unregisterService(it) } } catch (_: Exception) {}
+        try { wifiLock?.release() } catch (_: Exception) {}
+        wifiLock = null
         pool.shutdownNow()
         _ui.value = HostUi()
     }
@@ -226,6 +237,8 @@ class MsHost(private val context: Context, private val player: ExoPlayer) {
 
     private fun handle(s: Socket) {
         try {
+            s.tcpNoDelay = true
+            s.sendBufferSize = 256 * 1024
             s.soTimeout = 10000
             val input = BufferedInputStream(s.getInputStream())
             val first = readAsciiLine(input)
@@ -294,7 +307,7 @@ class MsHost(private val context: Context, private val player: ExoPlayer) {
     }
 
     private fun copyN(src: InputStream, dst: OutputStream, count: Long) {
-        val buf = ByteArray(64 * 1024)
+        val buf = ByteArray(128 * 1024)
         var left = count
         while (left > 0) {
             val n = src.read(buf, 0, minOf(buf.size.toLong(), left).toInt())

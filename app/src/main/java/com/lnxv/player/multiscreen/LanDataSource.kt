@@ -32,9 +32,10 @@ class LanDataSource : BaseDataSource(true) {
         val port = if (dataSpec.uri.port > 0) dataSpec.uri.port else 80
         val s = Socket()
         socket = s
+        s.tcpNoDelay = true
+        s.receiveBufferSize = 256 * 1024
         s.connect(InetSocketAddress(host, port), 5000)
         s.soTimeout = 10000
-        s.tcpNoDelay = true
         val range = if (dataSpec.length != C.LENGTH_UNSET.toLong()) {
             "bytes=${dataSpec.position}-${dataSpec.position + dataSpec.length - 1}"
         } else {
@@ -42,7 +43,7 @@ class LanDataSource : BaseDataSource(true) {
         }
         val req = "GET ${dataSpec.uri.encodedPath} HTTP/1.1\r\nHost: $host:$port\r\nRange: $range\r\nConnection: close\r\n\r\n"
         s.getOutputStream().apply { write(req.toByteArray()); flush() }
-        val ins = BufferedInputStream(s.getInputStream(), 64 * 1024)
+        val ins = BufferedInputStream(s.getInputStream(), 128 * 1024)
         input = ins
         val status = readAsciiLine(ins) ?: throw IOException("empty response")
         val code = status.split(" ").getOrNull(1)?.toIntOrNull() ?: throw IOException("bad status: $status")

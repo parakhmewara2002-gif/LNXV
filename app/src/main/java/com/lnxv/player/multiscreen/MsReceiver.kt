@@ -84,19 +84,30 @@ class MsReceiver(private val context: Context) {
     @Volatile private var hostPort = 0
     @Volatile private var offsetMs = 0L
     private var bestRtt = Long.MAX_VALUE
+    private var hasOffsetEstimate = false
     private var lastSeekAt = 0L
     private var lastMediaUrl = ""
     private var out: java.io.OutputStream? = null
     private val writer = Executors.newSingleThreadExecutor()
+    private var wifiLock: android.net.wifi.WifiManager.WifiLock? = null
 
     // ---- connect ---------------------------------------------------------------------------------------
 
     fun connect(ip: String, port: Int, pin: String, screenW: Float, screenH: Float) {
         disconnect(quiet = true)
         closed = false
+        hasOffsetEstimate = false
         hostIp = ip.trim(); hostPort = port
         bestRtt = Long.MAX_VALUE; lastMediaUrl = ""
         _ui.update { it.copy(status = RxStatus.CONNECTING, message = null, hasMedia = false) }
+        runCatching {
+            val wm = context.getSystemService(Context.WIFI_SERVICE) as? android.net.wifi.WifiManager
+            @Suppress("DEPRECATION")
+            val lock = wm?.createWifiLock(android.net.wifi.WifiManager.WIFI_MODE_FULL_HIGH_PERF, "LNXV:MsReceiver")
+            lock?.setReferenceCounted(false)
+            lock?.acquire()
+            wifiLock = lock
+        }
         io.execute {
             try {
                 val s = Socket()
@@ -144,6 +155,8 @@ class MsReceiver(private val context: Context) {
         try { sendRaw(JSONObject().put("t", "bye")) } catch (_: Exception) {}
         try { socket?.close() } catch (_: Exception) {}
         socket = null
+        try { wifiLock?.release() } catch (_: Exception) {}
+        wifiLock = null
         main.post { try { player.stop(); player.clearMediaItems() } catch (_: Exception) {} }
         if (!quiet) _ui.update { it.copy(status = RxStatus.IDLE, message = null, hasMedia = false) }
     }
@@ -179,8 +192,18 @@ class MsReceiver(private val context: Context) {
             "pong" -> {
                 val c0 = j.optLong("c"); val c1 = SystemClock.elapsedRealtime(); val h = j.optLong("h")
                 val rtt = SyncMath.rtt(c0, c1)
-                // keep the most precise (lowest round-trip) estimate, let it age so drift is tracked
-                if (rtt <= bestRtt + 5L || bestRtt == Long.MAX_VALUE) { offsetMs = SyncMath.clockOffset(c0, c1, h); bestRtt = rtt } else bestRtt += 2L
+                val sampleOffset = SyncMath.clockOffset(c0, c1, h)
+                if (!hasOffsetEstimate) {
+                    offsetMs = sampleOffset
+                    bestRtt = rtt
+                    hasOffsetEstimate = true
+                } else if (rtt <= bestRtt + 8L) {
+                    // Exponential Moving Average filter: 70% current estimate + 30% new low-jitter sample
+                    offsetMs = ((offsetMs * 0.70) + (sampleOffset * 0.30)).toLong()
+                    bestRtt = rtt
+                } else {
+                    bestRtt += 2L
+                }
             }
             "cfg" -> {
                 val mode = try { MsMode.valueOf(j.optString("mode")) } catch (e: Exception) { MsMode.MIRROR }
