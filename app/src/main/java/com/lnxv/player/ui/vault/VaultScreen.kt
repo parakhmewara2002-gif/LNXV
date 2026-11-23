@@ -102,16 +102,10 @@ fun VaultScreen(
     val job by viewModel.jobState.collectAsState()
 
     // FLAG_SECURE on the vault screen: no screenshots / recents thumbnail of vault content.
-    val activity = LocalContext.current as? Activity
+    val activity = LocalContext.current as? com.lnxv.player.MainActivity
     DisposableEffect(activity) {
-        activity?.window?.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
-        onDispose {
-            activity?.window?.let { w ->
-                if (!com.lnxv.player.LNXVApplication.instance.screenshotsBlockedGlobally) {
-                    w.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
-                }
-            }
-        }
+        activity?.setSecureWindowReason("vault-screen", true)
+        onDispose { activity?.setSecureWindowReason("vault-screen", false) }
     }
 
     if (uiState.showChangePin) {
