@@ -11,7 +11,14 @@ object WebDavAuth {
     @Volatile private var origin: String? = null
     @Volatile private var header: String? = null
 
-    fun basicHeader(user: String, password: String): String = "Basic " + base64("$user:$password".toByteArray(Charsets.UTF_8))
+    fun basicHeader(user: String, password: String): String {
+        val bytes = "$user:$password".toByteArray(Charsets.UTF_8)
+        return try {
+            "Basic " + base64(bytes)
+        } finally {
+            bytes.fill('\\u0000')
+        }
+    }
 
     // java.util.Base64 needs API 26 and android.util.Base64 is not available in JVM unit tests; this is 10 lines.
     private const val ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
