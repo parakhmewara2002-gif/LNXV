@@ -101,6 +101,10 @@ class PlayerViewModel(
         com.lnxv.player.core.subtitle.online.OnlineSubtitleStore(application)
     )
 
+    init {
+        viewModelScope.launch { onlineSettings.migrateLegacyApiKey() }
+    }
+
     fun showOnlineSubtitleDialog(show: Boolean) {
         if (!show) onlineSubtitles.cancel()
         _uiState.value = _uiState.value.copy(showOnlineSubtitleDialog = show)
