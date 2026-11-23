@@ -5,6 +5,7 @@ import com.lnxv.player.core.model.VideoItem
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -36,7 +37,11 @@ class VaultTransferManager(
         data class Restore(val video: VideoItem) : Op()
     }
 
-    private val queue = Channel<Op>(Channel.UNLIMITED)
+    private data class QueuedOp(val generation: Long, val op: Op)
+
+    private val queue = Channel<QueuedOp>(Channel.UNLIMITED)
+    private val stateLock = Any()
+    private var generation = 0L
     private var current: Job? = null
     private var pending = 0
 
@@ -51,13 +56,23 @@ class VaultTransferManager(
 
     init {
         scope.launch {
-            for (op in queue) {
-                val job = scope.launch { run(op) }
-                current = job
+            for (queuedOp in queue) {
+                // Publish the current Job atomically with the generation check. This closes
+                // the race where cancelAll runs after dequeue but before current is assigned.
+                val job = synchronized(stateLock) {
+                    if (queuedOp.generation != generation) null
+                    else scope.launch { run(queuedOp.op) }.also { current = it }
+                }
+                if (job == null) {
+                    synchronized(stateLock) { pending = (pending - 1).coerceAtLeast(0) }
+                    continue
+                }
                 job.join()
-                current = null
-                pending = (pending - 1).coerceAtLeast(0)
-                _state.value = VaultJobState(queued = 0)
+                synchronized(stateLock) {
+                    if (current === job) current = null
+                    pending = (pending - 1).coerceAtLeast(0)
+                    _state.value = VaultJobState(queued = pending)
+                }
             }
         }
     }
@@ -68,20 +83,40 @@ class VaultTransferManager(
     fun enqueueRestore(video: VideoItem) = submit(Op.Restore(video))
 
     private fun submit(op: Op) {
-        pending++
-        queue.trySend(op)
+        val accepted = synchronized(stateLock) {
+            pending++
+            if (queue.trySend(QueuedOp(generation, op)).isSuccess) true
+            else {
+                pending = (pending - 1).coerceAtLeast(0)
+                false
+            }
+        }
+        if (!accepted) _messages.tryEmit("Could not queue vault operation")
     }
 
-    /** Cancels the running job and drops everything queued. */
+    /** Cancels the running job and drops queued jobs without waiting. */
     fun cancelAll() {
-        while (queue.tryReceive().getOrNull() != null) pending--
-        current?.cancel()
+        cancelQueuedAndCurrent()?.cancel()
+    }
+
+    /** Waits for active vault I/O and key copies to be released before the caller wipes/locks. */
+    suspend fun cancelAllAndJoin() {
+        cancelQueuedAndCurrent()?.cancelAndJoin()
+    }
+
+    private fun cancelQueuedAndCurrent(): Job? = synchronized(stateLock) {
+        generation++
+        while (queue.tryReceive().isSuccess) {
+            pending = (pending - 1).coerceAtLeast(0)
+        }
+        current
     }
 
     private suspend fun run(op: Op) {
         val video = when (op) { is Op.Move -> op.video; is Op.Restore -> op.video }
         val restoring = op is Op.Restore
-        _state.value = VaultJobState(video.title, restoring, 0f, (pending - 1).coerceAtLeast(0))
+        val queuedCount = synchronized(stateLock) { (pending - 1).coerceAtLeast(0) }
+        _state.value = VaultJobState(video.title, restoring, 0f, queuedCount)
         try {
             if (op is Op.Move) {
                 val result = repo.moveToVault(video.id) { p -> _state.value = _state.value.copy(progress = p) }
