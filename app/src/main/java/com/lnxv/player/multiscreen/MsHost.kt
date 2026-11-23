@@ -347,10 +347,16 @@ class MsHost(private val context: Context, private val player: ExoPlayer) {
             reply(JSONObject().put("t", "deny")); s.close(); return
         }
         if (client != null) { reply(JSONObject().put("t", "busy")); s.close(); return }
+        val safeName = hello.optString("name", "Phone")
+            .filterNot { it.isISOControl() }
+            .take(32)
+            .ifBlank { "Phone" }
+        val clientWidth = hello.optDouble("w", 0.0).toFloat().takeIf { it.isFinite() && it in 0f..10_000f } ?: 0f
+        val clientHeight = hello.optDouble("h", 0.0).toFloat().takeIf { it.isFinite() && it in 0f..10_000f } ?: 0f
         val c = Client(s, out)
         client = c
         _ui.update {
-            it.copy(clientName = hello.optString("name", "Phone"), clientW = hello.optDouble("w", 0.0).toFloat(), clientH = hello.optDouble("h", 0.0).toFloat())
+            it.copy(clientName = safeName, clientW = clientWidth, clientH = clientHeight)
         }
         c.send(JSONObject().put("t", "ok"))
         main.post { sendConfig(); sendMedia(); broadcastState() }
