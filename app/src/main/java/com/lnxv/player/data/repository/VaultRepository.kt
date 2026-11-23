@@ -110,9 +110,11 @@ class VaultRepository(
                 var salt: ByteArray? = null
                 var expected: ByteArray? = null
                 try {
-                    salt = Base64.decode(prefs.vaultPinSalt, Base64.NO_WRAP)
-                    expected = Base64.decode(prefs.vaultPinDerived, Base64.NO_WRAP)
-                    PinHasher.verify(entered, salt, expected, prefs.vaultPinIterations)
+                    val decodedSalt = Base64.decode(prefs.vaultPinSalt, Base64.NO_WRAP)
+                    salt = decodedSalt
+                    val decodedExpected = Base64.decode(prefs.vaultPinDerived, Base64.NO_WRAP)
+                    expected = decodedExpected
+                    PinHasher.verify(entered, decodedSalt, decodedExpected, prefs.vaultPinIterations)
                 } catch (e: IllegalArgumentException) {
                     false
                 } finally {
