@@ -132,8 +132,6 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
         requestHighestRefreshRate()
         checkAndRequestPermissions()
 
-        val app = application as LNXVApplication
-
         lifecycleScope.launch {
             app.dataStore.userPreferencesFlow.collect {
                 backgroundPlayEnabled = it.isBackgroundPlayEnabled
