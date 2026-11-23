@@ -24,12 +24,12 @@ data class OnlineSubtitleConfig(
 )
 
 /**
- * User-entered OpenSubtitles settings. The API key lives in DataStore as the user typed it (it is the user's own key,
- * never bundled or logged); the session token is stored encrypted with [TokenCipher]. Passwords are never stored.
+ * User-entered OpenSubtitles settings. API keys and session tokens are encrypted with [TokenCipher]; passwords are never stored.
  */
 class OnlineSubtitleSettings(private val context: Context) {
     private object K {
-        val API_KEY = stringPreferencesKey("os_api_key")
+        val API_KEY_LEGACY = stringPreferencesKey("os_api_key")
+        val API_KEY_ENC = stringPreferencesKey("os_api_key_enc")
         val USERNAME = stringPreferencesKey("os_username")
         val TOKEN = stringPreferencesKey("os_token_enc")
         val BASE_URL = stringPreferencesKey("os_base_url")
@@ -39,7 +39,7 @@ class OnlineSubtitleSettings(private val context: Context) {
 
     val config: Flow<OnlineSubtitleConfig> = context.onlineSubsStore.data.map { p ->
         OnlineSubtitleConfig(
-            apiKey = p[K.API_KEY].orEmpty(),
+            apiKey = p[K.API_KEY_ENC]?.let(TokenCipher::decrypt) ?: p[K.API_KEY_LEGACY].orEmpty(),
             username = p[K.USERNAME].orEmpty(),
             loggedIn = !p[K.TOKEN].isNullOrEmpty(),
             baseUrl = p[K.BASE_URL],
@@ -48,9 +48,29 @@ class OnlineSubtitleSettings(private val context: Context) {
         )
     }
 
-    suspend fun current(): OnlineSubtitleConfig = config.first()
+    suspend fun current(): OnlineSubtitleConfig {
+        migrateLegacyApiKey()
+        return config.first()
+    }
 
-    suspend fun setApiKey(key: String) = context.onlineSubsStore.edit { it[K.API_KEY] = key.trim() }
+    suspend fun migrateLegacyApiKey() {
+        val legacy = context.onlineSubsStore.data.first()[K.API_KEY_LEGACY]?.trim().orEmpty()
+        if (legacy.isBlank()) return
+        val encrypted = TokenCipher.encrypt(legacy)
+        context.onlineSubsStore.edit { prefs ->
+            if (prefs[K.API_KEY_ENC].isNullOrBlank()) prefs[K.API_KEY_ENC] = encrypted
+            prefs.remove(K.API_KEY_LEGACY)
+        }
+    }
+
+    suspend fun setApiKey(key: String) {
+        val trimmed = key.trim()
+        context.onlineSubsStore.edit { prefs ->
+            if (trimmed.isEmpty()) prefs.remove(K.API_KEY_ENC)
+            else prefs[K.API_KEY_ENC] = TokenCipher.encrypt(trimmed)
+            prefs.remove(K.API_KEY_LEGACY)
+        }
+    }
     suspend fun setUsername(name: String) = context.onlineSubsStore.edit { it[K.USERNAME] = name.trim() }
     suspend fun setLanguages(langs: List<String>) = context.onlineSubsStore.edit { it[K.LANGS] = langs.joinToString(",") }
     suspend fun setQuota(remaining: Int?) = context.onlineSubsStore.edit { if (remaining == null) it.remove(K.QUOTA) else it[K.QUOTA] = remaining }
