@@ -24,6 +24,9 @@ import com.lnxv.player.core.model.QueueLogic
 import com.lnxv.player.core.model.RepeatMode
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 
 @Immutable
@@ -68,6 +71,7 @@ class PlayerViewModel(
     private var pendingDecoder = DecoderMode.AUTO
     private var pendingTracks: com.lnxv.player.core.model.RememberedTracks? = null
     private var closed = false
+    private var videoLoadJob: Job? = null
 
     val userPrefs: StateFlow<UserPreferences> = dataStore.userPreferencesFlow.stateIn(
         scope = viewModelScope,
@@ -275,22 +279,27 @@ class PlayerViewModel(
     private fun switchTo(videoId: Long) {
         if (closed) return
         saveProgress()
-        viewModelScope.launch {
+        videoLoadJob?.cancel()
+        videoLoadJob = viewModelScope.launch {
             val video = videoRepository.getVideoById(videoId) ?: return@launch
-            begin(video, rebuildQueue = false)
+            currentCoroutineContext().ensureActive()
+            if (!closed) begin(video, rebuildQueue = false)
         }
     }
 
     fun loadVideo(videoId: Long) {
         if (_uiState.value.currentVideo?.id == videoId) return
-        viewModelScope.launch {
+        videoLoadJob?.cancel()
+        videoLoadJob = viewModelScope.launch {
             val video = (if (videoId == LNXVApplication.TRANSIENT_VIDEO_ID) session.transientVideo
                 else videoRepository.getVideoById(videoId)) ?: return@launch
-            begin(video, rebuildQueue = true)
+            currentCoroutineContext().ensureActive()
+            if (!closed) begin(video, rebuildQueue = true)
         }
     }
 
     private suspend fun begin(video: VideoItem, rebuildQueue: Boolean) {
+        currentCoroutineContext().ensureActive()
         run {
             if (video.isVault && !vaultRepository.isUnlocked) {
                 _uiState.value = _uiState.value.copy(accessDenied = true)
@@ -299,7 +308,9 @@ class PlayerViewModel(
             session.playingVaultItem = video.isVault
             playerManager.owner = this@PlayerViewModel
             val prefs = dataStore.userPreferencesFlow.first()
+            currentCoroutineContext().ensureActive()
             val remembered = rememberableId(video)?.let { videoPrefs.get(it) }
+            currentCoroutineContext().ensureActive()
             pendingDecoder = remembered?.decoderOverride ?: DecoderMode.fromName(prefs.decoderMode)
             pendingTracks = remembered?.tracks
             playerManager.setExactSeek(prefs.exactSeek)
