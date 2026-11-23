@@ -50,6 +50,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import com.lnxv.player.core.design.icons.AspectRatio
 import com.lnxv.player.core.design.icons.ForwardArrow
 import com.lnxv.player.core.design.icons.GraphicEq
+import com.lnxv.player.core.design.icons.HighQuality
 import com.lnxv.player.core.design.icons.MoreHoriz
 import com.lnxv.player.core.design.icons.Pause
 import com.lnxv.player.core.design.icons.PictureInPicture
@@ -277,6 +278,7 @@ fun IosPlayerControls(
                     if (speedLabel != "1.0x" && speedLabel != "1x") {
                         Text(speedLabel, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(end = 8.dp))
                     }
+                    PillIcon(Icons.Default.HighQuality, "Quality", onClick = { viewModel.showQualityDialog(true) })
                     PillIcon(Icons.Default.GraphicEq, stringResource(R.string.cd_audio_tracks), onClick = { viewModel.showAudioDialog(true) })
                     PillIcon(Icons.Default.Subtitles, stringResource(R.string.cd_subtitles), onClick = { viewModel.showSubtitleDialog(true) })
                 }

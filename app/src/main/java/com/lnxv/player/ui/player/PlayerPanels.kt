@@ -50,6 +50,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import com.lnxv.player.core.design.icons.AspectRatio
 import com.lnxv.player.core.design.icons.Audiotrack
+import com.lnxv.player.core.design.icons.HighQuality
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import com.lnxv.player.core.design.icons.ContentCopy
@@ -517,6 +518,52 @@ fun AspectRatioBottomSheet(
             icon = Icons.Default.AspectRatio,
             onClick = { onModeSelected(mode) }
         )
+    }
+}
+
+@Composable
+fun VideoQualityBottomSheet(
+    qualities: List<com.lnxv.player.core.model.VideoQualityInfo>,
+    onQualitySelected: (com.lnxv.player.core.model.VideoQualityInfo) -> Unit
+) {
+    if (qualities.isEmpty()) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 24.dp, horizontal = 16.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Icon(
+                    imageVector = Icons.Default.HighQuality,
+                    contentDescription = null,
+                    tint = Color(0x66FFFFFF),
+                    modifier = Modifier.size(40.dp)
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    text = "Standard Quality",
+                    color = Color(0xB3FFFFFF),
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Single progressive stream in use.",
+                    color = Color(0x80FFFFFF),
+                    fontSize = 12.sp
+                )
+            }
+        }
+    } else {
+        qualities.forEach { q ->
+            PanelOptionRow(
+                label = q.label,
+                selected = q.isSelected,
+                icon = Icons.Default.HighQuality,
+                onClick = { onQualitySelected(q) }
+            )
+        }
     }
 }
 

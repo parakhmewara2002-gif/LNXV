@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.StateFlow
 interface PlayerController {
     val playbackState: StateFlow<PlaybackState>
     val positionMs: StateFlow<Long>
+    val videoQualities: StateFlow<List<com.lnxv.player.core.model.VideoQualityInfo>>
     val audioTracks: StateFlow<List<AudioTrackInfo>>
     val subtitleTracks: StateFlow<List<SubtitleTrackInfo>>
     val audioDelayMs: StateFlow<Long>
@@ -71,6 +72,7 @@ interface PlayerController {
     fun clearABRepeat()
     fun startSleepTimer(minutes: Int, fadeOut: Boolean = false)
     fun cancelSleepTimer()
+    fun selectVideoQuality(quality: com.lnxv.player.core.model.VideoQualityInfo)
     fun selectAudioTrack(track: AudioTrackInfo)
     fun selectSubtitleTrack(track: SubtitleTrackInfo?)
     fun setAudioDelayMs(ms: Long)

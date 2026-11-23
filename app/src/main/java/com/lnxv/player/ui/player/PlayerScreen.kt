@@ -420,7 +420,7 @@ fun PlayerScreen(
             GestureHud(state = overlayState)
 
             // Controls Overlay (hidden while a panel/menu is open, otherwise the dimmed controls show through it)
-            val panelOpen = uiState.showSpeedDialog || uiState.showAspectRatioDialog || uiState.showAudioDialog ||
+            val panelOpen = uiState.showSpeedDialog || uiState.showAspectRatioDialog || uiState.showQualityDialog || uiState.showAudioDialog ||
                 uiState.showSubtitleDialog || uiState.showPropertiesDialog || isMoreMenuOpen
             val controlsShown = (uiState.isControlsVisible || playbackState.isScreenLocked) && !panelOpen
             // While the controls are up, buffering is shown as a ring on the play button itself (no second circle behind it).
@@ -496,7 +496,7 @@ fun PlayerScreen(
         }
 
         // Frosted-glass backdrop: snapshot of the video taken whenever a panel / menu opens
-        val anyPanelOpen = uiState.showSpeedDialog || uiState.showAspectRatioDialog || uiState.showAudioDialog ||
+        val anyPanelOpen = uiState.showSpeedDialog || uiState.showAspectRatioDialog || uiState.showQualityDialog || uiState.showAudioDialog ||
             uiState.showSubtitleDialog || uiState.showPropertiesDialog || isMoreMenuOpen
         LaunchedEffect(anyPanelOpen) {
             if (anyPanelOpen) {

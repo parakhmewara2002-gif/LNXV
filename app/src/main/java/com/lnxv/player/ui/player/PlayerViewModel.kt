@@ -41,6 +41,7 @@ data class PlayerUiState(
     val isControlsVisible: Boolean = true,
     val showSpeedDialog: Boolean = false,
     val showAspectRatioDialog: Boolean = false,
+    val showQualityDialog: Boolean = false,
     val showAudioDialog: Boolean = false,
     val showSubtitleDialog: Boolean = false,
     val showOnlineSubtitleDialog: Boolean = false,
@@ -78,6 +79,7 @@ class PlayerViewModel(
     val playbackState: StateFlow<PlaybackState> = playerManager.playbackState
     val positionMs: StateFlow<Long> = playerManager.positionMs
     val audioTracks: StateFlow<List<AudioTrackInfo>> = playerManager.audioTracks
+    val videoQualities: StateFlow<List<com.lnxv.player.core.model.VideoQualityInfo>> = playerManager.videoQualities
     val subtitleTracks: StateFlow<List<SubtitleTrackInfo>> = playerManager.subtitleTracks
     val subtitleDelayMs: StateFlow<Long> = playerManager.subtitleDelayMs
     val hasExternalSubtitle: StateFlow<Boolean> = playerManager.hasExternalSubtitle
@@ -528,6 +530,7 @@ class PlayerViewModel(
     )
     fun cancelSleepTimer() = playerManager.cancelSleepTimer()
 
+    fun selectVideoQuality(quality: com.lnxv.player.core.model.VideoQualityInfo) = playerManager.selectVideoQuality(quality)
     fun selectAudioTrack(track: AudioTrackInfo) = playerManager.selectAudioTrack(track)
     fun selectSubtitleTrack(track: SubtitleTrackInfo?) = playerManager.selectSubtitleTrack(track)
 
@@ -545,6 +548,10 @@ class PlayerViewModel(
 
     fun showAspectRatioDialog(show: Boolean) {
         _uiState.value = _uiState.value.copy(showAspectRatioDialog = show)
+    }
+
+    fun showQualityDialog(show: Boolean) {
+        _uiState.value = _uiState.value.copy(showQualityDialog = show)
     }
 
     fun showAudioDialog(show: Boolean) {

@@ -54,9 +54,11 @@ private object Cache {
     val VolumeUp: ImageVector by lazy { icon("VolumeUp", "M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z") }
     val VideoLibrary: ImageVector by lazy { icon("VideoLibrary", "M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-8 12.5v-9l6 4.5-6 4.5z") }
     val ViewAgenda: ImageVector by lazy { icon("ViewAgenda", "M19,13H5c-1.1,0-2,0.9-2,2v4c0,1.1,0.9,2,2,2h14c1.1,0,2-0.9,2-2v-4C21,13.9,20.1,13,19,13z", "M19,3H5C3.9,3,3,3.9,3,5v4c0,1.1,0.9,2,2,2h14c1.1,0,2-0.9,2-2V5C21,3.9,20.1,3,19,3z") }
+    val HighQuality: ImageVector by lazy { icon("HighQuality", "M19 4H5c-1.11 0-2 .9-2 2v12c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-8 11H9.5v-2h-2v2H6V9h1.5v2.5h2V9H11v6zm7-1c0 .55-.45 1-1 1h-.75v1.5h-1.5V15H14c-.55 0-1-.45-1-1v-4c0-.55.45-1 1-1h3c.55 0 1 .45 1 1v4zm-1.5-.5V10.5h-2v3h2z") }
 }
 
 val Icons.Filled.AspectRatio: ImageVector get() = Cache.AspectRatio
+val Icons.Filled.HighQuality: ImageVector get() = Cache.HighQuality
 val Icons.Filled.Audiotrack: ImageVector get() = Cache.Audiotrack
 val Icons.Filled.Backspace: ImageVector get() = Cache.Backspace
 val Icons.Filled.ContentCopy: ImageVector get() = Cache.ContentCopy

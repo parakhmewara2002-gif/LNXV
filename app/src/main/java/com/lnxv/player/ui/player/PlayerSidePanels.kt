@@ -31,6 +31,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import com.lnxv.player.core.design.icons.AspectRatio
 import com.lnxv.player.core.design.icons.Audiotrack
+import com.lnxv.player.core.design.icons.HighQuality
 import com.lnxv.player.core.design.icons.FastForward
 import com.lnxv.player.core.design.icons.SkipNext
 import com.lnxv.player.core.design.icons.SkipPrevious
@@ -172,6 +173,23 @@ fun BoxScope.PlayerSidePanels(
             onModeSelected = { mode ->
                 viewModel.setAspectRatio(mode)
                 viewModel.showAspectRatioDialog(false)
+            }
+        )
+    }
+
+    val videoQualities by viewModel.videoQualities.collectAsState()
+    PlayerSidePanel(
+        visible = uiState.showQualityDialog,
+        title = "Video Quality",
+        icon = Icons.Default.HighQuality,
+        onDismiss = { viewModel.showQualityDialog(false) },
+        backdrop = glassBackdrop
+    ) {
+        VideoQualityBottomSheet(
+            qualities = videoQualities,
+            onQualitySelected = { q ->
+                viewModel.selectVideoQuality(q)
+                viewModel.showQualityDialog(false)
             }
         )
     }

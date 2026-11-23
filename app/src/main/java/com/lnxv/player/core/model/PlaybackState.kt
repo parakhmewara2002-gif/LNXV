@@ -38,6 +38,18 @@ data class SubtitleStyleConfig(
 )
 
 @Immutable
+data class VideoQualityInfo(
+    val id: String,
+    val width: Int,
+    val height: Int,
+    val bitrate: Int,
+    val frameRate: Float,
+    val label: String,
+    val isSelected: Boolean = false,
+    val isAuto: Boolean = false
+)
+
+@Immutable
 data class AudioTrackInfo(
     val id: String,
     val language: String,

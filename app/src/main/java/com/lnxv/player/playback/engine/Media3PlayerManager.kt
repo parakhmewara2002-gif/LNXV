@@ -197,6 +197,9 @@ class Media3PlayerManager(private val context: Context) : PlayerController, Play
     private val _positionMs = MutableStateFlow(0L)
     override val positionMs: StateFlow<Long> = _positionMs.asStateFlow()
 
+    private val _videoQualities = MutableStateFlow<List<com.lnxv.player.core.model.VideoQualityInfo>>(emptyList())
+    override val videoQualities: StateFlow<List<com.lnxv.player.core.model.VideoQualityInfo>> = _videoQualities.asStateFlow()
+
     private val _audioTracks = MutableStateFlow<List<AudioTrackInfo>>(emptyList())
     override val audioTracks: StateFlow<List<AudioTrackInfo>> = _audioTracks.asStateFlow()
 
@@ -767,6 +770,34 @@ class Media3PlayerManager(private val context: Context) : PlayerController, Play
         _playbackState.update { it.copy(sleepTimerRemainingSeconds = null) }
     }
 
+    // --- Video Quality Selection ---
+    override fun selectVideoQuality(quality: com.lnxv.player.core.model.VideoQualityInfo) {
+        if (quality.isAuto) {
+            trackSelector.setParameters(
+                trackSelector.buildUponParameters()
+                    .clearOverridesOfType(C.TRACK_TYPE_VIDEO)
+            )
+            updateTrackLists(exoPlayer.currentTracks)
+            return
+        }
+        val currentTracks = exoPlayer.currentTracks
+        for (group in currentTracks.groups) {
+            if (group.type == C.TRACK_TYPE_VIDEO) {
+                for (i in 0 until group.length) {
+                    val format = group.getTrackFormat(i)
+                    if (format.id == quality.id || (format.height == quality.height && format.bitrate == quality.bitrate)) {
+                        trackSelector.setParameters(
+                            trackSelector.buildUponParameters()
+                                .setOverrideForType(TrackSelectionOverride(group.mediaTrackGroup, listOf(i)))
+                        )
+                        updateTrackLists(currentTracks)
+                        return
+                    }
+                }
+            }
+        }
+    }
+
     // --- Track Selection (Audio & Subtitle) ---
     override fun selectAudioTrack(track: AudioTrackInfo) {
         if (!applyingRemembered) onAudioTrackChosen?.invoke(track.id)
@@ -854,9 +885,54 @@ class Media3PlayerManager(private val context: Context) : PlayerController, Play
     private fun updateTrackLists(tracks: Tracks) {
         val audioList = mutableListOf<AudioTrackInfo>()
         val subtitleList = mutableListOf<SubtitleTrackInfo>()
+        val videoList = mutableListOf<com.lnxv.player.core.model.VideoQualityInfo>()
+
+        var hasVideoOverride = false
+        val videoOverrides = trackSelector.parameters.overrides
+        for ((group, _) in videoOverrides) {
+            if (group.type == C.TRACK_TYPE_VIDEO) {
+                hasVideoOverride = true
+                break
+            }
+        }
+
+        // Add Auto quality option
+        videoList.add(
+            com.lnxv.player.core.model.VideoQualityInfo(
+                id = "auto",
+                width = 0,
+                height = 0,
+                bitrate = 0,
+                frameRate = 0f,
+                label = "Auto",
+                isSelected = !hasVideoOverride,
+                isAuto = true
+            )
+        )
 
         for (group in tracks.groups) {
             when (group.type) {
+                C.TRACK_TYPE_VIDEO -> {
+                    for (i in 0 until group.length) {
+                        val format = group.getTrackFormat(i)
+                        val isSelected = hasVideoOverride && group.isTrackSelected(i)
+                        val h = format.height
+                        val w = format.width
+                        val label = if (h > 0) "${h}p" + (if (format.frameRate > 30f) "${format.frameRate.toInt()}" else "") else "${w}x${h}"
+                        videoList.add(
+                            com.lnxv.player.core.model.VideoQualityInfo(
+                                id = format.id ?: "video_${w}x${h}_${format.bitrate}",
+                                width = w,
+                                height = h,
+                                bitrate = format.bitrate,
+                                frameRate = format.frameRate,
+                                label = label,
+                                isSelected = isSelected,
+                                isAuto = false
+                            )
+                        )
+                    }
+                }
                 C.TRACK_TYPE_AUDIO -> {
                     for (i in 0 until group.length) {
                         val format = group.getTrackFormat(i)
@@ -898,6 +974,7 @@ class Media3PlayerManager(private val context: Context) : PlayerController, Play
             }
         }
 
+        _videoQualities.value = if (videoList.size > 1) videoList else emptyList()
         _audioTracks.value = audioList
         _subtitleTracks.value = subtitleList
     }
