@@ -189,19 +189,25 @@ object ChunkedAead {
         private var cached: ByteArray = ByteArray(0)
 
         init {
-            val preamble = ByteArray(5)
-            readFully(0, preamble, 0, preamble.size)
-            val headerSize = when (preamble[4]) {
-                LEGACY_VERSION -> LEGACY_HEADER_SIZE
-                VERSION -> HEADER_SIZE
-                else -> throw IOException("Unsupported vault version")
+            try {
+                val preamble = ByteArray(5)
+                readFully(0, preamble, 0, preamble.size)
+                val headerSize = when (preamble[4]) {
+                    LEGACY_VERSION -> LEGACY_HEADER_SIZE
+                    VERSION -> HEADER_SIZE
+                    else -> throw IOException("Unsupported vault version")
+                }
+                header = ByteArray(headerSize)
+                System.arraycopy(preamble, 0, header, 0, preamble.size)
+                readFully(preamble.size.toLong(), header, preamble.size, headerSize - preamble.size)
+                chunkSize = chunkSizeOf(header)
+                plainSize = plainSizeOf(source.length(), chunkSize, headerSize)
+                chunkCount = if (plainSize == 0L) 1L else (plainSize + chunkSize - 1) / chunkSize
+            } catch (t: Throwable) {
+                key.fill(0)
+                runCatching { source.close() }
+                throw t
             }
-            header = ByteArray(headerSize)
-            System.arraycopy(preamble, 0, header, 0, preamble.size)
-            readFully(preamble.size.toLong(), header, preamble.size, headerSize - preamble.size)
-            chunkSize = chunkSizeOf(header)
-            plainSize = plainSizeOf(source.length(), chunkSize, headerSize)
-            chunkCount = if (plainSize == 0L) 1L else (plainSize + chunkSize - 1) / chunkSize
         }
 
         private fun readFully(pos: Long, dst: ByteArray, off: Int, len: Int) {
