@@ -301,67 +301,106 @@ fun PlayerScreen(
     ) {
         // Player Surface View
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        AndroidView(
-            factory = { ctx ->
-                PlayerView(ctx).apply {
-                    player = playerManager.exoPlayer
-                    useController = false
-                    playerViewRef = this
-                    layoutParams = FrameLayout.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT,
-                        ViewGroup.LayoutParams.MATCH_PARENT
-                    )
-                    resizeMode = when (playbackState.aspectRatio) {
-                        AspectRatioMode.FIT -> AspectRatioFrameLayout.RESIZE_MODE_FIT
-                        AspectRatioMode.FILL -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-                        AspectRatioMode.STRETCH -> AspectRatioFrameLayout.RESIZE_MODE_FILL
-                        AspectRatioMode.ORIGINAL -> AspectRatioFrameLayout.RESIZE_MODE_FIT
-                        else -> AspectRatioFrameLayout.RESIZE_MODE_FILL
+            val curVideo = uiState.currentVideo
+            val isYouTubeWeb = curVideo?.mimeType == "video/youtube" || (curVideo?.path != null && com.lnxv.player.core.youtube.YouTubeClient.isYouTubeUrl(curVideo.path))
+            if (isYouTubeWeb && curVideo != null) {
+                val yId = com.lnxv.player.core.youtube.YouTubeClient.extractVideoId(curVideo.path) ?: ""
+                AndroidView(
+                    modifier = Modifier.fillMaxSize(),
+                    factory = { ctx ->
+                        android.webkit.WebView(ctx).apply {
+                            layoutParams = FrameLayout.LayoutParams(
+                                ViewGroup.LayoutParams.MATCH_PARENT,
+                                ViewGroup.LayoutParams.MATCH_PARENT
+                            )
+                            settings.javaScriptEnabled = true
+                            settings.domStorageEnabled = true
+                            settings.mediaPlaybackRequiresUserGesture = false
+                            settings.userAgentString = "Mozilla/5.0 (Linux; Android 11; TECNO CG7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
+                            webChromeClient = android.webkit.WebChromeClient()
+                            webViewClient = android.webkit.WebViewClient()
+                            val embedHtml = """
+                                <!DOCTYPE html>
+                                <html>
+                                <head>
+                                <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+                                <style>
+                                  body, html { margin: 0; padding: 0; width: 100%; height: 100%; background-color: #000; overflow: hidden; }
+                                  iframe { border: none; width: 100%; height: 100%; }
+                                </style>
+                                </head>
+                                <body>
+                                <iframe src="https://www.youtube-nocookie.com/embed/$yId?autoplay=1&playsinline=1&controls=1&modestbranding=1&rel=0" allow="autoplay; fullscreen; encrypted-media"></iframe>
+                                </body>
+                                </html>
+                            """.trimIndent()
+                            loadDataWithBaseURL("https://www.youtube.com", embedHtml, "text/html", "UTF-8", null)
+                        }
                     }
-                }
-            },
-            update = { playerView ->
-                playerView.resizeMode = when (playbackState.aspectRatio) {
-                    AspectRatioMode.FIT -> AspectRatioFrameLayout.RESIZE_MODE_FIT
-                    AspectRatioMode.FILL -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-                    AspectRatioMode.STRETCH -> AspectRatioFrameLayout.RESIZE_MODE_FILL
-                    AspectRatioMode.ORIGINAL -> AspectRatioFrameLayout.RESIZE_MODE_FIT
-                        else -> AspectRatioFrameLayout.RESIZE_MODE_FILL
-                }
-                playerView.subtitleView?.let { sv ->
-                    sv.setFixedTextSize(TypedValue.COMPLEX_UNIT_SP, prefs.subtitleTextSize)
-                    val fg = try {
-                        android.graphics.Color.parseColor(prefs.subtitleTextColorHex)
-                    } catch (e: Exception) {
-                        android.graphics.Color.WHITE
-                    }
-                    val styling = prefs.isEnabled(com.lnxv.player.core.flags.FeatureFlag.SUBTITLE_STYLING)
-                    val bgAlpha = if (styling) (prefs.subtitleBgOpacityPct.coerceIn(0, 100) * 255 / 100) else 0x80
-                    val edgeType = if (!styling) CaptionStyleCompat.EDGE_TYPE_OUTLINE else when (prefs.subtitleEdge) {
-                        "SHADOW" -> CaptionStyleCompat.EDGE_TYPE_DROP_SHADOW
-                        "NONE" -> CaptionStyleCompat.EDGE_TYPE_NONE
-                        else -> CaptionStyleCompat.EDGE_TYPE_OUTLINE
-                    }
-                    sv.setBottomPaddingFraction(if (styling) prefs.subtitleBottomPct.coerceIn(0, 40) / 100f else 0.08f)
-                    sv.setStyle(
-                        CaptionStyleCompat(
-                            fg,
-                            (bgAlpha shl 24),
-                            android.graphics.Color.TRANSPARENT,
-                            edgeType,
-                            android.graphics.Color.BLACK,
-                            if (!styling) null else when (prefs.subtitleFont) {
-                                "SERIF" -> android.graphics.Typeface.SERIF
-                                "MONO" -> android.graphics.Typeface.MONOSPACE
-                                "MEDIUM" -> android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL)
-                                else -> null
+                )
+            } else {
+                AndroidView(
+                    factory = { ctx ->
+                        PlayerView(ctx).apply {
+                            player = playerManager.exoPlayer
+                            useController = false
+                            playerViewRef = this
+                            layoutParams = FrameLayout.LayoutParams(
+                                ViewGroup.LayoutParams.MATCH_PARENT,
+                                ViewGroup.LayoutParams.MATCH_PARENT
+                            )
+                            resizeMode = when (playbackState.aspectRatio) {
+                                AspectRatioMode.FIT -> AspectRatioFrameLayout.RESIZE_MODE_FIT
+                                AspectRatioMode.FILL -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                                AspectRatioMode.STRETCH -> AspectRatioFrameLayout.RESIZE_MODE_FILL
+                                AspectRatioMode.ORIGINAL -> AspectRatioFrameLayout.RESIZE_MODE_FIT
+                                else -> AspectRatioFrameLayout.RESIZE_MODE_FILL
                             }
-                        )
-                    )
-                }
-            },
-            modifier = surfaceModifier
-        )
+                        }
+                    },
+                    update = { playerView ->
+                        playerView.resizeMode = when (playbackState.aspectRatio) {
+                            AspectRatioMode.FIT -> AspectRatioFrameLayout.RESIZE_MODE_FIT
+                            AspectRatioMode.FILL -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                            AspectRatioMode.STRETCH -> AspectRatioFrameLayout.RESIZE_MODE_FILL
+                            AspectRatioMode.ORIGINAL -> AspectRatioFrameLayout.RESIZE_MODE_FIT
+                            else -> AspectRatioFrameLayout.RESIZE_MODE_FILL
+                        }
+                        playerView.subtitleView?.let { sv ->
+                            sv.setFixedTextSize(TypedValue.COMPLEX_UNIT_SP, prefs.subtitleTextSize)
+                            val fg = try {
+                                android.graphics.Color.parseColor(prefs.subtitleTextColorHex)
+                            } catch (e: Exception) {
+                                android.graphics.Color.WHITE
+                            }
+                            val styling = prefs.isEnabled(com.lnxv.player.core.flags.FeatureFlag.SUBTITLE_STYLING)
+                            val bgAlpha = if (styling) (prefs.subtitleBgOpacityPct.coerceIn(0, 100) * 255 / 100) else 0x80
+                            val edgeType = if (!styling) CaptionStyleCompat.EDGE_TYPE_OUTLINE else when (prefs.subtitleEdge) {
+                                "SHADOW" -> CaptionStyleCompat.EDGE_TYPE_DROP_SHADOW
+                                "NONE" -> CaptionStyleCompat.EDGE_TYPE_NONE
+                                else -> CaptionStyleCompat.EDGE_TYPE_OUTLINE
+                            }
+                            sv.setBottomPaddingFraction(if (styling) prefs.subtitleBottomPct.coerceIn(0, 40) / 100f else 0.08f)
+                            sv.setStyle(
+                                CaptionStyleCompat(
+                                    fg,
+                                    (bgAlpha shl 24),
+                                    android.graphics.Color.TRANSPARENT,
+                                    edgeType,
+                                    android.graphics.Color.BLACK,
+                                    if (!styling) null else when (prefs.subtitleFont) {
+                                        "SERIF" -> android.graphics.Typeface.SERIF
+                                        "MONO" -> android.graphics.Typeface.MONOSPACE
+                                        "MEDIUM" -> android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL)
+                                        else -> null
+                                    }
+                                )
+                            )
+                        }
+                    },
+                    modifier = surfaceModifier
+                )
+            }
         }
 
         com.lnxv.player.multiscreen.MultiScreenHostHooks(

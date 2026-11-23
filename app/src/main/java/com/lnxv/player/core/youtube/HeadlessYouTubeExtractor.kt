@@ -28,7 +28,11 @@ object HeadlessYouTubeExtractor {
         suspendCancellableCoroutine { continuation ->
             mainHandler.post {
                 var resumed = false
-                val webView = WebView(context.applicationContext)
+                val webView = try {
+                    WebView(context)
+                } catch (_: Exception) {
+                    WebView(context.applicationContext)
+                }
 
                 fun finish(url: String?) {
                     if (!resumed) {

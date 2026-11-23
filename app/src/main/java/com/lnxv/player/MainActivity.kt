@@ -199,7 +199,7 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
         lifecycleScope.launch {
             val urlString = uri.toString()
             if (com.lnxv.player.core.youtube.YouTubeClient.isYouTubeUrl(urlString)) {
-                val res = com.lnxv.player.core.youtube.YouTubeClient.resolve(urlString)
+                val res = com.lnxv.player.core.youtube.YouTubeClient.resolve(urlString, this@MainActivity)
                 res.onSuccess { stream ->
                     app.transientVideo = VideoItem(
                         id = LNXVApplication.TRANSIENT_VIDEO_ID,

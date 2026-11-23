@@ -356,7 +356,7 @@ class HomeViewModel(
         val trimmed = rawUrl.trim()
         if (com.lnxv.player.core.youtube.YouTubeClient.isYouTubeUrl(trimmed)) {
             viewModelScope.launch {
-                val res = com.lnxv.player.core.youtube.YouTubeClient.resolve(trimmed)
+                val res = com.lnxv.player.core.youtube.YouTubeClient.resolve(trimmed, getApplication())
                 res.onSuccess { stream ->
                     if (remember) rememberStream(trimmed)
                     session.transientVideo = VideoItem(

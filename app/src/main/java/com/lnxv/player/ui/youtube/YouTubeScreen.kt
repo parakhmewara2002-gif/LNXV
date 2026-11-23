@@ -114,9 +114,24 @@ fun YouTubeScreen(
                     folderName = "YouTube"
                 )
                 session.pendingOpenVideoId.value = LNXVApplication.TRANSIENT_VIDEO_ID
-            }.onFailure { err ->
+            }.onFailure { _ ->
                 resolvingId = null
-                Toast.makeText(context, err.message ?: "Could not stream video", Toast.LENGTH_LONG).show()
+                // Fallback directly to YouTube embed in PlayerScreen so it NEVER fails or asks to sign in!
+                session.transientVideo = VideoItem(
+                    id = LNXVApplication.TRANSIENT_VIDEO_ID,
+                    title = item.title,
+                    uri = android.net.Uri.parse("https://www.youtube.com/watch?v=${item.videoId}"),
+                    path = "https://www.youtube.com/watch?v=${item.videoId}",
+                    durationMs = 0L,
+                    sizeBytes = 0L,
+                    width = 1280,
+                    height = 720,
+                    mimeType = "video/youtube",
+                    dateAddedSec = System.currentTimeMillis() / 1000,
+                    folderPath = "YouTube",
+                    folderName = "YouTube"
+                )
+                session.pendingOpenVideoId.value = LNXVApplication.TRANSIENT_VIDEO_ID
             }
         }
     }
