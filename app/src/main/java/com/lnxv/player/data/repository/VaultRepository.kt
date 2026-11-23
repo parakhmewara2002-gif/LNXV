@@ -468,7 +468,7 @@ class VaultRepository(
             return@withContext
         }
         if (!keys.isUnlocked) throw IOException("Vault is locked")
-        val enc = File(vaultDir, file)
+        val enc = VaultFiles.file(context, file)
         val key = keys.requireKey()
         val displayName = restoreName(entity)
         var uri: Uri? = null
