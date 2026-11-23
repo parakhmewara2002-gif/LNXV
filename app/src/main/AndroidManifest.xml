@@ -41,7 +41,7 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.LNXV"
         android:networkSecurityConfig="@xml/network_security_config"
-        tools:targetApi="34">
+        tools:targetApi="36">
 
         <profileable android:shell="true" tools:targetApi="29" />
         <!-- Crash screen in its own process so it can open even if the main app crashes on launch. -->
