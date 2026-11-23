@@ -197,6 +197,68 @@ jobs:
           } | tee sizes.md >> "$GITHUB_STEP_SUMMARY"
           cat sizes.md
 
+      - name: Verify 16 KB ELF and APK alignment
+        run: |
+          set -euo pipefail
+          APK=app/build/outputs/apk/sideload/release/app-sideload-release.apk
+          NDK_DIR="$ANDROID_HOME/ndk"
+          READELF="$(find "$NDK_DIR" -path '*/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-readelf' -type f | sort -V | tail -n1)"
+          ZIPALIGN="$(find "$ANDROID_HOME/build-tools" -name zipalign -type f | sort -V | tail -n1)"
+          test -x "$READELF"
+          test -x "$ZIPALIGN"
+          "$ZIPALIGN" -c -P 16 4 "$APK"
+          while IFS= read -r entry; do
+            tmp="$RUNNER_TEMP/16k-${entry//\//-}"
+            unzip -p "$APK" "$entry" > "$tmp"
+            "$READELF" -lW "$tmp" | python3 -c '
+          import sys
+          loads = [line.split()[-1] for line in sys.stdin if line.lstrip().startswith("LOAD")]
+          aligns = [int(value, 16) for value in loads]
+          if not aligns or any(value < 0x4000 for value in aligns):
+              raise SystemExit(f"16 KB ELF alignment failure: {aligns}")
+          '
+            rm -f "$tmp"
+            echo "16 KB ELF aligned: $entry"
+          done < <(unzip -Z1 "$APK" | grep -E '^lib/[^/]+/[^/]+\.so
+      - name: Rename APK and write SHA-256 checksum
+        run: |
+          cp app/build/outputs/apk/sideload/release/app-sideload-release.apk LNXV.apk
+          sha256sum LNXV.apk > LNXV.apk.sha256
+          cat LNXV.apk.sha256
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: LNXV-app-release
+          path: |
+            LNXV.apk
+            LNXV.apk.sha256
+          if-no-files-found: error
+
+
+  publish-release:
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download signed APK artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: LNXV-app-release
+          path: release
+      - name: Publish GitHub Release (for in-app updates)
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          name: LNXV 1.0.${{ github.run_number }}
+          files: |
+            release/LNXV.apk
+            release/LNXV.apk.sha256
+          generate_release_notes: true
+)
+
       - name: Rename APK and write SHA-256 checksum
         run: |
           cp app/build/outputs/apk/sideload/release/app-sideload-release.apk LNXV.apk
