@@ -1,6 +1,5 @@
 package com.lnxv.player.core.security
 
-import android.content.Context
 import android.os.Build
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
@@ -39,7 +38,7 @@ class KeystoreKeyWrapper(private val alias: String = "lnxv_vault_wrap_v1") : Key
             if (strongBox && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) b.setIsStrongBoxBacked(true)
             return KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore")
                 .apply { init(b.build()) }.generateKey()
-        } catch (e: Exception) {
+        } catch (e: RuntimeException) {
             // Avoid linking the API-28 exception class on the API-23 minimum; only this exact failure permits fallback.
             if (strongBox && isStrongBoxUnavailable(e)) return generate(strongBox = false)
             throw e
