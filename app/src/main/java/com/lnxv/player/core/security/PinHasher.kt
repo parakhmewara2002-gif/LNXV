@@ -42,7 +42,7 @@ object PinHasher {
                 spec.clearPassword()
             }
         } finally {
-            pinChars.fill('\\u0000')
+            pinChars.fill('\u0000')
         }
     }
 
