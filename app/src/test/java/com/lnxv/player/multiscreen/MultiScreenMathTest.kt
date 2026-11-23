@@ -43,13 +43,13 @@ class MultiScreenMathTest {
     }
 
     @Test fun decideThresholds() {
-        assertTrue(SyncMath.decide(400L, 1f, true) is SyncMath.Action.Seek)
+        assertTrue(SyncMath.decide(700L, 1f, true) is SyncMath.Action.Seek)
         val slow = SyncMath.decide(100L, 1f, true) as SyncMath.Action.Speed
         assertTrue(slow.factor < 1f)
         val fast = SyncMath.decide(-100L, 1f, true) as SyncMath.Action.Speed
         assertTrue(fast.factor > 1f)
         assertEquals(1f, (SyncMath.decide(10L, 1f, true) as SyncMath.Action.Speed).factor, 0.0001f)
         // seek not allowed (cool-down) => nudge instead
-        assertTrue(SyncMath.decide(400L, 1f, false) is SyncMath.Action.Speed)
+        assertTrue(SyncMath.decide(700L, 1f, false) is SyncMath.Action.Speed)
     }
 }

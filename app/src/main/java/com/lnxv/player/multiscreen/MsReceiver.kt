@@ -52,7 +52,19 @@ class MsReceiver(private val context: Context) {
     private val _ui = MutableStateFlow(RxUi())
     val ui: StateFlow<RxUi> = _ui.asStateFlow()
 
-    val player: ExoPlayer = ExoPlayer.Builder(context).build().apply {
+    val player: ExoPlayer = ExoPlayer.Builder(context)
+        .setLoadControl(
+            androidx.media3.exoplayer.DefaultLoadControl.Builder()
+                .setBufferDurationsMs(
+                    2_500,  // minBufferMs (reduced from 50s to avoid latency on Wi-Fi)
+                    15_000, // maxBufferMs
+                    1_000,  // bufferForPlaybackMs
+                    1_500   // bufferForPlaybackAfterRebufferMs
+                )
+                .setPrioritizeTimeOverSizeThresholds(true)
+                .build()
+        )
+        .build().apply {
         setAudioAttributes(
             AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MOVIE).build(),
             true
@@ -224,13 +236,15 @@ class MsReceiver(private val context: Context) {
         if (ended) { player.playWhenReady = false; return }
         if (!play) {
             if (player.playWhenReady) player.playWhenReady = false
-            if (Math.abs(player.currentPosition - target) > 100L) player.seekTo(target)
+            if (Math.abs(player.currentPosition - target) > 500L) player.seekTo(target)
             if (player.playbackParameters.speed != speed) player.setPlaybackSpeed(speed)
             return
         }
         if (!player.playWhenReady) player.playWhenReady = true
+        // If buffering, don't trigger seeks which reset the buffer and stall playback
+        if (player.playbackState == Player.STATE_BUFFERING) return
         val drift = player.currentPosition - target
-        when (val a = SyncMath.decide(drift, speed, now - lastSeekAt > 1500L)) {
+        when (val a = SyncMath.decide(drift, speed, now - lastSeekAt > 4000L)) {
             is SyncMath.Action.Seek -> { player.seekTo(target); lastSeekAt = now; player.setPlaybackSpeed(speed) }
             is SyncMath.Action.Speed -> if (player.playbackParameters.speed != a.factor) player.setPlaybackSpeed(a.factor)
             SyncMath.Action.None -> {}

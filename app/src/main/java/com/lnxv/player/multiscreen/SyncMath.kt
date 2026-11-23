@@ -8,9 +8,9 @@ object SyncMath {
         data class Speed(val factor: Float) : Action
     }
 
-    const val SEEK_THRESHOLD_MS = 250L
-    const val NUDGE_THRESHOLD_MS = 40L
-    const val NUDGE = 0.03f
+    const val SEEK_THRESHOLD_MS = 600L
+    const val NUDGE_THRESHOLD_MS = 60L
+    const val NUDGE = 0.05f
 
     /** Estimated host clock offset: hostClock = clientClock + offset. [c0]/[c1] = client send/receive time, [h] = host time at reply. */
     fun clockOffset(c0: Long, c1: Long, h: Long): Long = h - (c0 + c1) / 2
