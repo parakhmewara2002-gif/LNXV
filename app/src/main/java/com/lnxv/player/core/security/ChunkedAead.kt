@@ -22,33 +22,62 @@ import javax.crypto.spec.SecretKeySpec
  * extension are all detected.
  */
 object ChunkedAead {
-    const val HEADER_SIZE = 16
+    // Version 2 uses a 96-bit random per-file nonce base. Version 1 remains readable for existing vaults.
+    const val HEADER_SIZE = 24
     const val TAG_SIZE = 16
     const val DEFAULT_CHUNK_SIZE = 64 * 1024
+    private const val LEGACY_HEADER_SIZE = 16
     private val MAGIC = byteArrayOf('L'.code.toByte(), 'N'.code.toByte(), 'X'.code.toByte(), 'V'.code.toByte())
-    private const val VERSION: Byte = 1
+    private const val LEGACY_VERSION: Byte = 1
+    private const val VERSION: Byte = 2
+    private const val V2_CHUNK_SIZE_OFFSET = 5
+    private const val V2_NONCE_BASE_OFFSET = 9
 
     private fun cipher(key: ByteArray, header: ByteArray, index: Long, final: Boolean, mode: Int): Cipher {
-        val nonce = ByteBuffer.allocate(12).put(header, 12, 4).putLong(index).array()
+        val nonce = when (header[4]) {
+            LEGACY_VERSION -> ByteBuffer.allocate(12).put(header, 12, 4).putLong(index).array()
+            VERSION -> {
+                // Increment the low 64 bits of a random 96-bit per-file base; each chunk gets a unique IV.
+                val iv = header.copyOfRange(V2_NONCE_BASE_OFFSET, V2_NONCE_BASE_OFFSET + 12)
+                val counter = ByteBuffer.wrap(iv, 4, 8).long
+                ByteBuffer.wrap(iv).putLong(4, counter + index)
+                iv
+            }
+            else -> throw IOException("Unsupported vault version")
+        }
         val c = Cipher.getInstance("AES/GCM/NoPadding")
         c.init(mode, SecretKeySpec(key, "AES"), GCMParameterSpec(128, nonce))
-        val aad = ByteBuffer.allocate(HEADER_SIZE + 9).put(header).putLong(index).put(if (final) 1 else 0).array()
+        val aad = ByteBuffer.allocate(header.size + 9).put(header).putLong(index).put(if (final) 1 else 0).array()
         c.updateAAD(aad)
         return c
     }
 
     fun newHeader(chunkSize: Int, rnd: SecureRandom = SecureRandom()): ByteArray {
         require(chunkSize in 1024..(16 * 1024 * 1024)) { "bad chunk size" }
-        val prefix = ByteArray(4).also { rnd.nextBytes(it) }
-        return ByteBuffer.allocate(HEADER_SIZE).put(MAGIC).put(VERSION).put(ByteArray(3))
-            .putInt(chunkSize).put(prefix).array()
+        val nonceBase = ByteArray(12).also { rnd.nextBytes(it) }
+        return ByteBuffer.allocate(HEADER_SIZE)
+            .put(MAGIC)
+            .put(VERSION)
+            .putInt(chunkSize)
+            .put(nonceBase)
+            .put(ByteArray(3))
+            .array()
     }
 
     private fun chunkSizeOf(header: ByteArray): Int {
-        if (header.size != HEADER_SIZE || !header.copyOfRange(0, 4).contentEquals(MAGIC) || header[4] != VERSION) {
-            throw IOException("Not an LNXV vault file")
+        if (!header.copyOfRange(0, 4).contentEquals(MAGIC)) throw IOException("Not an LNXV vault file")
+        val chunkSizeOffset = when (header.getOrNull(4)) {
+            LEGACY_VERSION -> {
+                if (header.size != LEGACY_HEADER_SIZE) throw IOException("Corrupt legacy vault header")
+                8
+            }
+            VERSION -> {
+                if (header.size != HEADER_SIZE) throw IOException("Corrupt vault header")
+                V2_CHUNK_SIZE_OFFSET
+            }
+            else -> throw IOException("Unsupported vault version")
         }
-        val cs = ByteBuffer.wrap(header, 8, 4).int
+        val cs = ByteBuffer.wrap(header, chunkSizeOffset, 4).int
         if (cs !in 1024..(16 * 1024 * 1024)) throw IOException("Corrupt vault header")
         return cs
     }
@@ -58,8 +87,8 @@ object ChunkedAead {
         return HEADER_SIZE + plainSize + chunks * TAG_SIZE
     }
 
-    fun plainSizeOf(encryptedSize: Long, chunkSize: Int): Long {
-        val body = encryptedSize - HEADER_SIZE
+    fun plainSizeOf(encryptedSize: Long, chunkSize: Int, headerSize: Int = HEADER_SIZE): Long {
+        val body = encryptedSize - headerSize
         if (body < TAG_SIZE) throw IOException("Truncated vault file")
         val full = chunkSize + TAG_SIZE
         val chunks = (body + full - 1) / full
@@ -149,7 +178,7 @@ object ChunkedAead {
 
     /** Random-access decryptor. Not thread-safe; keeps one decrypted chunk cached. */
     class Reader(private val source: Source, private val key: ByteArray) : AutoCloseable {
-        private val header = ByteArray(HEADER_SIZE)
+        private val header: ByteArray
         val chunkSize: Int
         val plainSize: Long
         private val chunkCount: Long
@@ -157,9 +186,18 @@ object ChunkedAead {
         private var cached: ByteArray = ByteArray(0)
 
         init {
-            readFully(0, header, 0, HEADER_SIZE)
+            val preamble = ByteArray(5)
+            readFully(0, preamble, 0, preamble.size)
+            val headerSize = when (preamble[4]) {
+                LEGACY_VERSION -> LEGACY_HEADER_SIZE
+                VERSION -> HEADER_SIZE
+                else -> throw IOException("Unsupported vault version")
+            }
+            header = ByteArray(headerSize)
+            System.arraycopy(preamble, 0, header, 0, preamble.size)
+            readFully(preamble.size.toLong(), header, preamble.size, headerSize - preamble.size)
             chunkSize = chunkSizeOf(header)
-            plainSize = plainSizeOf(source.length(), chunkSize)
+            plainSize = plainSizeOf(source.length(), chunkSize, headerSize)
             chunkCount = if (plainSize == 0L) 1L else (plainSize + chunkSize - 1) / chunkSize
         }
 
@@ -177,7 +215,7 @@ object ChunkedAead {
             val isFinal = index == chunkCount - 1
             val plainLen = if (isFinal) (plainSize - index * chunkSize).toInt() else chunkSize
             val ct = ByteArray(plainLen + TAG_SIZE)
-            readFully(HEADER_SIZE + index * (chunkSize + TAG_SIZE), ct, 0, ct.size)
+            readFully(header.size + index * (chunkSize + TAG_SIZE), ct, 0, ct.size)
             // Do not leave the previous decrypted chunk resident after a seek.
             cached.fill(0)
             cachedIndex = -1L
