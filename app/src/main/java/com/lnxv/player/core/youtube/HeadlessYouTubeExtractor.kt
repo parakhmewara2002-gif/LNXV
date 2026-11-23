@@ -89,7 +89,21 @@ object HeadlessYouTubeExtractor {
                     }
                 }
 
-                webView.loadUrl("https://m.youtube.com/watch?v=$videoId")
+                val html = """
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    </head>
+                    <body style="margin:0;padding:0;background-color:#000;">
+                    <iframe id="player" width="100%" height="100%" 
+                        src="https://www.youtube.com/embed/$videoId?autoplay=1&enablejsapi=1&playsinline=1" 
+                        frameborder="0" allow="autoplay; encrypted-media" allowfullscreen>
+                    </iframe>
+                    </body>
+                    </html>
+                """.trimIndent()
+                webView.loadDataWithBaseURL("https://www.youtube.com", html, "text/html", "UTF-8", null)
             }
         }
     }
