@@ -13,7 +13,7 @@ LNXV is an advanced, production-ready Android video player built with **Jetpack 
 * **Local Persistence**: Room Database 2.6.1 with reactive Kotlin `Flow` queries.
 * **Preferences**: Jetpack DataStore Preferences.
 * **Image & Thumbnail Pipeline**: Coil 2.7.0 with `VideoFrameDecoder` for asynchronous video frame thumbnail generation.
-* **Language & SDK**: Kotlin 2.0, Target SDK 34 (Android 14+), Min SDK 23 (Android 6.0+).
+* **Language & SDK**: Kotlin 2.2.10, Target SDK 34 (Android 14+), Min SDK 23 (Android 6.0+).
 
 ---
 
