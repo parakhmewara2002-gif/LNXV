@@ -42,6 +42,12 @@ class WebDavDataSource : BaseDataSource(true) {
             if (length > 0 && position > Long.MAX_VALUE - length + 1) {
                 throw IOException("WebDAV read range overflow")
             }
+            if (length == 0L) {
+                bytesRemaining = 0L
+                opened = true
+                transferStarted(dataSpec)
+                return 0L
+            }
 
             val conn = URL(dataSpec.uri.toString()).openConnection() as HttpURLConnection
             connection = conn
@@ -60,7 +66,8 @@ class WebDavDataSource : BaseDataSource(true) {
             val status = conn.responseCode
             if (status in 300..399) throw IOException("WebDAV redirects are not allowed")
             if (status !in 200..299) throw IOException("WebDAV server returned HTTP $status")
-            val contentLength = conn.getHeaderField("Content-Length")?.toLongOrNull() ?: C.LENGTH_UNSET.toLong()
+            val contentLength = conn.getHeaderField("Content-Length")?.toLongOrNull()
+                ?.takeIf { it >= 0L } ?: C.LENGTH_UNSET.toLong()
 
             bytesRemaining = when (status) {
                 HttpURLConnection.HTTP_PARTIAL -> {
@@ -72,7 +79,9 @@ class WebDavDataSource : BaseDataSource(true) {
                         ?: throw IOException("WebDAV server returned an invalid byte range")
                     val end = match.groupValues[2].toLongOrNull()
                         ?: throw IOException("WebDAV server returned an invalid byte range")
-                    if (start != position || end < start) throw IOException("WebDAV server returned the wrong byte range")
+                    if (start != position || end < start || end == Long.MAX_VALUE) {
+                        throw IOException("WebDAV server returned the wrong byte range")
+                    }
                     val available = end - start + 1
                     if (length == C.LENGTH_UNSET.toLong()) available else minOf(length, available)
                 }
