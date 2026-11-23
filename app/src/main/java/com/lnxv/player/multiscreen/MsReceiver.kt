@@ -216,7 +216,7 @@ class MsReceiver(private val context: Context) {
                 val play = j.optBoolean("play")
                 val requestedSpeed = j.optDouble("speed", 1.0).toFloat()
                 val speed = requestedSpeed.takeIf { it.isFinite() && it in 0.25f..4f } ?: 1f
-                val hostNow = j.optLong("hostNow").coerceAtLeast(0L)
+                val hostNow = j.optLong("hostNow").coerceIn(0L, 365L * 24 * 60 * 60 * 1000)
                 val ended = j.optBoolean("ended")
                 main.post { onHostState(pos, play, speed, hostNow, ended) }
             }
