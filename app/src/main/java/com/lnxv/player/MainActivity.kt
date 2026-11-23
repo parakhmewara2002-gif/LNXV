@@ -89,6 +89,10 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
         val splash = installSplashScreen()
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        val app = application as LNXVApplication
+        if (app.playingVaultItem || app.screenshotsBlockedGlobally) {
+            window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        }
         splash.setKeepOnScreenCondition { prefsState.value == null }
         splash.setOnExitAnimationListener { splashScreenView ->
             if (systemAnimationsDisabled()) {
