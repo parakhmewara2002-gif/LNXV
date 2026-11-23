@@ -39,7 +39,7 @@ object ChunkedAead {
             VERSION -> {
                 // Increment the low 64 bits of a random 96-bit per-file base; each chunk gets a unique IV.
                 val iv = header.copyOfRange(V2_NONCE_BASE_OFFSET, V2_NONCE_BASE_OFFSET + 12)
-                val counter = ByteBuffer.wrap(iv, 4, 8).long
+                val counter = ByteBuffer.wrap(iv).getLong(4)
                 ByteBuffer.wrap(iv).putLong(4, counter + index)
                 iv
             }
