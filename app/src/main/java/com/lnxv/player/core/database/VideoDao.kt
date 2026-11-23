@@ -5,6 +5,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
+import androidx.room.Transaction
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -60,6 +61,13 @@ interface VideoDao {
 
     @Query("UPDATE videos SET isVault = :isVault, vaultFile = :vaultFile WHERE id = :videoId")
     suspend fun setVaultState(videoId: Long, isVault: Boolean, vaultFile: String?)
+
+    /** Atomically publishes the encrypted file reference and its optional encrypted thumbnail. */
+    @Transaction
+    suspend fun setVaultStateWithThumb(videoId: Long, vaultFile: String, thumb: VaultThumbEntity?) {
+        setVaultState(videoId, true, vaultFile)
+        if (thumb != null) insertThumb(thumb)
+    }
 
     @Query("SELECT vaultFile FROM videos WHERE vaultFile IS NOT NULL")
     suspend fun getAllVaultFileNames(): List<String>
