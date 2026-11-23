@@ -537,15 +537,16 @@ topBar = {
                         )
                     }
                     IosPill(hazeState = null) {
-                        IosPillIcon(Icons.Default.Search, "Search", { isSearchExpanded = !isSearchExpanded })
+                        val pillIconSize = 36.dp
+                        IosPillIcon(Icons.Default.Search, "Search", { isSearchExpanded = !isSearchExpanded }, size = pillIconSize)
                         if (recycleBinOn) {
-                            IosPillIcon(Icons.Default.Delete, androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.trash_title), { showTrash = true })
+                            IosPillIcon(Icons.Default.Delete, androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.trash_title), { showTrash = true }, size = pillIconSize)
                         }
-                        IosPillIcon(Icons.Default.Link, "Open network stream", { showStreamDialog = true })
-                        IosPillIcon(Icons.Default.PlayArrow, "YouTube", onYouTubeClick)
-                        IosPillIcon(Icons.Default.GraphicEq, "Join screen", onReceiveClick)
-                        IosPillIcon(Icons.Default.Lock, "Private Vault", onVaultClick)
-                        IosPillIcon(Icons.Default.Settings, "Settings", onSettingsClick)
+                        IosPillIcon(Icons.Default.Link, "Open network stream", { showStreamDialog = true }, size = pillIconSize)
+                        IosPillIcon(Icons.Default.PlayArrow, "YouTube", onYouTubeClick, size = pillIconSize)
+                        IosPillIcon(Icons.Default.GraphicEq, "Join screen", onReceiveClick, size = pillIconSize)
+                        IosPillIcon(Icons.Default.Lock, "Private Vault", onVaultClick, size = pillIconSize)
+                        IosPillIcon(Icons.Default.Settings, "Settings", onSettingsClick, size = pillIconSize)
                     }
                 }
                 if (isSearchExpanded) {

@@ -1,5 +1,12 @@
 package com.lnxv.player.ui.youtube
 
+import android.view.ViewGroup
+import android.webkit.CookieManager
+import android.webkit.WebChromeClient
+import android.webkit.WebSettings
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -18,10 +25,16 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -40,6 +53,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
 import com.lnxv.player.LNXVApplication
 import com.lnxv.player.core.design.GlassSearchField
@@ -62,6 +78,7 @@ fun YouTubeScreen(
     var results by remember { mutableStateOf<List<YouTubeClient.SearchItem>>(emptyList()) }
     var isLoading by remember { mutableStateOf(false) }
     var resolvingId by remember { mutableStateOf<String?>(null) }
+    var showSignInDialog by remember { mutableStateOf(false) }
 
     fun performSearch(q: String) {
         if (q.isBlank()) return
@@ -122,14 +139,41 @@ fun YouTubeScreen(
                 .padding(horizontal = 16.dp)
         ) {
             Spacer(modifier = Modifier.height(12.dp))
-            GlassSearchField(
-                value = query,
-                onValueChange = {
-                    query = it
-                    if (it.length >= 3) performSearch(it)
-                },
-                placeholder = "Search YouTube videos or channels..."
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(modifier = Modifier.weight(1f)) {
+                    GlassSearchField(
+                        value = query,
+                        onValueChange = {
+                            query = it
+                            if (it.length >= 3) performSearch(it)
+                        },
+                        placeholder = "Search YouTube videos..."
+                    )
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Button(
+                    onClick = { showSignInDialog = true },
+                    colors = ButtonDefaults.buttonColors(containerColor = appColors.glassFill),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Person,
+                        contentDescription = "Sign In / Verify",
+                        tint = appColors.accent,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "Verify",
+                        color = appColors.textPrimary,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
             Spacer(modifier = Modifier.height(16.dp))
 
             if (isLoading) {
@@ -232,6 +276,110 @@ fun YouTubeScreen(
                     }
                     item {
                         Spacer(modifier = Modifier.height(24.dp))
+                    }
+                }
+            }
+        }
+    }
+
+    if (showSignInDialog) {
+        Dialog(
+            onDismissRequest = {
+                CookieManager.getInstance().flush()
+                showSignInDialog = false
+            },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.85f))
+                    .padding(16.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(appColors.barFill)
+                        .padding(16.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                text = "YouTube Human Verification",
+                                color = appColors.textPrimary,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "Sign in or pass robot check to enable native playback",
+                                color = appColors.textSecondary,
+                                fontSize = 11.sp
+                            )
+                        }
+                        IconButton(onClick = {
+                            CookieManager.getInstance().flush()
+                            showSignInDialog = false
+                        }) {
+                            Icon(Icons.Default.Close, contentDescription = "Close", tint = appColors.textPrimary)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    AndroidView(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                            .clip(RoundedCornerShape(12.dp)),
+                        factory = { ctx ->
+                            WebView(ctx).apply {
+                                layoutParams = FrameLayout.LayoutParams(
+                                    ViewGroup.LayoutParams.MATCH_PARENT,
+                                    ViewGroup.LayoutParams.MATCH_PARENT
+                                )
+                                settings.javaScriptEnabled = true
+                                settings.domStorageEnabled = true
+                                settings.databaseEnabled = true
+                                settings.setSupportZoom(true)
+                                settings.builtInZoomControls = true
+                                settings.displayZoomControls = false
+                                settings.userAgentString = "Mozilla/5.0 (Linux; Android 11; TECNO CG7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
+                                
+                                val cookieManager = CookieManager.getInstance()
+                                cookieManager.setAcceptCookie(true)
+                                cookieManager.setAcceptThirdPartyCookies(this, true)
+
+                                webViewClient = object : WebViewClient() {
+                                    override fun onPageFinished(view: WebView?, url: String?) {
+                                        super.onPageFinished(view, url)
+                                        cookieManager.flush()
+                                    }
+                                }
+                                webChromeClient = WebChromeClient()
+                                loadUrl("https://accounts.google.com/ServiceLogin?service=youtube&continue=https%3A%2F%2Fm.youtube.com%2F")
+                            }
+                        }
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Button(
+                        onClick = {
+                            CookieManager.getInstance().flush()
+                            showSignInDialog = false
+                            Toast.makeText(context, "Session verified! Ready for native playback.", Toast.LENGTH_SHORT).show()
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = appColors.accent),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("Done / Verified", color = Color.White, fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
