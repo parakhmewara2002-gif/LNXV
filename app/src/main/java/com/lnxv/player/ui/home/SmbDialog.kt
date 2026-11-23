@@ -48,9 +48,15 @@ fun SmbDialog(onDismiss: () -> Unit, onPlay: (url: String, title: String) -> Uni
     var error by remember { mutableStateOf<String?>(null) }
     var loading by remember { mutableStateOf(false) }
     var signedIn by remember { mutableStateOf(false) }
+    var handedOffToPlayer by remember { mutableStateOf(false) }
     var current by remember { mutableStateOf<SmbPath?>(null) }
     var entries by remember { mutableStateOf<List<SmbEntry>>(emptyList()) }
     val badAddress = stringResource(R.string.smb_bad_address)
+
+    fun dismiss() {
+        if (!handedOffToPlayer) SmbSession.clear()
+        onDismiss()
+    }
 
     fun load(target: SmbPath) {
         val backend = SmbBackends.instance ?: return
@@ -68,7 +74,7 @@ fun SmbDialog(onDismiss: () -> Unit, onPlay: (url: String, title: String) -> Uni
     }
 
     GlassDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = ::dismiss,
         title = { Text(stringResource(R.string.smb_title)) },
         text = {
             Column(Modifier.heightIn(max = 380.dp).verticalScroll(rememberScrollState())) {
@@ -92,7 +98,11 @@ fun SmbDialog(onDismiss: () -> Unit, onPlay: (url: String, title: String) -> Uni
                         Row(Modifier.fillMaxWidth().clickable {
                             val base = cur ?: return@clickable
                             val next = base.safeChild(e.name) ?: return@clickable
-                            if (e.isDir) load(next) else { onPlay(next.toUrl(), e.name); onDismiss() }
+                            if (e.isDir) load(next) else {
+                                handedOffToPlayer = true
+                                onPlay(next.toUrl(), e.name)
+                                dismiss()
+                            }
                         }.padding(vertical = 10.dp)) {
                             Text(if (e.isDir) "📁 ${e.name}" else e.name, color = appColors.textPrimary, fontSize = 14.sp, maxLines = 2)
                         }
@@ -111,10 +121,10 @@ fun SmbDialog(onDismiss: () -> Unit, onPlay: (url: String, title: String) -> Uni
                 })
             } else {
                 GlassDialogButton(text = stringResource(R.string.webdav_disconnect), primary = true, onClick = {
-                    SmbSession.clear(); signedIn = false; entries = emptyList(); current = null; pass = ""
+                    SmbSession.clear(); signedIn = false; handedOffToPlayer = false; entries = emptyList(); current = null; pass = ""
                 })
             }
         },
-        dismissButton = { GlassDialogButton(text = stringResource(R.string.trash_close), onClick = onDismiss) }
+        dismissButton = { GlassDialogButton(text = stringResource(R.string.trash_close), onClick = ::dismiss) }
     )
 }
