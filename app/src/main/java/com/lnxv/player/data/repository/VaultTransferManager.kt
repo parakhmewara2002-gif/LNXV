@@ -132,8 +132,16 @@ class VaultTransferManager(
         try {
             if (op is Op.Move) {
                 val result = repo.moveToVault(video.id) { p -> _state.value = _state.value.copy(progress = p) }
-                result.deleteConsent?.let { _deleteConsents.tryEmit(it) }
-                _messages.tryEmit("Encrypted \"${video.title}\"")
+                when {
+                    result.deleteConsent != null -> {
+                        _deleteConsents.tryEmit(result.deleteConsent)
+                        _messages.tryEmit("Encrypted \"${video.title}\". Confirm the system prompt to remove the original outside Vault.")
+                    }
+                    result.originalDeleteFailed -> {
+                        _messages.tryEmit("Encrypted copy created, but the original remains outside Vault because Android did not allow its deletion.")
+                    }
+                    else -> _messages.tryEmit("Encrypted \"${video.title}\"")
+                }
             } else {
                 repo.restoreFromVault(video.id) { p -> _state.value = _state.value.copy(progress = p) }
                 _messages.tryEmit("Restored \"${video.title}\" to Movies/LNXV")
