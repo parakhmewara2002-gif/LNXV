@@ -35,16 +35,28 @@ object TokenCipher {
     fun encrypt(plain: String): String {
         val cipher = Cipher.getInstance(TRANSFORMATION)
         cipher.init(Cipher.ENCRYPT_MODE, key())
-        val ct = cipher.doFinal(plain.toByteArray(Charsets.UTF_8))
-        return Base64.encodeToString(cipher.iv + ct, Base64.NO_WRAP)
+        val input = plain.toByteArray(Charsets.UTF_8)
+        return try {
+            val ct = cipher.doFinal(input)
+            Base64.encodeToString(cipher.iv + ct, Base64.NO_WRAP)
+        } finally {
+            input.fill(0)
+        }
     }
 
     /** @return null when the value cannot be decrypted (for example after a Keystore reset); the user then logs in again. */
     fun decrypt(encoded: String): String? = try {
         val raw = Base64.decode(encoded, Base64.NO_WRAP)
-        val cipher = Cipher.getInstance(TRANSFORMATION)
-        cipher.init(Cipher.DECRYPT_MODE, key(), GCMParameterSpec(128, raw, 0, 12))
-        String(cipher.doFinal(raw, 12, raw.size - 12), Charsets.UTF_8)
+        var plain: ByteArray? = null
+        try {
+            val cipher = Cipher.getInstance(TRANSFORMATION)
+            cipher.init(Cipher.DECRYPT_MODE, key(), GCMParameterSpec(128, raw, 0, 12))
+            plain = cipher.doFinal(raw, 12, raw.size - 12)
+            String(plain, Charsets.UTF_8)
+        } finally {
+            raw.fill(0)
+            plain?.fill(0)
+        }
     } catch (e: Exception) {
         null
     }
