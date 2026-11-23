@@ -117,6 +117,9 @@ fun LNXVNavigationHost(navController: NavHostController) {
                 },
                 onReceiveClick = {
                     navController.navigate(Screen.Receive.route)
+                },
+                onYouTubeClick = {
+                    navController.navigate(Screen.YouTube.route)
                 }
             )
           }
@@ -191,6 +194,13 @@ fun LNXVNavigationHost(navController: NavHostController) {
 
         composable(Screen.Licenses.route) {
             com.lnxv.player.ui.settings.LicensesScreen(onBackClick = { navController.popBackStack() })
+        }
+
+        composable(Screen.YouTube.route) {
+            com.lnxv.player.ui.youtube.YouTubeScreen(
+                session = app.session,
+                onBack = { navController.popBackStack() }
+            )
         }
     }
     }

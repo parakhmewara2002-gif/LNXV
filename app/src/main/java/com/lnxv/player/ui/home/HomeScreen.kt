@@ -117,7 +117,8 @@ fun HomeScreen(
     onFolderClick: (FolderItem) -> Unit,
     onVaultClick: () -> Unit,
     onSettingsClick: () -> Unit,
-    onReceiveClick: () -> Unit = {}
+    onReceiveClick: () -> Unit = {},
+    onYouTubeClick: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val selection by viewModel.selection.collectAsState()
@@ -204,7 +205,7 @@ fun HomeScreen(
                     GlassTextField(
                         value = url,
                         onValueChange = { url = it; error = null },
-                        placeholder = "https://, HLS (.m3u8), DASH (.mpd), rtsp://",
+                        placeholder = "YouTube link or URL (HLS, DASH, MP4)",
                         errorText = error
                     )
                     if (smbOn) {
@@ -541,6 +542,7 @@ topBar = {
                             IosPillIcon(Icons.Default.Delete, androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.trash_title), { showTrash = true })
                         }
                         IosPillIcon(Icons.Default.Link, "Open network stream", { showStreamDialog = true })
+                        IosPillIcon(Icons.Default.PlayArrow, "YouTube", onYouTubeClick)
                         IosPillIcon(Icons.Default.GraphicEq, "Join screen", onReceiveClick)
                         IosPillIcon(Icons.Default.Lock, "Private Vault", onVaultClick)
                         IosPillIcon(Icons.Default.Settings, "Settings", onSettingsClick)

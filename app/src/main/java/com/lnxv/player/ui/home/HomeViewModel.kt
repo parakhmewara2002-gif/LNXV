@@ -351,10 +351,42 @@ class HomeViewModel(
         viewModelScope.launch { dataStore.saveRecentStreams("") }
     }
 
-    /** Validates and opens a network stream through the transient-video player route. Returns an error text or null. */
+    /** Validates and opens a network stream or YouTube link through the transient-video player route. Returns an error text or null. */
     fun openStream(rawUrl: String, remember: Boolean = true): String? {
+        val trimmed = rawUrl.trim()
+        if (com.lnxv.player.core.youtube.YouTubeClient.isYouTubeUrl(trimmed)) {
+            viewModelScope.launch {
+                val res = com.lnxv.player.core.youtube.YouTubeClient.resolve(trimmed)
+                res.onSuccess { stream ->
+                    if (remember) rememberStream(trimmed)
+                    session.transientVideo = VideoItem(
+                        id = LNXVApplication.TRANSIENT_VIDEO_ID,
+                        title = stream.title,
+                        uri = android.net.Uri.parse(stream.videoUrl),
+                        path = stream.videoUrl,
+                        durationMs = stream.durationMs,
+                        sizeBytes = 0L,
+                        width = stream.width,
+                        height = stream.height,
+                        mimeType = "video/mp4",
+                        dateAddedSec = System.currentTimeMillis() / 1000,
+                        folderPath = "YouTube",
+                        folderName = "YouTube"
+                    )
+                    session.pendingOpenVideoId.value = LNXVApplication.TRANSIENT_VIDEO_ID
+                }.onFailure { err ->
+                    android.widget.Toast.makeText(
+                        getApplication(),
+                        err.message ?: "Failed to open YouTube video",
+                        android.widget.Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+            return null
+        }
+
         val debuggable = getApplication<Application>().applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE != 0
-        return when (val r = com.lnxv.player.core.util.StreamUrl.validate(rawUrl, allowCleartextHttp = debuggable)) {
+        return when (val r = com.lnxv.player.core.util.StreamUrl.validate(trimmed, allowCleartextHttp = debuggable)) {
             is com.lnxv.player.core.util.StreamUrl.Result.Error -> r.message
             is com.lnxv.player.core.util.StreamUrl.Result.Ok -> {
                 if (remember) rememberStream(r.url)
