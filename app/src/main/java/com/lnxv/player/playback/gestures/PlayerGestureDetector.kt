@@ -3,6 +3,7 @@ package com.lnxv.player.playback.gestures
 import androidx.compose.runtime.Immutable
 import android.app.Activity
 import android.content.Context
+import android.content.ContextWrapper
 import android.media.AudioManager
 import android.view.WindowManager
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -26,6 +27,15 @@ import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import kotlin.math.abs
+
+private fun Context.findActivity(): Activity? {
+    var current: Context = this
+    while (true) {
+        if (current is Activity) return current
+        if (current !is ContextWrapper) return null
+        current = current.baseContext
+    }
+}
 
 enum class GestureType {
     NONE,
@@ -68,7 +78,7 @@ fun PlayerGestureDetector(
 ) {
     val context = LocalContext.current
     val audioManager = remember { context.getSystemService(Context.AUDIO_SERVICE) as AudioManager }
-    val activity = remember { context as? Activity }
+    val activity = remember(context) { context.findActivity() }
 
     val latestDuration by rememberUpdatedState(durationMs)
     val latestPosition by rememberUpdatedState(currentPositionProvider)
