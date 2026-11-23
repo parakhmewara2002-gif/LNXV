@@ -39,11 +39,20 @@ class KeystoreKeyWrapper(private val alias: String = "lnxv_vault_wrap_v1") : Key
             if (strongBox && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) b.setIsStrongBoxBacked(true)
             return KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore")
                 .apply { init(b.build()) }.generateKey()
-        } catch (e: android.security.keystore.StrongBoxUnavailableException) {
-            // Fall back only when StrongBox itself is unavailable; propagate unrelated key-generation failures.
-            if (strongBox) return generate(strongBox = false)
+        } catch (e: Exception) {
+            // Avoid linking the API-28 exception class on the API-23 minimum; only this exact failure permits fallback.
+            if (strongBox && isStrongBoxUnavailable(e)) return generate(strongBox = false)
             throw e
         }
+    }
+
+    private fun isStrongBoxUnavailable(error: Throwable): Boolean {
+        var cause: Throwable? = error
+        while (cause != null) {
+            if (cause.javaClass.name == "android.security.keystore.StrongBoxUnavailableException") return true
+            cause = cause.cause
+        }
+        return false
     }
 
     override fun wrap(plain: ByteArray): ByteArray {
