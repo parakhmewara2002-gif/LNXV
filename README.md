@@ -13,7 +13,7 @@ LNXV is an advanced, production-ready Android video player built with **Jetpack 
 * **Local Persistence**: Room Database 2.6.1 with reactive Kotlin `Flow` queries.
 * **Preferences**: Jetpack DataStore Preferences.
 * **Image & Thumbnail Pipeline**: Coil 2.7.0 with `VideoFrameDecoder` for asynchronous video frame thumbnail generation.
-* **Language & SDK**: Kotlin 2.0, Target SDK 34 (Android 14+), Min SDK 26 (Android 8.0+).
+* **Language & SDK**: Kotlin 2.0, Target SDK 34 (Android 14+), Min SDK 23 (Android 6.0+).
 
 ---
 
@@ -116,7 +116,7 @@ No analytics, no tracking, no ads. Only network use: the update check (sideload)
 - Minimum supported Android version is Android 6.0 (API 23).
 - Release builds package `arm64-v8a` and `armeabi-v7a` (x86_64 native decoders are only packaged in debug builds, for emulators).
 - Android 13 (API 33), including TECNO Camon 19, remains within the declared OS range. This does not by itself diagnose or fix a launch crash on a particular device.
-- The project currently retains its existing `compileSdk = 34` and `targetSdk = 34` toolchain settings. Apps can run on newer Android releases, but adopting the newest platform behavior requires a separate compile/target SDK and Android Gradle Plugin upgrade plus testing.
+- The project currently uses `compileSdk = 36` and `targetSdk = 34`. Apps can run on newer Android releases, but adopting the newest platform behavior requires a separate compile/target SDK and Android Gradle Plugin upgrade plus testing.
 - Android 5.x and older are not supported by this configuration.
 
 See `docs/ANDROID_COMPATIBILITY.md` for the compatibility notes and verification checklist.
