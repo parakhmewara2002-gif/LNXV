@@ -123,10 +123,11 @@ fun Modifier.liquidGlassSurface(
                 center = center
             )
             val edge = lobes(bright, dim)
-            // "Highlight reflection": wide soft strokes (approximating the 12px / blur-14 stroke) kept inside the clip.
-            val softA = lobes(bright * 0.16f, 0f)
-            val softB = lobes(bright * 0.26f, 0f)
-            val softC = lobes(bright * 0.40f, 0f)
+            // For small chips and pills (min dimension < 56dp), 1 soft specular lobe avoids overdraw while looking identical.
+            val isCompact = size.minDimension < 56.dp.toPx()
+            val softA = if (!isCompact) lobes(bright * 0.16f, 0f) else null
+            val softB = if (!isCompact) lobes(bright * 0.26f, 0f) else null
+            val softC = lobes(bright * 0.38f, 0f)
             val innerShadow = Brush.linearGradient(
                 0f to Color.Transparent,
                 0.55f to Color.Transparent,
@@ -140,14 +141,14 @@ fun Modifier.liquidGlassSurface(
                 0.7f to Color.Transparent,
                 1f to Color.Transparent
             )
-            val fringe = profile == GlassProfile.HIGH
+            val fringe = profile == GlassProfile.HIGH && !isCompact
             val fringeOffset = 0.7.dp.toPx()
             onDrawWithContent {
                 drawOutline(outline, brush = topGloss)
                 drawOutline(outline, brush = innerShadow)
-                drawOutline(outline, brush = softA, style = Stroke(stroke * 9f))
-                drawOutline(outline, brush = softB, style = Stroke(stroke * 5.5f))
-                drawOutline(outline, brush = softC, style = Stroke(stroke * 2.8f))
+                if (softA != null) drawOutline(outline, brush = softA, style = Stroke(stroke * 9f))
+                if (softB != null) drawOutline(outline, brush = softB, style = Stroke(stroke * 5.5f))
+                drawOutline(outline, brush = softC, style = Stroke(stroke * (if (isCompact) 2.2f else 2.8f)))
                 drawContent()
                 if (fringe) {
                     // Static chromatic-aberration hint at the rim (NOT refraction): cool/warm fringes offset opposite ways.

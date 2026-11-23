@@ -438,22 +438,20 @@ fun GlassDialog(
 ) {
     androidx.compose.ui.window.Dialog(onDismissRequest = onDismissRequest) {
         val shape = RoundedCornerShape(28.dp)
-        val shown = remember { mutableStateOf(false) }
-        LaunchedEffect(Unit) { shown.value = true }
-        val reduceFx = LocalReduceEffects.current
+        val reduceFx = LocalReduceEffects.current || LocalReduceMotion.current
         val enter by animateFloatAsState(
-            targetValue = if (shown.value || reduceFx) 1f else 0f,
-            animationSpec = spring(dampingRatio = 0.75f, stiffness = 420f),
+            targetValue = 1f,
+            animationSpec = if (reduceFx) androidx.compose.animation.core.snap() else MotionTokens.SpringFluid,
             label = "dialog_enter"
         )
         Column(
             modifier = modifier
                 .fillMaxWidth()
                 .graphicsLayer {
-                    val sc = 0.9f + 0.1f * enter
+                    val sc = if (reduceFx) 1f else (0.92f + 0.08f * enter)
                     scaleX = sc
                     scaleY = sc
-                    alpha = enter.coerceIn(0f, 1f)
+                    alpha = if (reduceFx) 1f else enter.coerceIn(0f, 1f)
                 }
                 .clip(shape)
                 .liquidGlassSurface(

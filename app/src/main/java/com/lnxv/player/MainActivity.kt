@@ -168,7 +168,11 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
                     systemAnimationsOff = systemAnimationsDisabled()
                 )
                 LNXVTheme(darkTheme = darkTheme, amoled = p.isAmoled, dynamicColor = p.dynamicColor, reduceEffects = reduce, glassProfile = glassProfile) {
-                    LNXVNavigationHost(navController = navController)
+                    androidx.compose.runtime.CompositionLocalProvider(
+                        com.lnxv.player.core.design.LocalReduceMotion provides (reduce || systemAnimationsDisabled())
+                    ) {
+                        LNXVNavigationHost(navController = navController)
+                    }
                 }
             }
         }

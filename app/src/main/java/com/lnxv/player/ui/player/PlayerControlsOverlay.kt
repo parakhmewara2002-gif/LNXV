@@ -1,7 +1,11 @@
 package com.lnxv.player.ui.player
 
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.animateFloatAsState
 import android.app.Activity
 import android.content.Context
 import android.media.AudioManager
@@ -409,7 +413,7 @@ private fun GlassChip(text: String, onClick: () -> Unit) {
     }
 }
 
-/** Slim iOS-style track: tap or drag anywhere on it; it thickens while dragging. */
+/** Slim iOS-style track: tap or drag anywhere on it; expands dynamically during drag without triggering layout recalculations. */
 @Composable
 private fun ThinTrack(
     fraction: Float,
@@ -420,7 +424,11 @@ private fun ThinTrack(
     onScrubStart: () -> Unit = {}
 ) {
     var dragging by remember { mutableStateOf(false) }
-    val trackHeight by animateDpAsState(if (dragging) 10.dp else 5.dp, label = "track_height")
+    val trackExpansion by animateFloatAsState(
+        targetValue = if (dragging) 1f else 0f,
+        animationSpec = spring(dampingRatio = 0.85f, stiffness = 500f),
+        label = "track_expansion"
+    )
     val currentOnChange by rememberUpdatedState(onChange)
     val currentOnFinished by rememberUpdatedState(onFinished)
     val currentOnScrubStart by rememberUpdatedState(onScrubStart)
@@ -461,16 +469,28 @@ private fun ThinTrack(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(trackHeight)
-                .clip(CircleShape)
-                .background(Color(0x40FFFFFF))
+                .height(10.dp)
                 .drawWithContent {
-                    drawContent()
-                    val progressWidth = this.size.width * fraction.coerceIn(0f, 1f)
+                    val currentHeight = 5.dp.toPx() + 5.dp.toPx() * trackExpansion
+                    val topOffset = (size.height - currentHeight) / 2f
+                    val cornerRadius = CornerRadius(currentHeight / 2f, currentHeight / 2f)
+
+                    // Track background
+                    drawRoundRect(
+                        color = Color(0x40FFFFFF),
+                        topLeft = Offset(0f, topOffset),
+                        size = Size(size.width, currentHeight),
+                        cornerRadius = cornerRadius
+                    )
+
+                    // Progress fill
+                    val progressWidth = size.width * fraction.coerceIn(0f, 1f)
                     if (progressWidth > 0f) {
-                        drawRect(
+                        drawRoundRect(
                             color = Color.White,
-                            size = Size(progressWidth, this.size.height)
+                            topLeft = Offset(0f, topOffset),
+                            size = Size(progressWidth, currentHeight),
+                            cornerRadius = cornerRadius
                         )
                     }
                 }
@@ -506,12 +526,6 @@ private fun VolumePill(modifier: Modifier = Modifier) {
         }
     }
 
-    LaunchedEffect(Unit) {
-        while (true) {
-            if (!touching) fraction = audio.getStreamVolume(AudioManager.STREAM_MUSIC) / maxVol.toFloat()
-            delay(100)
-        }
-    }
     GlassPill(modifier) {
         Spacer(modifier = Modifier.width(14.dp))
         ThinTrack(

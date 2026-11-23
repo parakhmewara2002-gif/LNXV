@@ -19,11 +19,11 @@ val LocalNavAnimatedScope = compositionLocalOf<AnimatedVisibilityScope?> { null 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun Modifier.videoSharedBounds(videoId: Long): Modifier {
-    val reduce = LocalReduceEffects.current
+    val reduce = LocalReduceEffects.current || LocalReduceMotion.current
     val transition = LocalSharedTransitionScope.current
     val visibility = LocalNavAnimatedScope.current
-    // sharedBounds on every row costs layout/state per item while scrolling: only the HIGH tier pays for it.
-    if (reduce || LocalGlassProfile.current != GlassProfile.HIGH || transition == null || visibility == null || videoId < 0) return this
+    // sharedBounds is available on BALANCED and HIGH tiers when animations are not reduced
+    if (reduce || LocalGlassProfile.current == GlassProfile.LOW || transition == null || visibility == null || videoId < 0) return this
     return with(transition) {
         this@videoSharedBounds.sharedBounds(
             sharedContentState = rememberSharedContentState(key = "video_$videoId"),

@@ -140,17 +140,14 @@ fun GestureHud(state: GestureOverlayState) {
     val shown = last[0] ?: state
     AnimatedVisibility(
         visible = active,
-        enter = fadeIn(tween(120)) + (
+        enter = fadeIn(tween(100)) + (
             if (reduce) androidx.compose.animation.EnterTransition.None
             else androidx.compose.animation.scaleIn(
-                initialScale = 0.9f,
-                animationSpec = androidx.compose.animation.core.spring(
-                    dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy,
-                    stiffness = androidx.compose.animation.core.Spring.StiffnessMedium
-                )
+                initialScale = 0.92f,
+                animationSpec = com.lnxv.player.core.design.MotionTokens.SpringSnappy
             )
         ),
-        exit = fadeOut(tween(160)),
+        exit = fadeOut(tween(140)),
         modifier = Modifier.fillMaxSize()
     ) {
         Box(
