@@ -338,6 +338,7 @@ class PlayerViewModel(
         currentCoroutineContext().ensureActive()
         if (closed || generation != videoLoadGeneration) return
 
+        onlineSubtitles.reset()
         session.playingVaultItem = video.isVault
         playerManager.owner = this@PlayerViewModel
         pendingDecoder = remembered?.decoderOverride ?: DecoderMode.fromName(prefs.decoderMode)
@@ -509,6 +510,7 @@ class PlayerViewModel(
             folderName = "Network"
         )
         _uiState.value = _uiState.value.copy(currentVideo = dummyVideo)
+        onlineSubtitles.reset()
         session.playingVaultItem = false
         session.queueOverride = null
         queue = null
@@ -652,6 +654,7 @@ class PlayerViewModel(
         videoLoadGeneration++
         requestedVideoId = null
         videoLoadJob?.cancel()
+        onlineSubtitles.reset()
         if (playerManager.owner === this) {
             val video = _uiState.value.currentVideo
             val position = positionMs.value
