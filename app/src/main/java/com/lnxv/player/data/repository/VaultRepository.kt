@@ -365,7 +365,7 @@ class VaultRepository(
                 }
             }
         } catch (e: SecurityException) {
-            recoverableDeleteIntent(e)?.let(OriginalDeleteResult::NeedsConsent) ?: OriginalDeleteResult.Failed
+            recoverableDeleteIntent(e)?.let { OriginalDeleteResult.NeedsConsent(it) } ?: OriginalDeleteResult.Failed
         } catch (e: Exception) {
             OriginalDeleteResult.Failed
         }
