@@ -321,11 +321,11 @@ class MsHost(private val context: Context, private val player: ExoPlayer) {
             } else {
                 previous
             }
-            if (success) {
-                null
-            } else if (window.failures >= 5) {
+            if (window.failures >= 5) {
                 blocked = true
                 window
+            } else if (success) {
+                null
             } else {
                 window.failures++
                 window
