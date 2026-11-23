@@ -15,11 +15,12 @@ import javax.crypto.spec.SecretKeySpec
 /**
  * Chunked streaming AES-256-GCM with random access.
  *
- * File layout: 16-byte header | chunk 0 | chunk 1 | ...
+ * File layout: 24-byte v2 header | chunk 0 | chunk 1 | ... (legacy v1 16-byte headers remain readable).
  * Every chunk is `plaintext(chunkSize) + 16-byte tag` except the last, which may be shorter.
- * Nonce = 4-byte random prefix (from header) + 8-byte big-endian chunk index.
+ * V2 nonce = 96-bit random per-file base with the low 64 bits incremented by the chunk index.
+ * Legacy v1 nonce = 32-bit random prefix + 64-bit big-endian chunk index.
  * AAD = header + chunk index + final flag, so reordering, truncation at a chunk boundary and
- * extension are all detected.
+ * extension are detected.
  */
 object ChunkedAead {
     // Version 2 uses a 96-bit random per-file nonce base. Version 1 remains readable for existing vaults.
