@@ -102,6 +102,11 @@ class VaultTransferManager(
     /** Waits for active vault I/O and key copies to be released before the caller wipes/locks. */
     suspend fun cancelAllAndJoin() {
         cancelQueuedAndCurrent()?.cancelAndJoin()
+        synchronized(stateLock) {
+            current = null
+            pending = 0
+            _state.value = VaultJobState()
+        }
     }
 
     private fun cancelQueuedAndCurrent(): Job? = synchronized(stateLock) {
