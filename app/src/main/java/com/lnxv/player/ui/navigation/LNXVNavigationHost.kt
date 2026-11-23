@@ -150,7 +150,7 @@ fun LNXVNavigationHost(navController: NavHostController) {
             }
             // FLAG_SECURE while a vault item is open in the player
             val isVaultItem = playerUi.currentVideo?.isVault == true
-            val activity = androidx.compose.ui.platform.LocalContext.current as? com.lnxv.player.MainActivity
+            val activity = com.lnxv.player.findLnxvMainActivity(androidx.compose.ui.platform.LocalContext.current)
             androidx.compose.runtime.DisposableEffect(isVaultItem, activity) {
                 activity?.setSecureWindowReason("vault-player", isVaultItem)
                 onDispose { activity?.setSecureWindowReason("vault-player", false) }
