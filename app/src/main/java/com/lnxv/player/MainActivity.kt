@@ -197,6 +197,35 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
         }
         val app = application as LNXVApplication
         lifecycleScope.launch {
+            val urlString = uri.toString()
+            if (com.lnxv.player.core.youtube.YouTubeClient.isYouTubeUrl(urlString)) {
+                val res = com.lnxv.player.core.youtube.YouTubeClient.resolve(urlString)
+                res.onSuccess { stream ->
+                    app.transientVideo = VideoItem(
+                        id = LNXVApplication.TRANSIENT_VIDEO_ID,
+                        title = stream.title,
+                        uri = Uri.parse(stream.videoUrl),
+                        path = stream.videoUrl,
+                        durationMs = stream.durationMs,
+                        sizeBytes = 0L,
+                        width = stream.width,
+                        height = stream.height,
+                        mimeType = "video/mp4",
+                        dateAddedSec = System.currentTimeMillis() / 1000,
+                        folderPath = "YouTube",
+                        folderName = "YouTube"
+                    )
+                    app.pendingOpenVideoId.value = LNXVApplication.TRANSIENT_VIDEO_ID
+                }.onFailure { err ->
+                    android.widget.Toast.makeText(
+                        this@MainActivity,
+                        err.message ?: "Failed to open YouTube link",
+                        android.widget.Toast.LENGTH_LONG
+                    ).show()
+                }
+                return@launch
+            }
+
             val prefs = app.dataStore.userPreferencesFlow.first()
             if (!prefs.isEnabled(FeatureFlag.OPEN_WITH_INTENTS)) return@launch
             val known = withContext(Dispatchers.IO) { findLibraryVideoId(app, uri) }

@@ -5,7 +5,7 @@ package com.lnxv.player.core.util
  * Pure string logic so it can be unit tested without Android classes.
  */
 object IncomingIntentValidator {
-    private val ALLOWED_SCHEMES = setOf("content", "file")
+    private val ALLOWED_SCHEMES = setOf("content", "file", "http", "https")
 
     /** True when [path] equals or lies inside any of [roots] (canonical paths). Used to refuse file:// into app-private dirs. */
     fun isUnderAny(path: String, roots: List<String>): Boolean =
@@ -13,6 +13,8 @@ object IncomingIntentValidator {
 
     fun isAllowedViewData(scheme: String?, mimeType: String?): Boolean {
         if (scheme == null || scheme.lowercase() !in ALLOWED_SCHEMES) return false
+        val s = scheme.lowercase()
+        if (s == "http" || s == "https") return true
         val mime = mimeType?.lowercase()?.trim()
         return mime.isNullOrEmpty() || mime.startsWith("video/") || mime == "application/x-matroska"
     }
