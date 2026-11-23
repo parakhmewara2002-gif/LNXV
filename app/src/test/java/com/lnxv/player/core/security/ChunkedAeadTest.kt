@@ -2,7 +2,11 @@ package com.lnxv.player.core.security
 
 import java.io.ByteArrayOutputStream
 import java.io.IOException
+import java.nio.ByteBuffer
 import java.util.Random
+import javax.crypto.Cipher
+import javax.crypto.spec.GCMParameterSpec
+import javax.crypto.spec.SecretKeySpec
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -29,6 +33,36 @@ class ChunkedAeadTest {
 
     private fun randomBytes(n: Int) = ByteArray(n).also { Random(42).nextBytes(it) }
 
+    /** Creates a version-1 fixture using the original 32-bit per-file nonce prefix. */
+    private fun encryptLegacyV1(plain: ByteArray): ByteArray {
+        val prefix = byteArrayOf(1, 2, 3, 4)
+        val header = ByteBuffer.allocate(16)
+            .put(byteArrayOf('L'.code.toByte(), 'N'.code.toByte(), 'X'.code.toByte(), 'V'.code.toByte()))
+            .put(1.toByte())
+            .put(ByteArray(3))
+            .putInt(cs)
+            .put(prefix)
+            .array()
+        val out = ByteArrayOutputStream()
+        val chunks = if (plain.isEmpty()) 1 else (plain.size + cs - 1) / cs
+        repeat(chunks) { index ->
+            val offset = index * cs
+            val length = if (plain.isEmpty()) 0 else minOf(cs, plain.size - offset)
+            val final = index == chunks - 1
+            val nonce = ByteBuffer.allocate(12).put(prefix).putLong(index.toLong()).array()
+            val aad = ByteBuffer.allocate(25)
+                .put(header)
+                .putLong(index.toLong())
+                .put(if (final) 1 else 0)
+                .array()
+            val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+            cipher.init(Cipher.ENCRYPT_MODE, SecretKeySpec(key, "AES"), GCMParameterSpec(128, nonce))
+            cipher.updateAAD(aad)
+            out.write(cipher.doFinal(plain, offset, length))
+        }
+        return out.toByteArray()
+    }
+
     @Test fun roundTripVariousSizes() {
         for (size in listOf(0, 1, cs - 1, cs, cs + 1, 3 * cs, 3 * cs + 17, 10_000)) {
             val plain = randomBytes(size)
@@ -43,6 +77,24 @@ class ChunkedAeadTest {
                     assertTrue(n > 0); pos += n
                 }
                 assertArrayEquals("size=$size", plain, dst)
+            }
+        }
+    }
+
+    @Test fun legacyV1FilesRemainReadable() {
+        for (size in listOf(0, 1, cs, cs + 17, 5 * cs + 9)) {
+            val plain = randomBytes(size)
+            val encrypted = encryptLegacyV1(plain)
+            reader(encrypted).use { r ->
+                assertEquals(size.toLong(), r.plainSize)
+                val restored = ByteArray(size)
+                var position = 0
+                while (position < size) {
+                    val n = r.read(position.toLong(), restored, position, size - position)
+                    assertTrue(n > 0)
+                    position += n
+                }
+                assertArrayEquals("legacy size=$size", plain, restored)
             }
         }
     }
