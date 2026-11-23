@@ -91,7 +91,7 @@ fun SmbDialog(onDismiss: () -> Unit, onPlay: (url: String, title: String) -> Uni
                     entries.forEach { e ->
                         Row(Modifier.fillMaxWidth().clickable {
                             val base = cur ?: return@clickable
-                            val next = base.child(e.name)
+                            val next = base.safeChild(e.name) ?: return@clickable
                             if (e.isDir) load(next) else { onPlay(next.toUrl(), e.name); onDismiss() }
                         }.padding(vertical = 10.dp)) {
                             Text(if (e.isDir) "📁 ${e.name}" else e.name, color = appColors.textPrimary, fontSize = 14.sp, maxLines = 2)
