@@ -3,6 +3,7 @@ package com.lnxv.player.benchmark
 import android.content.Intent
 import android.net.Uri
 import androidx.benchmark.macro.CompilationMode
+import androidx.benchmark.macro.FrameTimingMetric
 import androidx.benchmark.macro.StartupMode
 import androidx.benchmark.macro.StartupTimingMetric
 import androidx.benchmark.macro.junit4.MacrobenchmarkRule
@@ -27,13 +28,14 @@ class PlayerOpenBenchmark {
         assumeTrue("videoUri argument not provided", uri != null)
         rule.measureRepeated(
             packageName = StartupBenchmark.TARGET_PACKAGE,
-            metrics = listOf(StartupTimingMetric()),
+            metrics = listOf(StartupTimingMetric(), FrameTimingMetric()),
             iterations = 5,
             startupMode = StartupMode.COLD,
             compilationMode = CompilationMode.Partial()
         ) {
             pressHome()
             startActivityAndWait(Intent(Intent.ACTION_VIEW).setDataAndType(Uri.parse(uri), "video/*").setPackage(StartupBenchmark.TARGET_PACKAGE))
+            device.waitForIdle()
         }
     }
 }
