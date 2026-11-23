@@ -89,7 +89,9 @@ sealed class SmbResult {
 
 /** Session-only SMB credentials for one host. Never written to disk. */
 object SmbSession {
-    data class Creds(val host: String, val port: Int, val user: String, val password: String, val domain: String)
+    data class Creds(val host: String, val port: Int, val user: String, val password: String, val domain: String) {
+        override fun toString(): String = "Creds(host=$host, port=$port, user=$user, password=<redacted>, domain=$domain)"
+    }
 
     @Volatile var creds: Creds? = null
 
