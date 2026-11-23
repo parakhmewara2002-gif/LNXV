@@ -133,6 +133,8 @@ half4 main(float2 fc) {
 @RequiresApi(33)
 private class LensShader {
     private val shader = RuntimeShader(LENS_AGSL)
+    // The RenderEffect retains this RuntimeShader; updating uniforms is sufficient between frames.
+    private val renderEffect = RenderEffect.createRuntimeShaderEffect(shader, "content")
 
     fun effect(width: Float, height: Float, a: LensRect?, b: LensRect?, origin: Offset, density: Float): RenderEffect {
         shader.setFloatUniform("uSize", width, height)
@@ -141,7 +143,7 @@ private class LensShader {
         shader.setFloatUniform("uRadius", a?.radius ?: 0f, b?.radius ?: 0f)
         // edge band, refraction strength, chromatic aberration, frost radius (all dp -> px)
         shader.setFloatUniform("uParams", 14f * density, 16f * density, 2.5f * density, 4.5f * density)
-        return RenderEffect.createRuntimeShaderEffect(shader, "content")
+        return renderEffect
     }
 
     private fun setLens(name: String, r: LensRect?, origin: Offset) {
