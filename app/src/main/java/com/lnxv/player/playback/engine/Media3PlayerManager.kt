@@ -907,7 +907,6 @@ class Media3PlayerManager(private val context: Context) : PlayerController, Play
             while (isActive) {
                 val currentPos = exoPlayer.currentPosition
                 val duration = exoPlayer.duration.coerceAtLeast(0L)
-                val buffered = exoPlayer.bufferedPosition
 
                 // Check AB Repeat boundary
                 val abState = _playbackState.value.abRepeat
