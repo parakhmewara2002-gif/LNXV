@@ -47,6 +47,7 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
     @Volatile private var autoLockMs = 0L
     @Volatile private var autoLockEnabled = true
     private var globalSecure = false
+    private val secureWindowReasons = mutableSetOf<String>()
     private var lockJob: Job? = null
     private val deviceSpecs: com.lnxv.player.core.design.DeviceTier.Specs by lazy {
         @Suppress("DEPRECATION")
@@ -264,14 +265,24 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
         }
     }
 
-    private fun applyGlobalSecure(enabled: Boolean) {
-        (application as LNXVApplication).screenshotsBlockedGlobally = enabled
-        if (enabled) {
+    /** Multiple UI surfaces may require FLAG_SECURE at once; one surface must not clear another's protection. */
+    fun setSecureWindowReason(reason: String, enabled: Boolean) {
+        if (enabled) secureWindowReasons.add(reason) else secureWindowReasons.remove(reason)
+        refreshSecureWindowFlag()
+    }
+
+    private fun refreshSecureWindowFlag() {
+        if (globalSecure || secureWindowReasons.isNotEmpty()) {
             window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
-        } else if (globalSecure) {
+        } else {
             window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
         }
+    }
+
+    private fun applyGlobalSecure(enabled: Boolean) {
+        (application as LNXVApplication).screenshotsBlockedGlobally = enabled
         globalSecure = enabled
+        refreshSecureWindowFlag()
     }
 
     @Suppress("DEPRECATION")
