@@ -145,6 +145,8 @@ object OpenSubtitlesApi {
     fun isAllowedDownloadLink(link: String): Boolean {
         val uri = try { java.net.URI(link) } catch (e: Exception) { return false }
         val h = uri.host?.lowercase() ?: return false
-        return uri.scheme == "https" && (h == "opensubtitles.com" || h.endsWith(".opensubtitles.com") || h == "opensubtitles.org" || h.endsWith(".opensubtitles.org"))
+        return uri.scheme.equals("https", ignoreCase = true) &&
+            uri.userInfo == null && (uri.port == -1 || uri.port == 443) &&
+            (h == "opensubtitles.com" || h.endsWith(".opensubtitles.com") || h == "opensubtitles.org" || h.endsWith(".opensubtitles.org"))
     }
 }
