@@ -1,6 +1,7 @@
 package com.lnxv.player.core.subtitle.online
 
 import android.content.Context
+import android.os.ParcelFileDescriptor
 import com.lnxv.player.core.model.VideoItem
 import com.lnxv.player.core.subtitle.OpenSubtitlesApi
 import com.lnxv.player.core.subtitle.OpenSubtitlesHash
@@ -8,7 +9,6 @@ import com.lnxv.player.core.subtitle.OsError
 import com.lnxv.player.core.subtitle.OsSubtitle
 import com.lnxv.player.core.subtitle.SubtitleQueryBuilder
 import java.io.File
-import java.io.FileInputStream
 import java.nio.ByteBuffer
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -148,10 +148,11 @@ class OnlineSubtitlesController(
         if (video.isVault || video.uri.scheme.let { it != "content" && it != "file" }) return null
         return withContext(Dispatchers.IO) {
             try {
-                context.contentResolver.openFileDescriptor(video.uri, "r")?.use { pfd ->
-                    FileInputStream(pfd.fileDescriptor).use { stream ->
+                context.contentResolver.openFileDescriptor(video.uri, "r")?.let { pfd ->
+                    val size = pfd.statSize
+                    ParcelFileDescriptor.AutoCloseInputStream(pfd).use { stream ->
                         val channel = stream.channel
-                        OpenSubtitlesHash.compute(pfd.statSize) { offset, length ->
+                        OpenSubtitlesHash.compute(size) { offset, length ->
                             val buf = ByteBuffer.allocate(length)
                             var pos = offset
                             while (buf.hasRemaining()) {
