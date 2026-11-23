@@ -251,8 +251,9 @@ class VaultRepository(
 
             val thumb = buildThumbnail(source)
             try {
-                videoDao.setVaultState(videoId, true, name)
-                if (thumb != null) videoDao.insertThumb(VaultThumbEntity(videoId, thumb))
+                videoDao.setVaultStateWithThumb(
+                    videoId, name, thumb?.let { VaultThumbEntity(videoId, it) }
+                )
             } catch (t: Throwable) {
                 withContext(NonCancellable) { finalFile.delete() }
                 throw t
