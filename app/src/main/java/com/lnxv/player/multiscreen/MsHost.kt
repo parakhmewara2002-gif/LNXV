@@ -67,6 +67,10 @@ object MultiScreen {
     }
 }
 
+/** Wrong-PIN attempts allowed before the host refuses hellos for a minute. */
+private const val MAX_PIN_FAILURES = 5
+private const val PIN_LOCKOUT_MS = 60_000L
+
 /**
  * Hosts one follower phone: HTTP range server for the current local video, a JSON-lines control channel,
  * and a 500 ms state broadcast. Everything that touches the player runs on the main thread; sockets run on
@@ -83,6 +87,10 @@ class MsHost(private val context: Context, private val player: ExoPlayer) {
     @Volatile private var client: Client? = null
     @Volatile private var mediaUri: Uri? = null
     @Volatile private var token: String = ""
+    // The PIN is only 4 digits over an unauthenticated LAN socket, so throttle guessing: after a few wrong
+    // attempts further hellos are refused outright for a minute. Reset on success and on every new media token.
+    private val failedPins = java.util.concurrent.atomic.AtomicInteger(0)
+    @Volatile private var pinLockedUntil = 0L
     private var nsd: NsdManager? = null
     private var regListener: NsdManager.RegistrationListener? = null
     private var wifiLock: android.net.wifi.WifiManager.WifiLock? = null
@@ -321,9 +329,21 @@ class MsHost(private val context: Context, private val player: ExoPlayer) {
         val out = s.getOutputStream()
         val hello = try { JSONObject(firstLine) } catch (e: Exception) { s.close(); return }
         fun reply(j: JSONObject) { out.write((j.toString() + "\n").toByteArray()); out.flush() }
-        if (hello.optString("t") != "hello" || hello.optString("pin") != _ui.value.pin) {
+        val now = SystemClock.elapsedRealtime()
+        val lockedOut = now < pinLockedUntil
+        val isHello = hello.optString("t") == "hello"
+        if (!isHello || lockedOut || hello.optString("pin") != _ui.value.pin) {
+            if (isHello && !lockedOut && hello.optString("pin") != _ui.value.pin) {
+                if (failedPins.incrementAndGet() >= MAX_PIN_FAILURES) {
+                    pinLockedUntil = SystemClock.elapsedRealtime() + PIN_LOCKOUT_MS
+                    failedPins.set(0)
+                }
+            }
+            // Constant small delay: makes scripted guessing slow without blocking the accept loop.
+            try { Thread.sleep(if (lockedOut) 250L else 120L) } catch (_: InterruptedException) {}
             reply(JSONObject().put("t", "deny")); s.close(); return
         }
+        failedPins.set(0)
         if (client != null) { reply(JSONObject().put("t", "busy")); s.close(); return }
         val c = Client(s, out)
         client = c

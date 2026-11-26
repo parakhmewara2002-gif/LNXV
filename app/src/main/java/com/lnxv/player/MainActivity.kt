@@ -88,6 +88,7 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
         val splash = installSplashScreen()
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        com.lnxv.player.core.design.ScreenshotGuard.attach(this)
         splash.setKeepOnScreenCondition { prefsState.value == null }
         splash.setOnExitAnimationListener { splashScreenView ->
             val iconView = splashScreenView.iconView
@@ -295,11 +296,7 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
 
     private fun applyGlobalSecure(enabled: Boolean) {
         (application as LNXVApplication).screenshotsBlockedGlobally = enabled
-        if (enabled) {
-            window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
-        } else if (globalSecure) {
-            window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
-        }
+        com.lnxv.player.core.design.ScreenshotGuard.setGlobal(enabled)
         globalSecure = enabled
     }
 
@@ -391,6 +388,8 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
         com.lnxv.player.widget.ContinueWidget.requestUpdate(applicationContext)
         if (!app.isPlayerInitialized) return
         val manager = app.playerManager
+        // Persist the position when the app goes to background: the process can be killed before onDestroy runs.
+        app.session.progressSaver?.invoke()
         if (isInPictureInPictureMode) {
             // PiP window was dismissed by the user: stop playback completely
             manager.stopPlayback()
@@ -415,6 +414,7 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
 
     override fun onDestroy() {
         backgroundConnector.disconnect()
+        com.lnxv.player.core.design.ScreenshotGuard.detach(this)
         val app = application as LNXVApplication
         if (isFinishing) {
             app.lockVault()

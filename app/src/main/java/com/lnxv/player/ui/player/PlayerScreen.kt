@@ -136,6 +136,9 @@ import com.lnxv.player.playback.gestures.PlayerGestureDetector
 import com.lnxv.player.playback.pip.PipManager
 import kotlinx.coroutines.delay
 
+/** Guards the deferred system-bar restore after leaving the player (see the immersive DisposableEffect). */
+private object ImmersiveSession { @Volatile var generation: Int = 0 }
+
 @OptIn(UnstableApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun PlayerScreen(
@@ -164,6 +167,8 @@ fun PlayerScreen(
     var videoRotation by remember { mutableIntStateOf(0) }
     var videoFlip by remember { mutableStateOf(false) }
     var playerViewRef by remember { mutableStateOf<PlayerView?>(null) }
+    // Poster stays over the surface until ExoPlayer renders its first frame, so opening a video is not a black flash.
+    var firstFrameReady by remember(videoId) { mutableStateOf(false) }
     val prefs by viewModel.userPrefs.collectAsState()
     val reportScope = rememberCoroutineScope()
     var glassBackdrop by remember { mutableStateOf<ImageBitmap?>(null) }
@@ -176,6 +181,18 @@ fun PlayerScreen(
 
     LaunchedEffect(videoId) {
         viewModel.loadVideo(videoId)
+    }
+
+    DisposableEffect(videoId) {
+        val exo = playerManager.exoPlayer
+        firstFrameReady = exo.playbackState == androidx.media3.common.Player.STATE_READY && exo.currentPosition > 0L
+        val listener = object : androidx.media3.common.Player.Listener {
+            override fun onRenderedFirstFrame() {
+                firstFrameReady = true
+            }
+        }
+        exo.addListener(listener)
+        onDispose { exo.removeListener(listener) }
     }
 
     DisposableEffect(Unit) {
@@ -223,6 +240,7 @@ fun PlayerScreen(
             }
         }
         enterImmersive()
+        val generation = ++ImmersiveSession.generation
         val focusListener = android.view.ViewTreeObserver.OnWindowFocusChangeListener { hasFocus ->
             if (hasFocus) enterImmersive()
         }
@@ -235,15 +253,24 @@ fun PlayerScreen(
             lifecycleOwner.lifecycle.removeObserver(observer)
             val vto = window?.decorView?.viewTreeObserver
             if (vto != null && vto.isAlive) vto.removeOnWindowFocusChangeListener(focusListener)
-            if (window != null && controller != null) {
-                controller.show(WindowInsetsCompat.Type.systemBars())
+            if (window != null) {
                 window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                 val lp = window.attributes
                 lp.screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE // undo swipe-brightness
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                    lp.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_DEFAULT
-                }
                 window.attributes = lp
+                // Restore the bars/cutout only after the pop transition ends. Doing it in onDispose made Home's
+                // Scaffold insets appear mid-animation, which read as a layout jump while going back.
+                window.decorView.postDelayed({
+                    if (ImmersiveSession.generation == generation && controller != null) {
+                        controller.show(WindowInsetsCompat.Type.systemBars())
+                        val cur = window.attributes
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                            cur.layoutInDisplayCutoutMode =
+                                WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_DEFAULT
+                        }
+                        window.attributes = cur
+                    }
+                }, 320L)
             }
         }
     }
@@ -280,7 +307,8 @@ fun PlayerScreen(
     LaunchedEffect(Unit) { runCatching { keyFocus.requestFocus() } }
     Box(
         modifier = Modifier
-            .videoSharedBounds(videoId)
+            // No sharedBounds on the full-screen player: the video surface is a SurfaceView, and Compose cannot clip
+            // or scale it reliably, which showed as a black flash / glitch during the container transform.
             .fillMaxSize()
             .background(Color.Black)
             .focusRequester(keyFocus)
@@ -394,6 +422,25 @@ fun PlayerScreen(
                     },
                     modifier = surfaceModifier
                 )
+            }
+
+            // Poster placeholder over the surface, fading out on the first decoded frame (no black flash on open).
+            val posterVideo = uiState.currentVideo?.takeIf { !it.isVault && it.id > 0L && !isYouTubeWeb }
+            AnimatedVisibility(
+                visible = posterVideo != null && !firstFrameReady,
+                enter = fadeIn(tween(120)),
+                exit = fadeOut(tween(240))
+            ) {
+                if (posterVideo != null) {
+                    coil.compose.AsyncImage(
+                        model = remember(posterVideo.id, posterVideo.uri) {
+                            com.lnxv.player.data.thumb.videoThumbRequest(context, posterVideo)
+                        },
+                        contentDescription = null,
+                        contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
             }
         }
 

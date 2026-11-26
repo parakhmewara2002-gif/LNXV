@@ -63,8 +63,9 @@ android {
     buildTypes {
         release {
             ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
-            signingConfig = if (System.getenv("KEYSTORE_PATH") != null)
-                signingConfigs.getByName("lnxvRelease") else signingConfigs.getByName("debug")
+            // Never fall back to the shared debug key: a "release" APK signed with it can be replaced by anyone.
+            // buildingReleaseWithoutKeystore below fails loudly with an actionable message.
+            signingConfig = signingConfigs.getByName("lnxvRelease")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
@@ -123,6 +124,22 @@ kotlin {
             "-opt-in=androidx.compose.ui.ExperimentalComposeUiApi",
             "-opt-in=androidx.media3.common.util.UnstableApi"
         )
+    }
+}
+
+// Release artefacts must be signed with the project keystore. Previously the release build silently used the
+// debug key when KEYSTORE_PATH was missing, which produced installable-but-hijackable APKs. Fail instead.
+tasks.matching {
+    (it.name.startsWith("assemble") || it.name.startsWith("bundle") || it.name.startsWith("package")) &&
+        it.name.contains("Release", ignoreCase = true)
+}.configureEach {
+    doFirst {
+        if (System.getenv("KEYSTORE_PATH") == null) {
+            throw GradleException(
+                "Release build needs signing credentials: set KEYSTORE_PATH and KS_PASS " +
+                    "(and CNG_KEYSTORE_PATH/CNG_KS_PASS where configured). Refusing to ship a debug-signed APK."
+            )
+        }
     }
 }
 

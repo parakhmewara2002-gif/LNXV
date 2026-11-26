@@ -148,29 +148,40 @@ class Media3PlayerManager(private val context: Context) : PlayerController, Play
             if (networkSource) networkLoadControl else localLoadControl
         }
 
+    // One factory for both normal playback and the merged YouTube (video-only + audio-only) case.
+    private val mediaSourceFactory = DefaultMediaSourceFactory(
+        VaultRoutingDataSource.Factory(
+            androidx.media3.datasource.ResolvingDataSource.Factory(
+                androidx.media3.datasource.DataSource.Factory {
+                    com.lnxv.player.core.smb.SmbRoutingDataSource(
+                        androidx.media3.datasource.DefaultDataSource.Factory(
+                            context,
+                            // YouTube's CDN rejects the stock ExoPlayer UA with an HTML error page, which surfaced as
+                            // "Unsupported or corrupted stream". A browser UA is required for googlevideo URLs.
+                            androidx.media3.datasource.DefaultHttpDataSource.Factory()
+                                .setUserAgent(
+                                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
+                                        "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                                )
+                                .setAllowCrossProtocolRedirects(true)
+                        ).createDataSource(),
+                        com.lnxv.player.core.smb.SmbBackends.instance?.newDataSource()
+                    )
+                },
+                androidx.media3.datasource.ResolvingDataSource.Resolver { spec -> com.lnxv.player.core.webdav.WebDavAuth.resolve(spec) }
+            ),
+            EncryptedDataSource.Factory(
+                keyProvider = { (context.applicationContext as LNXVApplication).vaultKeyManager.requireKey() },
+                fileResolver = { uri -> java.io.File(VaultFiles.dir(context), uri.lastPathSegment ?: "") }
+            )
+        ),
+        SeekFixExtractorsFactory(context)
+    )
+
     val exoPlayer: ExoPlayer = ExoPlayer.Builder(context, renderersFactory)
         .setLoadControl(loadControl)
         .setTrackSelector(trackSelector)
-        .setMediaSourceFactory(
-            DefaultMediaSourceFactory(
-                VaultRoutingDataSource.Factory(
-                    androidx.media3.datasource.ResolvingDataSource.Factory(
-                        androidx.media3.datasource.DataSource.Factory {
-                            com.lnxv.player.core.smb.SmbRoutingDataSource(
-                                androidx.media3.datasource.DefaultDataSource.Factory(context).createDataSource(),
-                                com.lnxv.player.core.smb.SmbBackends.instance?.newDataSource()
-                            )
-                        },
-                        androidx.media3.datasource.ResolvingDataSource.Resolver { spec -> com.lnxv.player.core.webdav.WebDavAuth.resolve(spec) }
-                    ),
-                    EncryptedDataSource.Factory(
-                        keyProvider = { (context.applicationContext as LNXVApplication).vaultKeyManager.requireKey() },
-                        fileResolver = { uri -> java.io.File(VaultFiles.dir(context), uri.lastPathSegment ?: "") }
-                    )
-                ),
-                SeekFixExtractorsFactory(context)
-            )
-        )
+        .setMediaSourceFactory(mediaSourceFactory)
         .setAudioAttributes(
             androidx.media3.common.AudioAttributes.Builder()
                 .setUsage(C.USAGE_MEDIA)
@@ -380,9 +391,20 @@ class Media3PlayerManager(private val context: Context) : PlayerController, Play
         val delay = _subtitleDelayMs.value
         val prepared: Pair<Uri, SubtitleFormat> = withContext(Dispatchers.IO) {
             try {
-                val bytes = context.contentResolver.openInputStream(source)?.use { it.readBytes() }
-                    ?: return@withContext null
-                if (bytes.size > MAX_SUBTITLE_BYTES) return@withContext null
+                // Bounded read: never pull a multi-GB "subtitle" file into memory just to reject it afterwards.
+                val bytes = context.contentResolver.openInputStream(source)?.use { input ->
+                    val out = java.io.ByteArrayOutputStream()
+                    val buf = ByteArray(16 * 1024)
+                    var total = 0
+                    while (true) {
+                        val n = input.read(buf)
+                        if (n < 0) break
+                        total += n
+                        if (total > MAX_SUBTITLE_BYTES) return@withContext null
+                        out.write(buf, 0, n)
+                    }
+                    out.toByteArray()
+                } ?: return@withContext null
                 val text = SubtitleEncoding.decode(bytes, SubtitleEncoding.charsetFor(_subtitleEncoding.value))
                 val format = SubtitleFormat.detect(text) ?: return@withContext null
                 val shifted = when (format) {
@@ -446,7 +468,8 @@ class Media3PlayerManager(private val context: Context) : PlayerController, Play
         uri: Uri,
         startPositionMs: Long,
         externalSubtitleUri: Uri?,
-        title: String?
+        title: String?,
+        audioUri: Uri?
     ) {
         externalSubtitleSource = null
         _playbackError.value = null
@@ -484,7 +507,18 @@ class Media3PlayerManager(private val context: Context) : PlayerController, Play
             mediaItemBuilder.setSubtitleConfigurations(listOf(subtitleConfig))
         }
 
-        exoPlayer.setMediaItem(mediaItemBuilder.build())
+        val mediaItem = mediaItemBuilder.build()
+        if (audioUri != null) {
+            // Adaptive YouTube: video-only stream + separate audio stream, merged into one timeline.
+            exoPlayer.setMediaSource(
+                androidx.media3.exoplayer.source.MergingMediaSource(
+                    mediaSourceFactory.createMediaSource(mediaItem),
+                    mediaSourceFactory.createMediaSource(MediaItem.fromUri(audioUri))
+                )
+            )
+        } else {
+            exoPlayer.setMediaItem(mediaItem)
+        }
         exoPlayer.prepare()
         if (startPositionMs > 0) {
             exoPlayer.seekTo(startPositionMs)

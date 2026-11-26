@@ -2,6 +2,7 @@ package com.lnxv.player.core.design
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -32,6 +33,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -207,13 +209,16 @@ fun GlassButton(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.92f else 1.0f,
-        animationSpec = spring(
-            dampingRatio = 0.70f,
-            stiffness = 380f
-        ),
-        label = "glass_button_precision_scale"
+    val reduceMotion = LocalReduceMotion.current || LocalReduceEffects.current
+    // State is read in the draw phase below, so holding the button does not recompose it every frame.
+    val press = animateFloatAsState(
+        targetValue = if (isPressed) 1f else 0f,
+        animationSpec = when {
+            reduceMotion -> androidx.compose.animation.core.snap()
+            isPressed -> tween(90, easing = MotionTokens.IosStandardDecelerate)
+            else -> MotionTokens.SpringSnappy
+        },
+        label = "glass_button_press"
     )
 
     val colors = appColors
@@ -231,7 +236,13 @@ fun GlassButton(
 
     Box(
         modifier = modifier
-            .scale(scale)
+            .graphicsLayer {
+                val p = if (reduceMotion) (if (isPressed) 1f else 0f) else press.value
+                val sc = 1f - 0.08f * p
+                scaleX = sc
+                scaleY = sc
+                alpha = 1f - 0.26f * p
+            }
             .liquidGlassSurface(
                 shape = RoundedCornerShape(16.dp),
                 backgroundColor = bgColor,
@@ -279,18 +290,26 @@ fun GlassIconButton(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.88f else 1.0f,
-        animationSpec = spring(
-            dampingRatio = 0.70f,
-            stiffness = 400f
-        ),
-        label = "glass_icon_precision_scale"
+    val reduceMotion = LocalReduceMotion.current || LocalReduceEffects.current
+    val press = animateFloatAsState(
+        targetValue = if (isPressed) 1f else 0f,
+        animationSpec = when {
+            reduceMotion -> androidx.compose.animation.core.snap()
+            isPressed -> tween(90, easing = MotionTokens.IosStandardDecelerate)
+            else -> MotionTokens.SpringSnappy
+        },
+        label = "glass_icon_press"
     )
 
     Box(
         modifier = modifier
-            .scale(scale)
+            .graphicsLayer {
+                val p = if (reduceMotion) (if (isPressed) 1f else 0f) else press.value
+                val sc = 1f - 0.12f * p
+                scaleX = sc
+                scaleY = sc
+                alpha = 1f - 0.24f * p
+            }
             .clip(CircleShape)
             .liquidGlassSurface(
                 shape = CircleShape,

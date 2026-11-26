@@ -23,20 +23,23 @@ class MediaStoreScanner(private val context: Context) {
             MediaStore.Video.Media.EXTERNAL_CONTENT_URI
         }
 
-        val projection = arrayOf(
-            MediaStore.Video.Media._ID,
-            MediaStore.Video.Media.DISPLAY_NAME,
-            MediaStore.Video.Media.DATA,
-            MediaStore.Video.Media.DURATION,
-            MediaStore.Video.Media.SIZE,
-            MediaStore.Video.Media.WIDTH,
-            MediaStore.Video.Media.HEIGHT,
-            MediaStore.Video.Media.MIME_TYPE,
-            MediaStore.Video.Media.DATE_ADDED
-        )
+        val useRelativePath = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
+        val projection = buildList {
+            add(MediaStore.Video.Media._ID)
+            add(MediaStore.Video.Media.DISPLAY_NAME)
+            // DATA is deprecated on Android 10+ (and can be null there); RELATIVE_PATH is the supported folder info.
+            add(MediaStore.Video.Media.DATA)
+            if (useRelativePath) add(MediaStore.Video.Media.RELATIVE_PATH)
+            add(MediaStore.Video.Media.DURATION)
+            add(MediaStore.Video.Media.SIZE)
+            add(MediaStore.Video.Media.WIDTH)
+            add(MediaStore.Video.Media.HEIGHT)
+            add(MediaStore.Video.Media.MIME_TYPE)
+            add(MediaStore.Video.Media.DATE_ADDED)
+        }.toTypedArray()
 
-        // Only query valid video files
-        val selection = "${MediaStore.Video.Media.DURATION} > 0"
+        // SIZE > 0 instead of DURATION > 0: some valid containers report duration 0 before they are indexed/played.
+        val selection = "${MediaStore.Video.Media.SIZE} > 0"
         val sortOrder = "${MediaStore.Video.Media.DATE_ADDED} DESC"
 
         try {
@@ -51,7 +54,8 @@ class MediaStoreScanner(private val context: Context) {
             cursor?.use { c ->
                 val idCol = c.getColumnIndexOrThrow(MediaStore.Video.Media._ID)
                 val nameCol = c.getColumnIndexOrThrow(MediaStore.Video.Media.DISPLAY_NAME)
-                val dataCol = c.getColumnIndexOrThrow(MediaStore.Video.Media.DATA)
+                val dataCol = c.getColumnIndex(MediaStore.Video.Media.DATA)
+                val relCol = if (useRelativePath) c.getColumnIndex(MediaStore.Video.Media.RELATIVE_PATH) else -1
                 val durationCol = c.getColumnIndexOrThrow(MediaStore.Video.Media.DURATION)
                 val sizeCol = c.getColumnIndexOrThrow(MediaStore.Video.Media.SIZE)
                 val widthCol = c.getColumnIndexOrThrow(MediaStore.Video.Media.WIDTH)
@@ -62,7 +66,9 @@ class MediaStoreScanner(private val context: Context) {
                 while (c.moveToNext()) {
                     val id = c.getLong(idCol)
                     val name = c.getString(nameCol) ?: "Video_$id"
-                    val path = c.getString(dataCol) ?: ""
+                    val rawPath = if (dataCol >= 0) c.getString(dataCol) ?: "" else ""
+                    val relPath = if (relCol >= 0) c.getString(relCol) ?: "" else ""
+                    val path = rawPath
                     val duration = c.getLong(durationCol)
                     val size = c.getLong(sizeCol)
                     val width = c.getInt(widthCol)
@@ -72,9 +78,11 @@ class MediaStoreScanner(private val context: Context) {
 
                     val contentUri = ContentUris.withAppendedId(collection, id)
 
-                    val parentFile = File(path).parentFile
-                    val folderPath = parentFile?.absolutePath ?: "Internal Storage"
-                    val folderName = parentFile?.name ?: "Videos"
+                    val parentFile = if (rawPath.isNotEmpty()) File(rawPath).parentFile else null
+                    val folderPath = parentFile?.absolutePath
+                        ?: relPath.trimEnd('/').ifEmpty { "Internal Storage" }
+                    val folderName = parentFile?.name
+                        ?: relPath.trimEnd('/').substringAfterLast('/').ifEmpty { "Videos" }
 
                     videoList.add(
                         VideoEntity(

@@ -81,13 +81,17 @@ object MotionTokens {
 }
 
 /**
- * Click target with a calibrated spring "press" feedback (slight shrink, springs back).
- * When reduce motion is active or system animations are disabled, transitions are instantaneous without jank.
+ * Click target with iOS-style press feedback: the very first frame of the touch dims the element (no ripple, no
+ * waiting for a spring), the scale starts immediately and springs back on release.
+ *
+ * The animation state is read inside [graphicsLayer] (draw phase) so a press does not recompose the caller on every
+ * frame — only the layer is invalidated. When reduce motion is active everything snaps.
  */
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun Modifier.bouncyClickable(
-    pressedScale: Float = 0.985f,
+    pressedScale: Float = 0.96f,
+    pressedAlpha: Float = 0.72f,
     onLongClick: (() -> Unit)? = null,
     onClick: () -> Unit
 ): Modifier {
@@ -96,15 +100,23 @@ fun Modifier.bouncyClickable(
     val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
     val reduceMotion = LocalReduceMotion.current || LocalReduceEffects.current
 
-    val scale by animateFloatAsState(
-        targetValue = if (pressed) pressedScale else 1f,
-        animationSpec = if (reduceMotion) snap() else MotionTokens.SpringSnappy,
-        label = "precision_press_scale"
+    // Press-in is a short decelerate so the highlight lands on the next frame; release is a calibrated spring.
+    val press = animateFloatAsState(
+        targetValue = if (pressed) 1f else 0f,
+        animationSpec = when {
+            reduceMotion -> snap()
+            pressed -> tween(90, easing = MotionTokens.IosStandardDecelerate)
+            else -> MotionTokens.SpringSnappy
+        },
+        label = "precision_press"
     )
 
     val graphicMod = this.graphicsLayer {
-        scaleX = scale
-        scaleY = scale
+        val p = if (reduceMotion) (if (pressed) 1f else 0f) else press.value
+        val sc = 1f + (pressedScale - 1f) * p
+        scaleX = sc
+        scaleY = sc
+        alpha = 1f + (pressedAlpha - 1f) * p
     }
 
     return if (onLongClick != null) {

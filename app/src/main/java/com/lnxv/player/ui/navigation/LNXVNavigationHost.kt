@@ -54,7 +54,14 @@ fun LNXVNavigationHost(navController: NavHostController) {
             }
         }
     }
-    val reduce = com.lnxv.player.core.design.LocalReduceEffects.current
+    val reduce = com.lnxv.player.core.design.LocalReduceMotion.current ||
+        com.lnxv.player.core.design.LocalReduceEffects.current
+    // Interruptible springs instead of 380 ms tweens: if the user swipes back mid-transition the movement continues
+    // from the current velocity instead of restarting. Reduce-motion collapses every transition to a snap.
+    val slideSpec = if (reduce) androidx.compose.animation.core.snap<androidx.compose.ui.unit.IntOffset>()
+        else androidx.compose.animation.core.spring(dampingRatio = 0.92f, stiffness = 420f)
+    val fadeSpec = if (reduce) androidx.compose.animation.core.snap<Float>()
+        else androidx.compose.animation.core.spring(dampingRatio = 0.92f, stiffness = 420f)
     SharedTransitionLayout {
     androidx.compose.runtime.CompositionLocalProvider(
         com.lnxv.player.core.design.LocalSharedTransitionScope provides this
@@ -65,34 +72,34 @@ fun LNXVNavigationHost(navController: NavHostController) {
         // iOS-style push/pop: new screen slides in from the right while the old one shifts ~30% left and dims;
         // back reverses. Routes to/from the player fade and scale instead.
         enterTransition = {
-            if (isPlayerEntry(targetState)) {
-                fadeIn(tween(280)) + scaleIn(tween(320, easing = androidx.compose.animation.core.CubicBezierEasing(0.32f, 0.72f, 0.0f, 1.0f)), initialScale = 0.92f)
-            } else {
-                slideInHorizontally(tween(380, easing = androidx.compose.animation.core.CubicBezierEasing(0.32f, 0.72f, 0.0f, 1.0f))) { it } +
-                fadeIn(tween(220))
+            when {
+                reduce -> androidx.compose.animation.EnterTransition.None
+                isPlayerEntry(targetState) ->
+                    fadeIn(tween(180)) + scaleIn(fadeSpec, initialScale = 0.94f)
+                else -> slideInHorizontally(slideSpec) { it } + fadeIn(fadeSpec)
             }
         },
         exitTransition = {
-            if (isPlayerEntry(targetState)) {
-                fadeOut(tween(200))
-            } else {
-                slideOutHorizontally(tween(380, easing = androidx.compose.animation.core.CubicBezierEasing(0.32f, 0.72f, 0.0f, 1.0f))) { -(it * 0.32f).toInt() } +
-                fadeOut(tween(380), targetAlpha = 0.6f)
+            when {
+                reduce -> androidx.compose.animation.ExitTransition.None
+                isPlayerEntry(targetState) -> fadeOut(tween(140))
+                else -> slideOutHorizontally(slideSpec) { -(it * 0.30f).toInt() } +
+                    fadeOut(tween(200), targetAlpha = 0.65f)
             }
         },
         popEnterTransition = {
-            if (isPlayerEntry(initialState)) {
-                fadeIn(tween(240))
-            } else {
-                slideInHorizontally(tween(380, easing = androidx.compose.animation.core.CubicBezierEasing(0.32f, 0.72f, 0.0f, 1.0f))) { -(it * 0.32f).toInt() } +
-                fadeIn(tween(380), initialAlpha = 0.6f)
+            when {
+                reduce -> androidx.compose.animation.EnterTransition.None
+                isPlayerEntry(initialState) -> fadeIn(tween(160))
+                else -> slideInHorizontally(slideSpec) { -(it * 0.30f).toInt() } +
+                    fadeIn(tween(200), initialAlpha = 0.65f)
             }
         },
         popExitTransition = {
-            if (isPlayerEntry(initialState)) {
-                fadeOut(tween(200)) + scaleOut(tween(280, easing = androidx.compose.animation.core.CubicBezierEasing(0.32f, 0.72f, 0.0f, 1.0f)), targetScale = 0.92f)
-            } else {
-                slideOutHorizontally(tween(380, easing = androidx.compose.animation.core.CubicBezierEasing(0.32f, 0.72f, 0.0f, 1.0f))) { it }
+            when {
+                reduce -> androidx.compose.animation.ExitTransition.None
+                isPlayerEntry(initialState) -> fadeOut(tween(140)) + scaleOut(fadeSpec, targetScale = 0.94f)
+                else -> slideOutHorizontally(slideSpec) { it }
             }
         }
     ) {
@@ -147,17 +154,9 @@ fun LNXVNavigationHost(navController: NavHostController) {
             androidx.compose.runtime.LaunchedEffect(playerUi.accessDenied) {
                 if (playerUi.accessDenied) navController.popBackStack()
             }
-            // FLAG_SECURE while a vault item is open in the player
+            // FLAG_SECURE while a vault item is open in the player (reference-counted together with the vault list)
             val isVaultItem = playerUi.currentVideo?.isVault == true
-            val activity = androidx.compose.ui.platform.LocalContext.current as? android.app.Activity
-            androidx.compose.runtime.DisposableEffect(isVaultItem) {
-                if (isVaultItem) activity?.window?.addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
-                onDispose {
-                    if (isVaultItem && !app.screenshotsBlockedGlobally) {
-                        activity?.window?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
-                    }
-                }
-            }
+            com.lnxv.player.core.design.SecureScreen(enabled = isVaultItem)
             com.lnxv.player.core.design.LNXVPlayerTheme {
                 PlayerScreen(
                     videoId = videoId,

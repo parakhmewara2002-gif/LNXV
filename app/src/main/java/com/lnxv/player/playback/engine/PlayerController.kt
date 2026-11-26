@@ -36,7 +36,13 @@ interface PlayerController {
     var isVideoScreenActive: Boolean
     var repeatMode: Int
 
-    fun prepareAndPlay(uri: Uri, startPositionMs: Long = 0L, externalSubtitleUri: Uri? = null, title: String? = null)
+    fun prepareAndPlay(
+        uri: Uri,
+        startPositionMs: Long = 0L,
+        externalSubtitleUri: Uri? = null,
+        title: String? = null,
+        audioUri: Uri? = null
+    )
     fun togglePlayPause()
     fun pause()
     fun stopPlayback()

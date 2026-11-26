@@ -21,7 +21,9 @@ data class VideoItem(
     val lastPlayedTimestamp: Long = 0L,
     val isFavorite: Boolean = false,
     val isVault: Boolean = false,
-    val vaultFile: String? = null
+    val vaultFile: String? = null,
+    /** Adaptive YouTube streams are video-only; this is the matching audio track URL to merge in the player. */
+    val audioUrl: String? = null
 ) {
     val isEncryptedVault: Boolean get() = isVault && vaultFile != null
 

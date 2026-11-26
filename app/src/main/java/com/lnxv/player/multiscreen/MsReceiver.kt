@@ -238,7 +238,23 @@ class MsReceiver(private val context: Context) {
         if (url == lastMediaUrl) return
         lastMediaUrl = url
         if (url.isEmpty()) { player.stop(); player.clearMediaItems(); return }
-        val full = if (local) "http://$hostIp:$hostPort$url" else url
+        val full = if (local) {
+            // Only the tokenised path this host actually serves; anything else could target another local endpoint.
+            if (!url.startsWith(MsProto.MEDIA_PREFIX)) return
+            "http://$hostIp:$hostPort$url"
+        } else {
+            // Remote URLs come from the peer. Allow only real HTTP(S) media: file://, content://, intent:// etc.
+            // would let a malicious host read local files or launch components on this device.
+            val parsed = runCatching { Uri.parse(url) }.getOrNull() ?: return
+            val scheme = parsed.scheme?.lowercase()
+            if (scheme != "http" && scheme != "https") {
+                fail("Host sent an unsupported stream"); return
+            }
+            if (parsed.host.isNullOrBlank()) {
+                fail("Host sent an invalid stream"); return
+            }
+            url
+        }
         val item = MediaItem.fromUri(Uri.parse(full))
         if (local) {
             player.setMediaSource(ProgressiveMediaSource.Factory(LanDataSource.Factory()).createMediaSource(item))

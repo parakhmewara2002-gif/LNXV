@@ -136,8 +136,12 @@ fun VideoItemRow(
                     .clip(RoundedCornerShape(16.dp))
                     .background(appColors.placeholder)
             ) {
+                val thumbContext = LocalContext.current
+                val thumbModel = remember(video.id, video.uri, video.isVault, thumbContext) {
+                    com.lnxv.player.data.thumb.videoThumbRequest(thumbContext, video)
+                }
                 AsyncImage(
-                    model = com.lnxv.player.data.thumb.videoThumbRequest(LocalContext.current, video),
+                    model = thumbModel,
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
@@ -506,8 +510,12 @@ fun VideoGridCard(
                     .clip(RoundedCornerShape(topStart = 21.dp, topEnd = 21.dp))
                     .background(appColors.placeholder)
             ) {
+                val thumbContext = LocalContext.current
+                val thumbModel = remember(video.id, video.uri, video.isVault, thumbContext) {
+                    com.lnxv.player.data.thumb.videoThumbRequest(thumbContext, video)
+                }
                 AsyncImage(
-                    model = com.lnxv.player.data.thumb.videoThumbRequest(LocalContext.current, video),
+                    model = thumbModel,
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()

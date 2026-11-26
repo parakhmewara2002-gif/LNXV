@@ -23,12 +23,15 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -335,7 +338,7 @@ fun IosTabBar(
 ) {
     val blurred = backdropHandled || (hazeState != null && !LocalReduceEffects.current)
     val tap = rememberTapHaptic()
-    Row(
+    BoxWithConstraints(
         modifier = modifier
             .fillMaxWidth()
             .glassBlur(hazeState, CircleShape)
@@ -344,17 +347,36 @@ fun IosTabBar(
                 backgroundColor = if (backdropHandled) appColors.barFill.copy(alpha = 0.32f) else if (blurred) appColors.barFill.copy(alpha = 0.6f) else appColors.barFill,
                 borderColor = appColors.glassBorder
             )
-            .padding(4.dp),
-        horizontalArrangement = Arrangement.SpaceBetween
+            .padding(4.dp)
     ) {
+        if (labels.isNotEmpty()) {
+            val reduceMotion = LocalReduceMotion.current || LocalReduceEffects.current
+            val segment = maxWidth / labels.size
+            val pillIndex by animateFloatAsState(
+                targetValue = selectedIndex.coerceIn(0, labels.lastIndex).toFloat(),
+                animationSpec = if (reduceMotion) androidx.compose.animation.core.snap()
+                    else spring(dampingRatio = 0.9f, stiffness = 480f),
+                label = "tab_pill"
+            )
+            // One pill slides between segments instead of the fill cross-fading per segment.
+            Box(modifier = Modifier.matchParentSize()) {
+                Box(
+                    modifier = Modifier
+                        .offset(x = segment * pillIndex)
+                        .fillMaxWidth(1f / labels.size)
+                        .fillMaxHeight()
+                        .clip(CircleShape)
+                        .background(appColors.accent.copy(alpha = 0.22f))
+                )
+            }
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
         labels.forEachIndexed { index, label ->
             val selected = index == selectedIndex
             val reduceMotion = LocalReduceMotion.current || LocalReduceEffects.current
-            val bg by animateColorAsState(
-                targetValue = if (selected) appColors.accent.copy(alpha = 0.22f) else Color.Transparent,
-                animationSpec = if (reduceMotion) androidx.compose.animation.core.snap() else tween(MotionTokens.FAST_MS),
-                label = "tab_bg"
-            )
             val fg by animateColorAsState(
                 targetValue = if (selected) appColors.accent else appColors.textSecondary,
                 animationSpec = if (reduceMotion) androidx.compose.animation.core.snap() else tween(MotionTokens.FAST_MS),
@@ -364,7 +386,6 @@ fun IosTabBar(
                 modifier = Modifier
                     .weight(1f)
                     .clip(CircleShape)
-                    .background(bg)
                     .clickable { if (!selected) tap(); onSelect(index) }
                     .padding(vertical = 10.dp),
                 contentAlignment = Alignment.Center
@@ -377,6 +398,7 @@ fun IosTabBar(
                     maxLines = 1
                 )
             }
+        }
         }
     }
 }
@@ -440,19 +462,21 @@ fun GlassDialog(
     androidx.compose.ui.window.Dialog(onDismissRequest = onDismissRequest) {
         val shape = RoundedCornerShape(28.dp)
         val reduceFx = LocalReduceEffects.current || LocalReduceMotion.current
-        val enter by animateFloatAsState(
-            targetValue = 1f,
-            animationSpec = if (reduceFx) androidx.compose.animation.core.snap() else MotionTokens.SpringFluid,
-            label = "dialog_enter"
-        )
+        // A constant targetValue never animated: dialogs used to snap open. Drive a real 0 -> 1 entrance instead.
+        val enter = remember { androidx.compose.animation.core.Animatable(if (reduceFx) 1f else 0f) }
+        LaunchedEffect(reduceFx) {
+            if (reduceFx) enter.snapTo(1f) else enter.animateTo(1f, MotionTokens.SpringFluid)
+        }
         Column(
             modifier = modifier
                 .fillMaxWidth()
                 .graphicsLayer {
-                    val sc = if (reduceFx) 1f else (0.92f + 0.08f * enter)
+                    // Draw-phase read: the spring animates without recomposing the dialog content.
+                    val p = if (reduceFx) 1f else enter.value
+                    val sc = 0.92f + 0.08f * p
                     scaleX = sc
                     scaleY = sc
-                    alpha = if (reduceFx) 1f else enter.coerceIn(0f, 1f)
+                    alpha = p.coerceIn(0f, 1f)
                 }
                 .clip(shape)
                 .liquidGlassSurface(

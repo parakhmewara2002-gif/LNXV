@@ -9,6 +9,7 @@ import java.nio.ByteBuffer
 import java.security.GeneralSecurityException
 import java.security.SecureRandom
 import javax.crypto.Cipher
+import javax.crypto.Mac
 import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.SecretKeySpec
 
@@ -20,18 +21,32 @@ import javax.crypto.spec.SecretKeySpec
  * Nonce = 4-byte random prefix (from header) + 8-byte big-endian chunk index.
  * AAD = header + chunk index + final flag, so reordering, truncation at a chunk boundary and
  * extension are all detected.
+ *
+ * Version 2 derives a per-file key with HMAC-SHA256(master, header): a 4-byte random prefix alone could collide
+ * across files (birthday bound ~65k files) and GCM nonce reuse with one master key is catastrophic. Version 1 files
+ * still decrypt with the old scheme.
  */
 object ChunkedAead {
     const val HEADER_SIZE = 16
     const val TAG_SIZE = 16
     const val DEFAULT_CHUNK_SIZE = 64 * 1024
     private val MAGIC = byteArrayOf('L'.code.toByte(), 'N'.code.toByte(), 'X'.code.toByte(), 'V'.code.toByte())
-    private const val VERSION: Byte = 1
+    private const val VERSION_V1: Byte = 1
+    /** Files written now use a per-file derived key. */
+    private const val VERSION: Byte = 2
+
+    private fun fileKey(key: ByteArray, header: ByteArray): ByteArray {
+        if (header[4] != VERSION) return key
+        return Mac.getInstance("HmacSHA256").run {
+            init(SecretKeySpec(key, "HmacSHA256"))
+            doFinal(header)
+        }
+    }
 
     private fun cipher(key: ByteArray, header: ByteArray, index: Long, final: Boolean, mode: Int): Cipher {
         val nonce = ByteBuffer.allocate(12).put(header, 12, 4).putLong(index).array()
         val c = Cipher.getInstance("AES/GCM/NoPadding")
-        c.init(mode, SecretKeySpec(key, "AES"), GCMParameterSpec(128, nonce))
+        c.init(mode, SecretKeySpec(fileKey(key, header), "AES"), GCMParameterSpec(128, nonce))
         val aad = ByteBuffer.allocate(HEADER_SIZE + 9).put(header).putLong(index).put(if (final) 1 else 0).array()
         c.updateAAD(aad)
         return c
@@ -45,7 +60,9 @@ object ChunkedAead {
     }
 
     private fun chunkSizeOf(header: ByteArray): Int {
-        if (header.size != HEADER_SIZE || !header.copyOfRange(0, 4).contentEquals(MAGIC) || header[4] != VERSION) {
+        if (header.size != HEADER_SIZE || !header.copyOfRange(0, 4).contentEquals(MAGIC) ||
+            (header[4] != VERSION && header[4] != VERSION_V1)
+        ) {
             throw IOException("Not an LNXV vault file")
         }
         val cs = ByteBuffer.wrap(header, 8, 4).int
@@ -144,7 +161,12 @@ object ChunkedAead {
     }
 
     /** Random-access decryptor. Not thread-safe; keeps one decrypted chunk cached. */
-    class Reader(private val source: Source, private val key: ByteArray) : AutoCloseable {
+    class Reader(private val source: Source, key: ByteArray) : AutoCloseable {
+        /**
+         * Own copy of the key. [EncryptedDataSource.open] zeroes its array as soon as the reader is built (it should
+         * not keep key material alive), so sharing the caller's array made every vault read fail authentication.
+         */
+        private val key = key.copyOf()
         private val header = ByteArray(HEADER_SIZE)
         val chunkSize: Int
         val plainSize: Long
@@ -201,6 +223,7 @@ object ChunkedAead {
 
         override fun close() {
             cached.fill(0)
+            key.fill(0)
             source.close()
         }
     }

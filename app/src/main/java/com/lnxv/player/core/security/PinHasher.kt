@@ -13,12 +13,10 @@ object PinHasher {
     const val SALT_BYTES = 16
     const val HASH_BYTES = 32
     /**
-     * Mobile-optimized iteration count for PBKDF2WithHmacSHA256.
-     * 25,000 iterations provides robust brute-force resistance for 4-8 digit salted PINs
-     * alongside hardware rate-limiting/lockout policies, while completing in ~80-100ms
-     * on mid-tier mobile processors (preventing noticeable unlock latency).
+     * PBKDF2WithHmacSHA256 iterations. High enough that a stolen hash is expensive to attack offline; the vault adds
+     * a hardware-independent lockout policy on top. Verification runs on Dispatchers.Default, once per unlock.
      */
-    const val DEFAULT_ITERATIONS = 25_000
+    const val DEFAULT_ITERATIONS = 210_000
     const val MIN_PIN_LENGTH = 4
     const val MAX_PIN_LENGTH = 8
     const val RECOMMENDED_PIN_LENGTH = 6

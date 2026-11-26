@@ -59,6 +59,14 @@ class VaultRepository(
 ) {
     private val vaultDir: File get() = VaultFiles.dir(context)
 
+    /**
+     * Decrypted vault thumbnails, bounded by bytes. Re-decrypting on every list scroll is wasteful, and the cache
+     * is emptied by [lock]/[wipe] so plaintext never outlives an unlocked session.
+     */
+    private val thumbCache = object : android.util.LruCache<Long, ByteArray>(8 * 1024 * 1024) {
+        override fun sizeOf(key: Long, value: ByteArray): Int = value.size.coerceAtLeast(1)
+    }
+
     val isUnlocked: Boolean get() = keys.isUnlocked
 
     val vaultVideosFlow: Flow<List<VideoItem>> = videoDao.getVaultVideos().map { entities ->
@@ -189,12 +197,16 @@ class VaultRepository(
     }
 
     /** Clears the in-memory key. Callers also cancel running transfers and drop vault UI state. */
-    fun lock() = keys.lock()
+    fun lock() {
+        keys.lock()
+        thumbCache.evictAll()
+    }
 
     /** Forgot PIN: irreversibly deletes the key, all encrypted files, thumbnails and vault rows. */
     suspend fun wipe() = withContext(Dispatchers.IO) {
         clearBiometric()
         keys.destroy()
+        thumbCache.evictAll()
         vaultDir.listFiles()?.forEach { if (it.name != ".nomedia") it.delete() }
         videoDao.clearThumbs()
         videoDao.deleteAllVaultRows()
@@ -327,6 +339,7 @@ class VaultRepository(
     /** Decrypts the small thumbnail; null when locked or missing. */
     suspend fun loadThumbnail(videoId: Long): ByteArray? = withContext(Dispatchers.IO) {
         if (!keys.isUnlocked) return@withContext null
+        thumbCache.get(videoId)?.let { return@withContext it }
         val enc = videoDao.getThumb(videoId)?.data ?: return@withContext null
         val key = keys.requireKey()
         try {
@@ -338,6 +351,7 @@ class VaultRepository(
                     if (n <= 0) return@withContext null
                     pos += n
                 }
+                thumbCache.put(videoId, out)
                 out
             }
         } catch (e: Exception) { null } finally { key.fill(0) }

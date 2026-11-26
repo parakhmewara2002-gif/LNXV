@@ -40,6 +40,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import com.lnxv.player.core.design.videoSharedBounds
 import dev.chrisbanes.haze.haze
 import dev.chrisbanes.haze.hazeChild
@@ -127,6 +128,21 @@ fun HomeScreen(
     val gridColumns = (androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp / thumbDp).coerceIn(2, 6)
     val openPlaylistId by viewModel.openPlaylistId.collectAsState()
     val openPlaylistVideos by viewModel.openPlaylistVideos.collectAsState()
+    // One scroll position per tab, like iOS: switching tabs no longer lands you at the other tab's offset.
+    val videosListState = rememberLazyListState()
+    val foldersListState = rememberLazyListState()
+    val recentsListState = rememberLazyListState()
+    val playlistsListState = rememberLazyListState()
+    val favoritesListState = rememberLazyListState()
+    val listState = when (uiState.selectedTab) {
+        HomeTab.VIDEOS -> videosListState
+        HomeTab.FOLDERS -> foldersListState
+        HomeTab.RECENTS -> recentsListState
+        HomeTab.PLAYLISTS -> playlistsListState
+        HomeTab.FAVORITES -> favoritesListState
+    }
+    val reduceMotion = com.lnxv.player.core.design.LocalReduceMotion.current ||
+        com.lnxv.player.core.design.LocalReduceEffects.current
     val selectionPool = remember(uiState) {
         (uiState.videos + uiState.folderVideos + uiState.favorites + uiState.recentlyPlayed).distinctBy { it.id }
     }
@@ -549,19 +565,35 @@ topBar = {
                         IosPillIcon(Icons.Default.Settings, "Settings", onSettingsClick, size = pillIconSize)
                     }
                 }
-                if (isSearchExpanded) {
-                    Spacer(modifier = Modifier.height(12.dp))
-                    GlassSearchField(
-                        value = uiState.searchQuery,
-                        onValueChange = { viewModel.updateSearchQuery(it) },
-                        placeholder = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.search_hint_filters)
-                    )
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = isSearchExpanded,
+                    enter = if (reduceMotion) androidx.compose.animation.EnterTransition.None
+                        else androidx.compose.animation.expandVertically(
+                            animationSpec = androidx.compose.animation.core.spring(dampingRatio = 0.9f, stiffness = 420f)
+                        ) + androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(140)),
+                    exit = if (reduceMotion) androidx.compose.animation.ExitTransition.None
+                        else androidx.compose.animation.shrinkVertically(
+                            animationSpec = androidx.compose.animation.core.tween(
+                                160,
+                                easing = com.lnxv.player.core.design.MotionTokens.IosStandardAccelerate
+                            )
+                        ) + androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(100))
+                ) {
+                    Column {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        GlassSearchField(
+                            value = uiState.searchQuery,
+                            onValueChange = { viewModel.updateSearchQuery(it) },
+                            placeholder = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.search_hint_filters)
+                        )
+                    }
                 }
 
             }
         }
     ) { paddingValues ->
         LazyColumn(
+            state = listState,
             modifier = Modifier
                 .fillMaxSize()
                 .then(
@@ -580,7 +612,7 @@ topBar = {
         ) {
             // Continue Watching Carousel (shown on Videos tab when available)
             if (uiState.selectedTab == HomeTab.VIDEOS && uiState.recentlyPlayed.isNotEmpty()) {
-                item {
+                item(key = "continue_watching") {
                     Text(
                         text = "Continue Watching",
                         color = appColors.textPrimary,
@@ -591,7 +623,7 @@ topBar = {
                     LazyRow(
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        items(uiState.recentlyPlayed.take(5)) { video ->
+                    items(uiState.recentlyPlayed.take(5), key = { it.id }) { video ->
                             ContinueWatchingCard(
                                 video = video,
                                 onClick = { onVideoClick(video) }
@@ -604,7 +636,7 @@ topBar = {
             // Tab Content
             when (uiState.selectedTab) {
                 HomeTab.VIDEOS -> {
-                    item {
+                    item(key = "videos_header") {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -650,7 +682,7 @@ topBar = {
                             }
                         }
                     }
-                    item {
+                    item(key = "videos_filters") {
                         androidx.compose.foundation.lazy.LazyRow(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             modifier = Modifier.fillMaxWidth()
@@ -665,7 +697,7 @@ topBar = {
                         }
                     }
                     if (uiState.videos.isEmpty()) {
-                        item {
+                        item(key = "videos_empty") {
                             EmptyStateView(
                                 message = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.empty_discovered),
                                 actionLabel = "Refresh library",
@@ -712,7 +744,7 @@ topBar = {
                 }
                 HomeTab.FOLDERS -> {
                     if (uiState.openFolderPath != null) {
-                        item {
+                        item(key = "folder_header") {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -737,7 +769,7 @@ topBar = {
                             }
                         }
                         if (uiState.folderVideos.isEmpty()) {
-                            item { EmptyStateView(message = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.empty_folder)) }
+                            item(key = "folder_empty") { EmptyStateView(message = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.empty_folder)) }
                         } else {
                             items(uiState.folderVideos, key = { it.id }) { video ->
                                 VideoItemRow(
@@ -754,7 +786,7 @@ topBar = {
                             }
                         }
                     } else if (uiState.folders.isEmpty()) {
-                        item { EmptyStateView(message = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.empty_no_folders)) }
+                        item(key = "folders_empty") { EmptyStateView(message = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.empty_no_folders)) }
                     } else {
                         items(uiState.folders, key = { it.path }) { folder ->
                             FolderItemRow(
@@ -768,7 +800,7 @@ topBar = {
                 }
                 HomeTab.RECENTS -> {
                     if (uiState.recentlyPlayed.isEmpty()) {
-                        item { EmptyStateView(message = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.empty_recents)) }
+                        item(key = "recents_empty") { EmptyStateView(message = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.empty_recents)) }
                     } else {
                         items(uiState.recentlyPlayed, key = { it.id }) { video ->
                             VideoItemRow(
@@ -787,9 +819,9 @@ topBar = {
                 }
                 HomeTab.PLAYLISTS -> {
                     if (openPlaylistId != null && openPl == null) {
-                        item { EmptyStateView(message = "Playlist not found") }
+                        item(key = "playlist_missing") { EmptyStateView(message = "Playlist not found") }
                     } else if (openPl != null) {
-                        item {
+                        item(key = "playlist_header") {
                             var renaming by remember(openPl.id) { mutableStateOf(false) }
                             var newName by remember(openPl.id, openPl.name) { mutableStateOf(openPl.name) }
                             if (renaming) {
@@ -823,7 +855,7 @@ topBar = {
                             }
                         }
                         if (openPlaylistVideos.isEmpty()) {
-                            item { EmptyStateView(message = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.empty_playlist)) }
+                            item(key = "playlist_empty") { EmptyStateView(message = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.empty_playlist)) }
                         } else {
                             items(openPlaylistVideos, key = { it.id }) { video ->
                                 Row(
@@ -841,7 +873,7 @@ topBar = {
                             }
                         }
                     } else if (playlists.isEmpty()) {
-                        item { EmptyStateView(message = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.empty_playlists)) }
+                        item(key = "playlists_empty") { EmptyStateView(message = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.empty_playlists)) }
                     } else {
                         items(playlists, key = { it.id }) { pl ->
                             var confirmDelete by remember(pl.id) { mutableStateOf(false) }
@@ -877,7 +909,7 @@ topBar = {
                 }
                 HomeTab.FAVORITES -> {
                     if (uiState.favorites.isEmpty()) {
-                        item { EmptyStateView(message = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.empty_fav)) }
+                        item(key = "favorites_empty") { EmptyStateView(message = androidx.compose.ui.res.stringResource(com.lnxv.player.R.string.empty_fav)) }
                     } else {
                         items(uiState.favorites, key = { it.id }) { video ->
                             VideoItemRow(

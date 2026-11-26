@@ -299,6 +299,7 @@ class PlayerViewModel(
                 return
             }
             session.playingVaultItem = video.isVault
+            session.progressSaver = { saveProgress() }
             playerManager.owner = this@PlayerViewModel
             val prefs = dataStore.userPreferencesFlow.first()
             val remembered = rememberableId(video)?.let { videoPrefs.get(it) }
@@ -327,10 +328,35 @@ class PlayerViewModel(
         }
     }
 
-    private fun startPlayback(video: VideoItem, positionMs: Long, speed: Float) {
-        val isYouTubeWeb = video.mimeType == "video/youtube" || com.lnxv.player.core.youtube.YouTubeClient.isYouTubeUrl(video.path) || com.lnxv.player.core.youtube.YouTubeClient.isYouTubeUrl(video.uri.toString())
+    private suspend fun startPlayback(video: VideoItem, positionMs: Long, speed: Float) {
+        val isYouTubeWeb = video.mimeType == "video/youtube" ||
+            com.lnxv.player.core.youtube.YouTubeClient.isYouTubeUrl(video.path) ||
+            com.lnxv.player.core.youtube.YouTubeClient.isYouTubeUrl(video.uri.toString())
         if (isYouTubeWeb) {
-            // Handled directly via HTML5 WebView player in PlayerScreen; do not hand web page URL to ExoPlayer!
+            // Resolve the watch page to real googlevideo streams and play natively. Falling back to a WebView embed
+            // produced "error 152-4 / video unavailable" for embed-disabled videos, so resolution is attempted here
+            // for links opened from outside the built-in YouTube screen too.
+            val id = com.lnxv.player.core.youtube.YouTubeClient
+                .extractVideoId(video.path.ifEmpty { video.uri.toString() })
+            val stream = id?.let {
+                runCatching { com.lnxv.player.core.youtube.YouTubeClient.resolve(it, getApplication()) }.getOrNull()?.getOrNull()
+            }
+            if (stream != null) {
+                playerManager.presetDecoderMode(pendingDecoder)
+                playerManager.prepareAndPlay(
+                    uri = Uri.parse(stream.videoUrl),
+                    startPositionMs = positionMs,
+                    externalSubtitleUri = null,
+                    title = stream.title,
+                    audioUri = stream.audioUrl?.let(Uri::parse)
+                )
+                playerManager.applyRememberedTracks(pendingTracks)
+                playerManager.setPlaybackSpeed(speed)
+                playerManager.setSkipSilence(userPrefs.value.isEnabled(com.lnxv.player.core.flags.FeatureFlag.SKIP_SILENCE))
+                refreshOutputRoute()
+                return
+            }
+            // Last resort: PlayerScreen hosts the mobile watch page; controls stay native around it.
             playerManager.pause()
             refreshOutputRoute()
             return
@@ -342,7 +368,8 @@ class PlayerViewModel(
             uri = video.uri,
             startPositionMs = positionMs,
             externalSubtitleUri = onlineSubtitles.rememberedFor(video)?.let { Uri.fromFile(it) },
-            title = if (video.isVault) "Private video" else video.title
+            title = if (video.isVault) "Private video" else video.title,
+            audioUri = video.audioUrl?.let(Uri::parse)
         )
         playerManager.applyRememberedTracks(pendingTracks)
         playerManager.setPlaybackSpeed(speed)
@@ -451,13 +478,13 @@ class PlayerViewModel(
         val video = _uiState.value.currentVideo ?: return
         val pos = _uiState.value.resumePromptPositionMs ?: 0L
         _uiState.value = _uiState.value.copy(resumePromptPositionMs = null)
-        startPlayback(video, pos, pendingSpeed)
+        viewModelScope.launch { startPlayback(video, pos, pendingSpeed) }
     }
 
     fun startOverFromPrompt() {
         val video = _uiState.value.currentVideo ?: return
         _uiState.value = _uiState.value.copy(resumePromptPositionMs = null)
-        startPlayback(video, 0L, pendingSpeed)
+        viewModelScope.launch { startPlayback(video, 0L, pendingSpeed) }
     }
 
     fun playNetworkStream(url: String, title: String) {
@@ -618,6 +645,7 @@ class PlayerViewModel(
         saveProgress()
         closed = true
         session.playingVaultItem = false
+        session.progressSaver = null
         if (playerManager.owner === this) {
             playerManager.owner = null
             playerManager.isVideoScreenActive = false

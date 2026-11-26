@@ -62,9 +62,15 @@ object OpenSubtitlesApi {
     private fun enc(s: String) = URLEncoder.encode(s, "UTF-8")
 
     fun host(baseUrl: String?): String {
-        val h = baseUrl?.trim()?.removePrefix("https://")?.removePrefix("http://")?.trimEnd('/').orEmpty()
-        // Only ever talk to OpenSubtitles hosts, even if a login response says otherwise.
-        return if (h.endsWith("opensubtitles.com")) h else DEFAULT_HOST
+        val raw = baseUrl?.trim().orEmpty()
+        val candidate = raw.removePrefix("https://").removePrefix("http://")
+            .substringBefore('/').substringBefore('?').substringBefore('#')
+        // Only the official OpenSubtitles host (or a real subdomain of it), even if a login response says otherwise.
+        // EndsWith alone accepted "evilopensubtitles.com", which leaked the API key and Bearer token to that host.
+        val lower = candidate.lowercase()
+        val allowed = lower == DEFAULT_HOST ||
+            (lower.endsWith(".opensubtitles.com") && lower.length > ".opensubtitles.com".length)
+        return if (allowed && candidate.none { it == '@' || it == ':' }) lower else DEFAULT_HOST
     }
 
     /** Parameters are lower case and alphabetically ordered, which is what the API documents to avoid redirects. */

@@ -20,4 +20,7 @@ class SessionState {
 
     /** True while a vault video is loaded in the shared player (drives FLAG_SECURE and lock handling). */
     @Volatile var playingVaultItem: Boolean = false
+
+    /** Saves the current playback position; installed by PlayerViewModel and used when the app goes to background. */
+    @Volatile var progressSaver: (() -> Unit)? = null
 }

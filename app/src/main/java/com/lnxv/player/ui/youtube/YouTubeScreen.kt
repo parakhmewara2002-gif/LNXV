@@ -38,6 +38,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -65,6 +66,7 @@ import com.lnxv.player.core.design.appColors
 import com.lnxv.player.core.model.VideoItem
 import com.lnxv.player.core.session.SessionState
 import com.lnxv.player.core.youtube.YouTubeClient
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Composable
@@ -80,17 +82,23 @@ fun YouTubeScreen(
     var resolvingId by remember { mutableStateOf<String?>(null) }
     var showSignInDialog by remember { mutableStateOf(false) }
 
-    fun performSearch(q: String) {
-        if (q.isBlank()) return
+    // Debounced search: one request per pause in typing, and LaunchedEffect cancels the previous request so
+    // out-of-order responses cannot overwrite newer results.
+    LaunchedEffect(query) {
+        val q = query.trim()
+        if (q.length < 3) {
+            if (q.isEmpty()) results = emptyList()
+            isLoading = false
+            return@LaunchedEffect
+        }
+        delay(350)
         isLoading = true
-        scope.launch {
-            YouTubeClient.search(q).onSuccess { list ->
-                results = list
-                isLoading = false
-            }.onFailure { err ->
-                isLoading = false
-                Toast.makeText(context, err.message ?: "Search failed", Toast.LENGTH_SHORT).show()
-            }
+        YouTubeClient.search(q).onSuccess { list ->
+            results = list
+            isLoading = false
+        }.onFailure { err ->
+            isLoading = false
+            Toast.makeText(context, err.message ?: "Search failed", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -111,27 +119,23 @@ fun YouTubeScreen(
                     mimeType = "video/mp4",
                     dateAddedSec = System.currentTimeMillis() / 1000,
                     folderPath = "YouTube",
-                    folderName = "YouTube"
+                    folderName = "YouTube",
+                    audioUrl = stream.audioUrl
                 )
                 session.pendingOpenVideoId.value = LNXVApplication.TRANSIENT_VIDEO_ID
-            }.onFailure { _ ->
+            }.onFailure { err ->
                 resolvingId = null
-                // Fallback directly to YouTube embed in PlayerScreen so it NEVER fails or asks to sign in!
-                session.transientVideo = VideoItem(
-                    id = LNXVApplication.TRANSIENT_VIDEO_ID,
-                    title = item.title,
-                    uri = android.net.Uri.parse("https://www.youtube.com/watch?v=${item.videoId}"),
-                    path = "https://www.youtube.com/watch?v=${item.videoId}",
-                    durationMs = 0L,
-                    sizeBytes = 0L,
-                    width = 1280,
-                    height = 720,
-                    mimeType = "video/youtube",
-                    dateAddedSec = System.currentTimeMillis() / 1000,
-                    folderPath = "YouTube",
-                    folderName = "YouTube"
-                )
-                session.pendingOpenVideoId.value = LNXVApplication.TRANSIENT_VIDEO_ID
+                // Never fall back to the embed WebView: embed-disabled videos fail there with "error 152-4". Hand the
+                // video to the YouTube app/browser instead of showing a broken black player.
+                Toast.makeText(context, err.message ?: "This video cannot be played in-app", Toast.LENGTH_LONG).show()
+                runCatching {
+                    context.startActivity(
+                        android.content.Intent(
+                            android.content.Intent.ACTION_VIEW,
+                            android.net.Uri.parse("https://www.youtube.com/watch?v=${item.videoId}")
+                        )
+                    )
+                }
             }
         }
     }
@@ -161,10 +165,7 @@ fun YouTubeScreen(
                 Box(modifier = Modifier.weight(1f)) {
                     GlassSearchField(
                         value = query,
-                        onValueChange = {
-                            query = it
-                            if (it.length >= 3) performSearch(it)
-                        },
+                        onValueChange = { query = it },
                         placeholder = "Search YouTube videos..."
                     )
                 }
